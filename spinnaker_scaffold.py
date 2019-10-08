@@ -277,14 +277,31 @@ sim.Projection(stimulus, pop_gr, sim.OneToOneConnector(), ss)
 
 # for i in neuron_models.values():
 #    i.record(['v'])
-pop_gr.record(['v'])
+# pop_gr.record(['v'])
+
+# RECORD SPIKES FOR ALL POPULATIONS
+pop_gr.record(['spikes'])
+for cell_id in sorted_nrn_types:
+    cell_name = id_2_cell_type[cell_id]
+    neuron_models[cell_name].record(['spikes'])
+
 
 sim.run(TOT_DURATION)
 
 # g_data = neuron_models.get('granule')
-data1 = pop_gr.get_data(variables=["v"])
+# data1 = pop_gr.get_data(variables=["v"])
 
 # Figure(Panel(g_data.get_data('spikes')), title="Prova")
 
+# print(data1)
 
-print(data1)
+recorded_spikes = {}
+recorded_spikes['grc'] = pop_gr.spinnaker_get_data('spikes')
+for cell_id in sorted_nrn_types:
+    cell_name = id_2_cell_type[cell_id]
+    recorded_spikes[cell_name] = neuron_models[cell_name].spinnaker_get_data('spikes')
+
+np.savez_compressed("results_for_scaffold_experiment",
+                    spikes=recorded_spikes,
+                    network_filename=filename,
+                    simtime=TOT_DURATION)
