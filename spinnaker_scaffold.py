@@ -9,6 +9,8 @@ import h5py
 import matplotlib.pyplot as plt
 from scaffold_params import *
 
+# Constraints go here
+sim.set_number_of_neurons_per_core(sim.IF_cond_exp, 128)
 
 def connect_neuron(conn_mat, pre, post, syn_param):
     WEIGHT = syn_param["weight"]
@@ -67,18 +69,19 @@ for cell_id in sorted_nrn_types:
     if cell_name != 'glomerulus':
 
         if cell_name == 'golgi':
-            cell_params = {'tau_refrac': 2.0,  # ms
-                           'cm': 0.076,  # nF
-                           'v_thresh': -55.0,  # mV
-                           'v_reset': -75.0,  # mV
-                           'tau_m': 21.1,
+            cell_params = {'tau_refrac': 2.0,  # ms -- PAB checked
+                           'cm': 0.076,  # nF -- PAB checked
+                           'v_thresh': -55.0,  # mV -- PAB checked
+                           'v_reset': -75.0,  # mV -- PAB checked
+                           'tau_m': 21,  # 21.1, -- PAB where is this value from?
                            # 'e_rev_leak': -65.0,  # mV
                            'i_offset': 36.75,  # pA # tonic ~9-10 Hz  ;previous = 36.0 pA
-                           'tau_syn_E': 0.5,
-                           'tau_syn_I': 10.0}
+                           'tau_syn_E': 0.5,  #  -- PAB checked
+                           'tau_syn_I': 10.0  #  -- PAB checked
+                           }
         elif cell_name == 'granule':
             cell_params = {'tau_refrac': 1.5,  # ms
-                           'cm': 0.003,  # nF
+                           'cm': 0.003,  # nF   -- PAB checked
                            'v_thresh': -42.0,  # mV
                            'v_reset': -84.0,  # mV
                            'tau_m': 20,
@@ -313,6 +316,7 @@ np.savez_compressed("results_for_scaffold_experiment",
                     network_filename=filename,
                     simtime=TOT_DURATION,
                     no_neurons=no_neurons,
-                    per_model_cell_params=per_model_cell_params)
+                    per_model_cell_params=per_model_cell_params,
+                    stimulus=stim_array_int)
 
 sim.end()
