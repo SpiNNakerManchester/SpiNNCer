@@ -306,9 +306,12 @@ for cell_id in sorted_nrn_types:
     print("Retrieving recording for", cell_name, "...")
     recorded_spikes[cell_name] = neuron_models[cell_name].spinnaker_get_data('spikes')
 
+
 np.savez_compressed("results_for_scaffold_experiment",
                     spikes=recorded_spikes,
                     network_filename=filename,
                     simtime=TOT_DURATION,
                     no_neurons=no_neurons,
                     per_model_cell_params=per_model_cell_params)
+
+sim.end()
