@@ -3,6 +3,8 @@ try:
 except:
     import spynnaker8 as sim
 
+from copy import deepcopy
+
 import h5py
 import matplotlib.pyplot as plt
 from scaffold_params import *
@@ -57,6 +59,8 @@ id_2_cell_type = {val: key for key, val in cell_type_ID.items()}
 # Create a dictionary with all cell names (keys)
 # and lists that will contain nest models (values)
 neuron_models = {key: [] for key in cell_type_ID.keys()}
+no_neurons = {key: [] for key in cell_type_ID.keys()}
+per_model_cell_params = {key: [] for key in cell_type_ID.keys()}
 
 for cell_id in sorted_nrn_types:
     cell_name = id_2_cell_type[cell_id]
@@ -82,9 +86,6 @@ for cell_id in sorted_nrn_types:
                            'i_offset': 0,  # pA # tonic ~9-10 Hz  ;previous = 36.0 pA
                            'tau_syn_E': 0.5,
                            'tau_syn_I': 10.0}
-
-            cell_pos = positions[positions[:, 1] == cell_id, :]
-            pop_gr = sim.Population(cell_pos.shape[0], model)
 
         elif cell_name == 'purkinje':
             cell_params = {'tau_refrac': 0.8,  # ms
@@ -125,7 +126,11 @@ for cell_id in sorted_nrn_types:
 
     cell_pos = positions[positions[:, 1] == cell_id, :]
     neuron_models[cell_name] = sim.Population(cell_pos.shape[0], model)
-
+    # Recording useful values
+    no_neurons[cell_name] = cell_pos.shape[0]
+    per_model_cell_params[cell_name] = deepcopy(cell_params)
+    if cell_name == "granule":
+        pop_gr = neuron_models[cell_name]
     num_tot += cell_pos.shape[0]
 
 # noise = NoisyCurrentSource(mean=0, stdev=50)
@@ -280,7 +285,6 @@ sim.Projection(stimulus, pop_gr, sim.OneToOneConnector(), ss)
 # pop_gr.record(['v'])
 
 # RECORD SPIKES FOR ALL POPULATIONS
-pop_gr.record(['spikes'])
 for cell_id in sorted_nrn_types:
     cell_name = id_2_cell_type[cell_id]
     print("Recording", cell_name, "...")
@@ -297,7 +301,6 @@ sim.run(TOT_DURATION)
 # print(data1)
 
 recorded_spikes = {}
-recorded_spikes['grc'] = pop_gr.spinnaker_get_data('spikes')
 for cell_id in sorted_nrn_types:
     cell_name = id_2_cell_type[cell_id]
     print("Retrieving recording for", cell_name, "...")
@@ -306,4 +309,6 @@ for cell_id in sorted_nrn_types:
 np.savez_compressed("results_for_scaffold_experiment",
                     spikes=recorded_spikes,
                     network_filename=filename,
-                    simtime=TOT_DURATION)
+                    simtime=TOT_DURATION,
+                    no_neurons=no_neurons,
+                    per_model_cell_params=per_model_cell_params)
