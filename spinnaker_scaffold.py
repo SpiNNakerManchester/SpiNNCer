@@ -283,6 +283,7 @@ sim.Projection(stimulus, pop_gr, sim.OneToOneConnector(), ss)
 pop_gr.record(['spikes'])
 for cell_id in sorted_nrn_types:
     cell_name = id_2_cell_type[cell_id]
+    print("Recording", cell_name, "...")
     neuron_models[cell_name].record(['spikes'])
 
 
@@ -299,6 +300,7 @@ recorded_spikes = {}
 recorded_spikes['grc'] = pop_gr.spinnaker_get_data('spikes')
 for cell_id in sorted_nrn_types:
     cell_name = id_2_cell_type[cell_id]
+    print("Retrieving recording for", cell_name, "...")
     recorded_spikes[cell_name] = neuron_models[cell_name].spinnaker_get_data('spikes')
 
 np.savez_compressed("results_for_scaffold_experiment",
