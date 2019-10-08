@@ -125,7 +125,8 @@ for cell_id in sorted_nrn_types:
         model = sim.IF_cond_exp(**cell_params)
 
     cell_pos = positions[positions[:, 1] == cell_id, :]
-    neuron_models[cell_name] = sim.Population(cell_pos.shape[0], model)
+    neuron_models[cell_name] = sim.Population(cell_pos.shape[0], model,
+                                              label=cell_name)
     # Recording useful values
     no_neurons[cell_name] = cell_pos.shape[0]
     per_model_cell_params[cell_name] = deepcopy(cell_params)
