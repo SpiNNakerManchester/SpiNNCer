@@ -9,8 +9,6 @@ import h5py
 import matplotlib.pyplot as plt
 from scaffold_params import *
 
-# Constraints go here
-sim.set_number_of_neurons_per_core(sim.IF_cond_exp, 128)
 
 def connect_neuron(conn_mat, pre, post, syn_param):
     WEIGHT = syn_param["weight"]
@@ -46,6 +44,8 @@ def connect_neuron(conn_mat, pre, post, syn_param):
 
 DELAY = 0.2
 sim.setup(timestep=0.1, min_delay=0.1, max_delay=1.5)
+# Constraints go here
+sim.set_number_of_neurons_per_core(sim.IF_cond_exp, 128)
 
 filename = 'scaffold_detailed__158.0x158.0_v3.hdf5'
 # filename = 'scaffold_full_dcn_400.0x400.0_v3.hdf5'
