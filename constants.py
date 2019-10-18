@@ -1,4 +1,25 @@
-CELL_TYPE_ID = {
+from enum import Enum
+# import sPyNNaker
+try:
+    import spynnaker8 as sim
+except:
+    import pyNN.spynnaker as sim
+
+# Helpful Enum to easily check whether a population should e.g be
+# returned from a Circuit object when a user asks for Inputs / Outputs
+# or all of the units. An alternative use case: this Enum would control the
+# neuron cell type/model. For example, the input population should be
+# represented by a new neuron type: Passthrough Neuron that would project with
+# both Excitatory and Inhibitory synapses; the output population could be
+# represented by a Live Output population / External device.
+class IO_Status(Enum):
+    OUTPUT = 0
+    INPUT = 1
+    HIDDEN = 2
+
+
+# ID is used in hdf5 file defining the positions of individual cells
+POPULATION_ID = {
     'golgi': 1,
     'glomerulus': 2,
     'granule': 3,
@@ -7,6 +28,20 @@ CELL_TYPE_ID = {
     'stellate': 6,
     'dcn': 7
 }
+
+# Cell types
+CELL_TYPES = {
+    'golgi': sim.IF_cond_exp,
+    'glomerulus': sim.IF_cond_exp,
+    'granule': sim.IF_cond_exp,
+    'purkinje': sim.IF_cond_exp,
+    'basket': sim.IF_cond_exp,
+    'stellate': sim.IF_cond_exp,
+    'dcn': sim.IF_cond_exp
+}
+
+# Python 3+ syntax to invert a dictionary
+CELL_NAME_FOR_ID = {v: k for k, v in POPULATION_ID.items()}
 
 # values check on 16.10.2019
 CELL_PARAMS = {
@@ -22,7 +57,7 @@ CELL_PARAMS = {
               },
     ' glomerulus': {  # TODO figure out how to make this passthrough
 
-    },  # Glom is special. It's a non-neural mossy fiber terminal
+    },  # Glom is special. It's a non-neural mossy fiber terminal (input)
     'granule': {'tau_refrac': 1.5,  # ms
                 'cm': 0.003,  # nF
                 'v_thresh': -42.0,  # mV
@@ -72,4 +107,14 @@ CELL_PARAMS = {
             'tau_syn_E': 7.1,  # ms, changed from 0.5
             'tau_syn_I': 13.6  # ms, changed from 10.0
             }
+}
+
+CELL_IO_STATUS = {
+    'golgi': IO_Status.HIDDEN,
+    'glomerulus': IO_Status.INPUT,
+    'granule': IO_Status.HIDDEN,
+    'purkinje': IO_Status.HIDDEN,
+    'basket': IO_Status.HIDDEN,
+    'stellate': IO_Status.HIDDEN,
+    'dcn': IO_Status.OUTPUT
 }
