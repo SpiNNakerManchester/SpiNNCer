@@ -119,7 +119,7 @@ for cell_id in sorted_nrn_types:
 
     else:
         # model = SpikeSourcePoisson()
-        model = IF_cond_exp(**cell_params)
+        model = IF_cond_exp(**cell_params)  # TODO WHICH CELL PARAMS IS THIS?!
 
     cell_pos = positions[positions[:, 1] == cell_id, :]
     neuron_models[cell_name] = Population(cell_pos.shape[0], model)

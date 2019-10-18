@@ -13,10 +13,10 @@ this script.
 
 '''
 # imports
-import numpy as np, h5py, sys
-from circuit import Circuit
-from constants import *
-from colorama import Fore, Back, Style
+import numpy as np, h5py
+from spinncer.circuit import Circuit
+from spinncer.utilities.constants import *
+from colorama import Fore, Style, init as color_init
 
 
 class Cerebellum(Circuit):
@@ -68,7 +68,8 @@ class Cerebellum(Circuit):
         :return: INPUT populations in the Cerebellar circuit
         :rtype: dict
         """
-        return {k:v for k,v in self.__populations.items() if CELL_IO_STATUS[k] == IO_Status.INPUT}
+        return {k:v for k,v in self.__populations.items()
+                if CELL_IO_STATUS[k] == IO_Status.INPUT}
 
 
     def get_circuit_outputs(self):
@@ -77,7 +78,8 @@ class Cerebellum(Circuit):
         :return: OUTPUT populations in the Cerebellar circuit
         :rtype: dict
         """
-        return {k: v for k, v in self.__populations.items() if CELL_IO_STATUS[k] == IO_Status.OUTPUT}
+        return {k: v for k, v in self.__populations.items()
+                if CELL_IO_STATUS[k] == IO_Status.OUTPUT}
 
     def get_all_populations(self):
         """
@@ -118,6 +120,7 @@ class Cerebellum(Circuit):
         :return: None
         :rtype: None
         """
+        color_init(strip=False)
         unique_ids = np.unique(positions[:, 1]).astype(int)
         print("=" * 60)
         print("The file contains information about",
@@ -156,7 +159,7 @@ if __name__ == "__main__":
 
     # Record simulation start time (wall clock)
     start_time = plt.datetime.datetime.now()
-    connectivity_filename = 'scaffold_detailed__158.0x158.0_v3.hdf5'
+    connectivity_filename = 'datasets/scaffold_detailed__158.0x158.0_v3.hdf5'
 
     # Set up the simulation
     # TODO control some of these using the argparser
