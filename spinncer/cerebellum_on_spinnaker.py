@@ -154,7 +154,7 @@ if __name__ == "__main__":
         import spynnaker8 as sim
     except:
         import pyNN.spynnaker as sim
-    # from spinncer_argparser import *
+    from spinncer_argparser import *
     import pylab as plt
 
     # Record simulation start time (wall clock)
