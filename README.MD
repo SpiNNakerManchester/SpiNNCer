@@ -7,9 +7,11 @@ The full description of the model is available at: https://www.frontiersin.org/a
 
 
 The architecture of the scaffold model:
+
 ![Cerebellum architecture](https://www.frontiersin.org/files/Articles/444802/fninf-13-00037-HTML-r1/image_m/fninf-13-00037-g001.jpg)
 
 Neuron parameters:
+
 ![Neuron parameter table](https://www.frontiersin.org/files/Articles/444802/fninf-13-00037-HTML-r1/image_m/fninf-13-00037-t002.jpg)
 
 ## Installation

@@ -147,47 +147,17 @@ class Cerebellum(Circuit):
             _no_cells = positions[positions[:, 1] == ui, :].shape[0]
             print("\t{:10} -> {:10} ".format(_cell_name, _no_cells))
 
+    def record_all_spikes(self):
+        for label, pop in self.__populations.items():
+            pop.record(['spikes'])
 
-if __name__ == "__main__":
-    # import sPyNNaker
-    try:
-        import spynnaker8 as sim
-    except:
-        import pyNN.spynnaker as sim
-    from spinncer_argparser import *
-    import pylab as plt
 
-    # Record simulation start time (wall clock)
-    start_time = plt.datetime.datetime.now()
-    connectivity_filename = 'datasets/scaffold_detailed__158.0x158.0_v3.hdf5'
+    def retrieve_all_recorded_spikes(self, spinnaker_data=True):
+        all_spikes = {}
+        for label, pop in self.__populations.items():
+            if spinnaker_data:
+                all_spikes[label] = pop.spinnaker_get_data(['spikes'])
+            else:
+                all_spikes[label] = pop.get_data(['spikes'])
+        return all_spikes
 
-    # Set up the simulation
-    # TODO control some of these using the argparser
-    sim.setup(timestep=.1, min_delay=.1, max_delay=10)
-
-    cerebellum_circuit = Cerebellum(sim, connectivity_filename)
-    # Test various exposed methods
-    populations = cerebellum_circuit.get_all_populations()
-    assert (len(populations) == 7)
-    input_populations = cerebellum_circuit.get_circuit_inputs()
-    assert (len(input_populations) == 1)
-    output_populations = cerebellum_circuit.get_circuit_outputs()
-    assert (len(output_populations) == 1)
-
-    # Add stimulus to the network
-
-    # Set up recordings
-
-    # Run the simulation
-
-    # Retrieve recordings
-
-    # Compute time taken to reach this point
-    end_time = plt.datetime.datetime.now()
-    total_time = end_time - start_time
-    # Save results
-
-    # Appropriately end the simulation
-    sim.end()
-    # Report time again
-    print(Fore.GREEN + "Total time elapsed -- " + str(total_time) + Style.RESET_ALL)

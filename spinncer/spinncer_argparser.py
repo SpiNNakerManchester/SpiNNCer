@@ -2,10 +2,23 @@ import argparse
 
 DEFAULT_FIGURE_DIR = 'figures/'
 DEFAULT_RESULT_DIR = 'results/'
+DEFAULT_SIMTIME = 500  # ms
+DEFAULT_TIMESTEP = 0.1  # ms
 
 parser = argparse.ArgumentParser(
     description='Run a cerebellar simulation on SpiNNaker.',
     formatter_class=argparse.RawTextHelpFormatter)
+
+parser.add_argument('--simtime', type=float,
+                    help="simulation time (in ms) "
+                         "-- default {}ms".format(DEFAULT_SIMTIME),
+                    default=DEFAULT_SIMTIME)
+
+
+parser.add_argument('--timestep', type=float,
+                    help="simulation timestep (in ms) "
+                         "-- default {}ms".format(DEFAULT_TIMESTEP),
+                    default=DEFAULT_TIMESTEP)
 
 parser.add_argument('-i', '--input', type=str,
                     help="name of the dataset storing "
