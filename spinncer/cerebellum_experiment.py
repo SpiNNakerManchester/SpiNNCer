@@ -52,6 +52,7 @@ if not os.path.isdir(args.result_dir) and not os.path.exists(args.result_dir):
     os.mkdir(args.result_dir)
 
 np.savez_compressed(os.path.join(args.result_dir, filename),
+                    all_spikes=recorded_spikes,
                     **recorded_spikes)
 # Appropriately end the simulation
 sim.end()

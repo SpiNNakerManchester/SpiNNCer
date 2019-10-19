@@ -16,7 +16,7 @@ this script.
 import numpy as np, h5py
 from spinncer.circuit import Circuit
 from spinncer.utilities.constants import *
-from colorama import Fore, Style, init as color_init
+from spinncer.utilities.reporting import population_reporting
 
 
 class Cerebellum(Circuit):
@@ -33,13 +33,11 @@ class Cerebellum(Circuit):
         # Construct PyNN neural Populations
         self.__build_populations(np.asarray(__connectivity['positions']))
 
-        # Construct PyNN Projections
+        # TODO Construct PyNN Projections
         self.__build_projections(np.asarray(__connectivity['connections']))
 
         for pop_name, pop_obj in self.__populations.items():
             self.__setattr__(pop_name, pop_obj)
-
-        pass
 
     def __build_populations(self, positions):
         """
@@ -47,13 +45,13 @@ class Cerebellum(Circuit):
         """
         if self.reporting:
             # Report statistics about the populations to be built
-            self.__population_reporting(positions)
+            population_reporting(positions)
         unique_ids = np.unique(positions[:, 1]).astype(int)
         for ui in unique_ids:
             _cell_name = CELL_NAME_FOR_ID[ui]
             _no_cells = positions[positions[:, 1] == ui, :].shape[0]
             # Adding the population to the network
-            self.__populations[_cell_name] = sim.Population(
+            self.__populations[_cell_name] = self.__sim.Population(
                 _no_cells, CELL_TYPES[_cell_name], label=_cell_name + "cells")
 
     def __build_projections(self, connections):
@@ -112,45 +110,9 @@ class Cerebellum(Circuit):
             # understandable format
             return connectivity
 
-    def __population_reporting(self, positions):
-        """
-        Helper function reporting on various aspects of the Populations
-        :param positions: X Y Z positions of individual cells
-        :type positions: np.ndarray
-        :return: None
-        :rtype: None
-        """
-        color_init(strip=False)
-        unique_ids = np.unique(positions[:, 1]).astype(int)
-        print("=" * 60)
-        print("The file contains information about",
-              Fore.GREEN, unique_ids.size, Style.RESET_ALL, "populations")
-        print("=" * 60)
-        print("Mapping of IDs:")
-        print("-" * 60)
-        for ui in unique_ids:
-            _cell_name = CELL_NAME_FOR_ID[ui]
-            _status = CELL_IO_STATUS[_cell_name]
-            if _status == IO_Status.INPUT:
-                _color = Fore.GREEN
-            elif _status == IO_Status.OUTPUT:
-                _color = Fore.RED
-            else:
-                _color = ''
-            print("\t{:2d} -> {:10} ".format(ui, _cell_name),
-                  _color, "[{:16}]".format(_status), Style.RESET_ALL)
-        print("=" * 60)
-        print("Number of neurons in each population")
-        print("-" * 60)
-        for ui in unique_ids:
-            _cell_name = CELL_NAME_FOR_ID[ui]
-            _no_cells = positions[positions[:, 1] == ui, :].shape[0]
-            print("\t{:10} -> {:10} ".format(_cell_name, _no_cells))
-
     def record_all_spikes(self):
         for label, pop in self.__populations.items():
             pop.record(['spikes'])
-
 
     def retrieve_all_recorded_spikes(self, spinnaker_data=True):
         all_spikes = {}
@@ -160,4 +122,7 @@ class Cerebellum(Circuit):
             else:
                 all_spikes[label] = pop.get_data(['spikes'])
         return all_spikes
+
+    def retrieve_population_names(self):
+        return list(self.__populations.keys())
 
