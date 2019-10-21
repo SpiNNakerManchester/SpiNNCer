@@ -1,5 +1,5 @@
 # import sPyNNaker
-from spinncer.cerebellum_on_spinnaker import Cerebellum
+from spinncer.cerebellum import Cerebellum
 import numpy as np
 try:
     import spynnaker8 as sim

@@ -1,1 +1,1 @@
-from spinncer.cerebellum_on_spinnaker import Cerebellum
+from spinncer.cerebellum import Cerebellum
