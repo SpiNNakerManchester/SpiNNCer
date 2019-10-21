@@ -15,8 +15,7 @@ def retrieve_git_commit():
 
     try:
         proc = subprocess.run(bash_command.split(),
-                              capture_output=True,
-                              text=True)
+                              capture_output=True)
         return proc.stdout
     except subprocess.CalledProcessError as e:
         print("Failed to retrieve git commit HASH-", str(e))
