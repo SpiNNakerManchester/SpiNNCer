@@ -7,9 +7,9 @@ try:
 except:
     import pyNN.spynnaker as sim
 # argparser for easily running experiment from cli
-from spinncer_argparser import *
+from spinncer.spinncer_argparser import *
 # provenance utility
-from provenance import retrieve_git_commit
+from spinncer.utilities.provenance import retrieve_git_commit
 import pylab as plt
 import os
 
