@@ -66,9 +66,8 @@ class Cerebellum(Circuit):
         :return: INPUT populations in the Cerebellar circuit
         :rtype: dict
         """
-        return {k:v for k,v in self.__populations.items()
+        return {k: v for k, v in self.__populations.items()
                 if CELL_IO_STATUS[k] == IO_Status.INPUT}
-
 
     def get_circuit_outputs(self):
         """
@@ -126,3 +125,6 @@ class Cerebellum(Circuit):
     def retrieve_population_names(self):
         return list(self.__populations.keys())
 
+    @staticmethod
+    def retrieve_cell_params():
+        return CELL_PARAMS

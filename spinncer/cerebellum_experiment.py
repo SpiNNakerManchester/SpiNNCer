@@ -2,10 +2,14 @@
 from spinncer.cerebellum import Cerebellum
 import numpy as np
 try:
+    # this might be deprecated soon
     import spynnaker8 as sim
 except:
     import pyNN.spynnaker as sim
+# argparser for easily running experiment from cli
 from spinncer_argparser import *
+# provenance utility
+from provenance import retrieve_git_commit
 import pylab as plt
 import os
 
@@ -17,6 +21,7 @@ connectivity_filename = 'datasets/scaffold_detailed__158.0x158.0_v3.hdf5'
 sim.setup(timestep=args.timestep, min_delay=args.timestep, max_delay=10)
 
 cerebellum_circuit = Cerebellum(sim, connectivity_filename)
+
 # Test various exposed methods
 populations = cerebellum_circuit.get_all_populations()
 assert (len(populations) == 7)
@@ -51,10 +56,21 @@ else:
 if not os.path.isdir(args.result_dir) and not os.path.exists(args.result_dir):
     os.mkdir(args.result_dir)
 
+# Retrieve simulation parameters for provenance tracking and debugging purposes
+sim_params = {
+    "cell_params": cerebellum_circuit.retrieve_cell_params(),
+    "argparser": vars(args),
+    "git_hash": retrieve_git_commit()
+}
+
+# Save results to file in [by default] the `results/' directory
 np.savez_compressed(os.path.join(args.result_dir, filename),
+                    simulation_parameters=sim_params,
                     all_spikes=recorded_spikes,
+                    simtime=args.simtime,
                     **recorded_spikes)
 # Appropriately end the simulation
 sim.end()
+
 # Report time again
 print("Total time elapsed -- " + str(total_time))
