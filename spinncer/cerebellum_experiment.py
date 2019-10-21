@@ -60,7 +60,9 @@ if not os.path.isdir(args.result_dir) and not os.path.exists(args.result_dir):
 sim_params = {
     "cell_params": cerebellum_circuit.retrieve_cell_params(),
     "argparser": vars(args),
-    "git_hash": retrieve_git_commit()
+    "git_hash": retrieve_git_commit(),
+    "run_end_time": end_time.strftime("%H:%M:%S_%d/%m/%Y"),
+    "wall_clock_run_time": str(total_time)
 }
 
 # Save results to file in [by default] the `results/' directory
@@ -69,8 +71,12 @@ np.savez_compressed(os.path.join(args.result_dir, filename),
                     all_spikes=recorded_spikes,
                     simtime=args.simtime,
                     **recorded_spikes)
+
 # Appropriately end the simulation
 sim.end()
 
-# Report time again
+# Report time taken
+print("Results stored in  -- " + filename)
+
+# Report time taken
 print("Total time elapsed -- " + str(total_time))
