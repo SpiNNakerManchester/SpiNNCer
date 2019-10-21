@@ -13,7 +13,7 @@ from spinncer.utilities.provenance import retrieve_git_commit
 import pylab as plt
 import os
 
-# Record simulation start time (wall clock)
+# Record SCRIPT start time (wall clock)
 start_time = plt.datetime.datetime.now()
 connectivity_filename = 'datasets/scaffold_detailed__158.0x158.0_v3.hdf5'
 
@@ -37,15 +37,19 @@ assert (len(output_populations) == 1)
 # Set up recordings
 cerebellum_circuit.record_all_spikes()
 
+# Record simulation start time (wall clock)
+sim_start_time = plt.datetime.datetime.now()
+
 # Run the simulation
 sim.run(args.simtime)
-
-# Retrieve recordings
-recorded_spikes = cerebellum_circuit.retrieve_all_recorded_spikes()
 
 # Compute time taken to reach this point
 end_time = plt.datetime.datetime.now()
 total_time = end_time - start_time
+sim_total_time = end_time - sim_start_time
+
+# Retrieve recordings
+recorded_spikes = cerebellum_circuit.retrieve_all_recorded_spikes()
 
 # Save results
 suffix = end_time.strftime("_%H%M%S_%d%m%Y")
@@ -64,7 +68,8 @@ sim_params = {
     "argparser": vars(args),
     "git_hash": retrieve_git_commit(),
     "run_end_time": end_time.strftime("%H:%M:%S_%d/%m/%Y"),
-    "wall_clock_run_time": str(total_time)
+    "wall_clock_run_time": str(total_time),
+    "wall_clock_sim_run_time": str(sim_total_time),
 }
 
 # Save results to file in [by default] the `results/' directory

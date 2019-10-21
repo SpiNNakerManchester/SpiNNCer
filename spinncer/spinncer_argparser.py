@@ -2,7 +2,7 @@ import argparse
 
 DEFAULT_FIGURE_DIR = 'figures/'
 DEFAULT_RESULT_DIR = 'results/'
-DEFAULT_SIMTIME = 500  # ms
+DEFAULT_SIMTIME = 1000  # ms, see page 5 of 10.3389/fninf.2019.00037
 DEFAULT_TIMESTEP = 0.1  # ms
 
 parser = argparse.ArgumentParser(

@@ -123,73 +123,120 @@ CELL_IO_STATUS = {
     'dcn': IO_Status.OUTPUT
 }
 
+# PyNN units for synapses:
+# http://neuralensemble.org/docs/PyNN/reference/plasticitymodels.html#weight-dependence-components
+# suggest that conductance-based synapses have weight = uS
+# NB paper weights are defined using nS:
+# https://www.frontiersin.org/files/Articles/444802/fninf-13-00037-HTML-r1/image_m/fninf-13-00037-t003.jpg
+# delay = ms
 CONNECTIVITY_MAP = {
     'aa_goc': {
         'pre': 'granule',
         'post': 'golgi',
+        'weight': 2.0e-02,  # uS
+        'delay': 2.0,  # ms
     },
     'aa_pc': {
         'pre': 'granule',
         'post': 'purkinje',
+        'weight': 7.5e-02,  # uS
+        'delay': 2.0,  # ms
     },
     'bc_pc': {
         'pre': 'basket',
         'post': 'purkinje',
+        'weight': -9.0e-03,  # uS
+        'delay': 4.0,  # ms
     },
     'gj_bc': {
         'pre': 'basket',
         'post': 'basket',
+        'weight': -2.5e-03,  # uS
+        'delay': 4.0,  # ms
     },
     'gj_goc': {
         'pre': 'golgi',
         'post': 'golgi',
+        'weight': -8.0e-03,  # uS
+        'delay': 1.0,  # ms
     },
     'gj_sc': {
         'pre': 'granule',
         'post': 'stellate',
+        'weight': -2.0e-03,  # uS
+        'delay': 1.0,  # ms
     },
     'glom_dcn': {
         'pre': 'glomerulus',
         'post': 'dcn',
+        'weight': 6.0e-06,  # uS
+        'delay': 4.0,  # ms
     },
     'glom_goc': {
         'pre': 'glomerulus',
         'post': 'golgi',
+        'weight': 2.0e-03,  # uS
+        'delay': 4.0,  # ms
     },
     'glom_grc': {
         'pre': 'glomerulus',
         'post': 'granule',
+        'weight': 9.0e-03,  # uS
+        'delay': 4.0,  # ms
     },
     'goc_glom': {
         'pre': 'golgi',
         'post': 'glomerulus',
+        'weight': -5.0e-03,  # uS
+        'delay': 2.0,  # ms
     },
     'goc_grc': {
         'pre': 'golgi',
         'post': 'granule',
+        'weight': -5.0e-03,  # uS
+        'delay': 2.0,  # ms
     },
     'pc_dcn': {
         'pre': 'purkinje',
         'post': 'dcn',
+        'weight': -7.5e-06,  # uS
+        'delay': 4.0,  # ms
     },
     'pf_bc': {
         'pre': 'granule',
         'post': 'basket',
+        'weight': 2.0e-05,  # uS
+        'delay': 5.0,  # ms
     },
     'pf_goc': {
         'pre': 'granule',
         'post': 'golgi',
+        'weight': 4.0e-04,  # uS
+        'delay': 5.0,  # ms
     },
     'pf_pc': {
         'pre': 'granule',
         'post': 'golgi',
+        'weight': 2.0e-05,  # uS
+        'delay': 5.0,  # ms
     },
     'pf_sc': {
         'pre': 'granule',
         'post': 'stellate',
+        'weight': 2.0e-05,  # uS
+        'delay': 5.0,  # ms
     },
     'sc_pc': {
         'pre': 'stellate',
         'post': 'purkinje',
+        'weight': -8.5e-03,  # uS
+        'delay': 5.0,  # ms
     },
+}
+
+# 300 ms pre-stimulus, 50 ms stimulus, and 650 ms post-stimulus.
+STIMULATION_DURATIONS = {
+    'pre': 300,  # ms
+    'during': 50,  # ms
+    'post': 650,  # ms
 }
