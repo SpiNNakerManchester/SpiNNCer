@@ -20,7 +20,9 @@ connectivity_filename = 'datasets/scaffold_detailed__158.0x158.0_v3.hdf5'
 # Set up the simulation
 sim.setup(timestep=args.timestep, min_delay=args.timestep, max_delay=10)
 
-cerebellum_circuit = Cerebellum(sim, connectivity_filename)
+cerebellum_circuit = Cerebellum(sim, connectivity_filename,
+                                reporting=args.no_reports,
+                                skip_projections=args.skip_projections)
 
 # Test various exposed methods
 populations = cerebellum_circuit.get_all_populations()

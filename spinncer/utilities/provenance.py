@@ -15,6 +15,9 @@ def retrieve_git_commit():
     bash_command = "git rev-parse HEAD"
 
     try:
+        # We have to use `stdout=PIPE, stderr=PIPE` instead of `text=True`
+        # when using Python 3.6 and earlier. Python 3.7+ will have these QOL
+        # improvements
         proc = subprocess.run(bash_command.split(),
                               stdout=PIPE, stderr=PIPE, shell=False)
         return proc.stdout

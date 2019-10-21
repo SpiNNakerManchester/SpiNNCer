@@ -34,6 +34,10 @@ parser.add_argument('--no_reports', action="store_false",
                     help='if this flag is present suppress the '
                          'printing of textual reports')
 
+parser.add_argument('--skip_projections', action="store_true",
+                    help='if this flag is present suppress the '
+                         'creation of projections in the network')
+
 parser.add_argument('--figures_dir', type=str,
                     help='directory into which save figures',
                     default=DEFAULT_FIGURE_DIR)

@@ -1,9 +1,11 @@
 from enum import Enum
+
 # import sPyNNaker
 try:
     import spynnaker8 as sim
 except:
     import pyNN.spynnaker as sim
+
 
 # Helpful Enum to easily check whether a population should e.g be
 # returned from a Circuit object when a user asks for Inputs / Outputs
@@ -44,6 +46,8 @@ CELL_TYPES = {
 CELL_NAME_FOR_ID = {v: k for k, v in POPULATION_ID.items()}
 
 # values check on 16.10.2019
+# Checked against:
+# https://www.frontiersin.org/files/Articles/444802/fninf-13-00037-HTML-r1/image_m/fninf-13-00037-t002.jpg
 CELL_PARAMS = {
     'golgi': {'tau_refrac': 2.0,  # ms
               'cm': 0.076,  # nF
@@ -117,4 +121,75 @@ CELL_IO_STATUS = {
     'basket': IO_Status.HIDDEN,
     'stellate': IO_Status.HIDDEN,
     'dcn': IO_Status.OUTPUT
+}
+
+CONNECTIVITY_MAP = {
+    'aa_goc': {
+        'pre': 'granule',
+        'post': 'golgi',
+    },
+    'aa_pc': {
+        'pre': 'granule',
+        'post': 'purkinje',
+    },
+    'bc_pc': {
+        'pre': 'basket',
+        'post': 'purkinje',
+    },
+    'gj_bc': {
+        'pre': 'basket',
+        'post': 'basket',
+    },
+    'gj_goc': {
+        'pre': 'golgi',
+        'post': 'golgi',
+    },
+    'gj_sc': {
+        'pre': 'granule',
+        'post': 'stellate',
+    },
+    'glom_dcn': {
+        'pre': 'glomerulus',
+        'post': 'dcn',
+    },
+    'glom_goc': {
+        'pre': 'glomerulus',
+        'post': 'golgi',
+    },
+    'glom_grc': {
+        'pre': 'glomerulus',
+        'post': 'granule',
+    },
+    'goc_glom': {
+        'pre': 'golgi',
+        'post': 'glomerulus',
+    },
+    'goc_grc': {
+        'pre': 'golgi',
+        'post': 'granule',
+    },
+    'pc_dcn': {
+        'pre': 'purkinje',
+        'post': 'dcn',
+    },
+    'pf_bc': {
+        'pre': 'granule',
+        'post': 'basket',
+    },
+    'pf_goc': {
+        'pre': 'granule',
+        'post': 'golgi',
+    },
+    'pf_pc': {
+        'pre': 'granule',
+        'post': 'golgi',
+    },
+    'pf_sc': {
+        'pre': 'granule',
+        'post': 'stellate',
+    },
+    'sc_pc': {
+        'pre': 'stellate',
+        'post': 'purkinje',
+    },
 }

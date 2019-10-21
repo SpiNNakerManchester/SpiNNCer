@@ -13,15 +13,18 @@ this script.
 
 '''
 # imports
-import numpy as np, h5py
+import numpy as np
+import h5py
 from spinncer.circuit import Circuit
 from spinncer.utilities.constants import *
-from spinncer.utilities.reporting import population_reporting
+from spinncer.utilities.reporting import (population_reporting,
+                                          projection_reporting)
 
 
 class Cerebellum(Circuit):
 
-    def __init__(self, sim, connectivity, reporting=True):
+    def __init__(self, sim, connectivity, reporting=True,
+                 skip_projections=False):
         self.__sim = sim
         self.reporting = reporting
 
@@ -34,7 +37,8 @@ class Cerebellum(Circuit):
         self.__build_populations(np.asarray(__connectivity['positions']))
 
         # TODO Construct PyNN Projections
-        self.__build_projections(np.asarray(__connectivity['connections']))
+        if not skip_projections:
+            self.__build_projections(__connectivity['connections'])
 
         for pop_name, pop_obj in self.__populations.items():
             self.__setattr__(pop_name, pop_obj)
@@ -58,7 +62,9 @@ class Cerebellum(Circuit):
         """
         Construct PyNN Projections between Populations
         """
-        pass
+        if self.reporting:
+            # Report statistics about the populations to be built
+            projection_reporting(connections)
 
     def get_circuit_inputs(self):
         """
@@ -111,11 +117,13 @@ class Cerebellum(Circuit):
 
     def record_all_spikes(self):
         for label, pop in self.__populations.items():
+            print("Enabling recordings for ", label, "...")
             pop.record(['spikes'])
 
     def retrieve_all_recorded_spikes(self, spinnaker_data=True):
         all_spikes = {}
         for label, pop in self.__populations.items():
+            print("Retrieving recordings for ", label, "...")
             if spinnaker_data:
                 all_spikes[label] = pop.spinnaker_get_data(['spikes'])
             else:
