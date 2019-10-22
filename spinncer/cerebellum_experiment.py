@@ -1,6 +1,7 @@
 # import sPyNNaker
 from spinncer.cerebellum import Cerebellum
 import numpy as np
+
 try:
     # this might be deprecated soon
     import spynnaker8 as sim
@@ -32,7 +33,35 @@ assert (len(input_populations) == 1)
 output_populations = cerebellum_circuit.get_circuit_outputs()
 assert (len(output_populations) == 1)
 
-# Add stimulus to the network
+# Add stimulus to the network -- GLOM
+# number of neurons for input is number of neurons in GLOM
+n_inputs = cerebellum_circuit.number_of_neurons['glomerulus']
+# convert stimulation times to numpy array
+stim_times = np.asarray(args.stim_times)
+# compute number of rate changes required
+number_of_slots = int(stim_times.size)
+# compute the time at which individual rates take effect
+stim_start = np.cumsum(np.append([0], stim_times))[:number_of_slots]
+starts = np.ones((n_inputs, number_of_slots)) * stim_start
+# compute the duration (in ms) for which individual rates are active
+durations = np.ones((n_inputs, number_of_slots)) * stim_times
+# compute the individual rates (in Hz) for each slot
+rates = np.ones((n_inputs, number_of_slots)) * \
+        np.asarray([args.f_base, args.f_base + args.f_peak, args.f_base])
+# Add a variable-rate poisson spike source to the network
+stimulus_params = {
+    'rates': rates,
+    'starts': starts,
+    'durations': durations,
+}
+stimulus = sim.Population(n_inputs, sim.extra_models.SpikeSourcePoissonVariable,
+                          stimulus_params, label='stimulus population')
+# Connect stimulus to the relevant populations (here, granular)
+# The connection has the same parameters as glom_grc
+sim.Projection(stimulus, cerebellum_circuit.granule,
+               sim.FromListConnector(cerebellum_circuit.connections['glom_grc']),
+               label="stimulus projection")
+
 
 # Set up recordings
 cerebellum_circuit.record_all_spikes()
@@ -41,7 +70,7 @@ cerebellum_circuit.record_all_spikes()
 sim_start_time = plt.datetime.datetime.now()
 
 # Run the simulation
-sim.run(args.simtime)
+sim.run(args.simtime)  # ms
 
 # Compute time taken to reach this point
 end_time = plt.datetime.datetime.now()
@@ -76,6 +105,7 @@ sim_params = {
 np.savez_compressed(os.path.join(args.result_dir, filename),
                     simulation_parameters=sim_params,
                     all_spikes=recorded_spikes,
+                    stimulus_params=stimulus_params,
                     simtime=args.simtime,
                     **recorded_spikes)
 

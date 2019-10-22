@@ -32,6 +32,7 @@ class Cerebellum(Circuit):
         self.__number_of_neurons = {k: None for k in POPULATION_ID.keys()}
         self.__nid_offset = {k: None for k in POPULATION_ID.keys()}
         self.__projections = {k: None for k in CONNECTIVITY_MAP.keys()}
+        self.__connections = {k: None for k in CONNECTIVITY_MAP.keys()}
 
         __connectivity = self.__extract_connectivity(connectivity)
 
@@ -89,10 +90,18 @@ class Cerebellum(Circuit):
             # 2. Unique NID for post-synaptic neuron
             # 3. 3D distance between somas
             conns = np.asarray(connections[conn_label])[:, :2].astype(int)
+            no_synapses = conns.shape[0]
             pre_pop = CONNECTIVITY_MAP[conn_label]['pre']
             post_pop = CONNECTIVITY_MAP[conn_label]['post']
             weight = CONNECTIVITY_MAP[conn_label]['weight']
             delay = CONNECTIVITY_MAP[conn_label]['delay']
+
+            # Save the explicit connectivity for later
+            stacked_weights = np.asarray([[weight]] * no_synapses)
+            stacked_delays = np.asarray([[delay]] * no_synapses)
+            self.__connections[conn_label] = np.concatenate([conns,
+                                           stacked_weights,
+                                            stacked_delays], axis=1)
 
             # Normalise the source and target neuron IDs
             # Neurons IDs used here are np.arange(0, TOTAL_NUMBER_OF_NEURONS)
@@ -183,3 +192,7 @@ class Cerebellum(Circuit):
     @property
     def number_of_neurons(self):
         return self.__number_of_neurons
+
+    @property
+    def connections(self):
+        return self.__connections
