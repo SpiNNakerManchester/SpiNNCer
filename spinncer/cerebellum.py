@@ -116,6 +116,7 @@ class Cerebellum(Circuit):
                 synapse_type=self.__sim.StaticSynapse(
                     weight=weight,
                     delay=delay),  # synapse type (weights + delays)
+                receptor_type="inhibitory" if weight < 0 else "excitatory",
                 label=conn_label)  # label for connection
 
     def get_circuit_inputs(self):
