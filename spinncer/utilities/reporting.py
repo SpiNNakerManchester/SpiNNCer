@@ -67,9 +67,16 @@ def projection_reporting(connections):
     for key in connection_keys:
         # report number of synapses
         conns = np.asarray(connections[key])
+        weight = CONNECTIVITY_MAP[key]['weight']
+        if weight >= 0:
+            coloured_syn_type = Fore.GREEN + "[exc]" + Style.RESET_ALL
+        else:
+            coloured_syn_type = Fore.RED + "[inh]" + Style.RESET_ALL
         number_of_syn = conns.shape[0]
         total_number_of_synapses += number_of_syn
-        print("\t{:10} -> {:10} synapses".format(key, number_of_syn))
+        print("\t{:10} -> {:10} synapses {:5}".format(key,
+                                                      number_of_syn,
+                                                      coloured_syn_type))
         # compute fan in of post population
         number_of_afferents[CONNECTIVITY_MAP[key]['post']] += number_of_syn
     print(Fore.GREEN, "\t{:10} -> {:10} synapses".format(
