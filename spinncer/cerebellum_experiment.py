@@ -21,6 +21,10 @@ connectivity_filename = 'datasets/scaffold_detailed__158.0x158.0_v3.hdf5'
 # Set up the simulation
 sim.setup(timestep=args.timestep, min_delay=args.timestep, max_delay=10)
 
+# Add constraints here
+sim.set_number_of_neurons_per_core(sim.IF_cond_exp, 64)
+
+# Instantiate a Cerebellum
 cerebellum_circuit = Cerebellum(sim, connectivity_filename,
                                 reporting=args.no_reports,
                                 skip_projections=args.skip_projections)
@@ -61,7 +65,6 @@ stimulus = sim.Population(n_inputs, sim.extra_models.SpikeSourcePoissonVariable,
 sim.Projection(stimulus, cerebellum_circuit.granule,
                sim.FromListConnector(cerebellum_circuit.connections['glom_grc']),
                label="stimulus projection")
-
 
 # Set up recordings
 cerebellum_circuit.record_all_spikes()
