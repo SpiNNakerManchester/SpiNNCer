@@ -96,6 +96,13 @@ class Cerebellum(Circuit):
             weight = CONNECTIVITY_MAP[conn_label]['weight']
             delay = CONNECTIVITY_MAP[conn_label]['delay']
 
+
+            # Normalise the source and target neuron IDs
+            # Neurons IDs used here are np.arange(0, TOTAL_NUMBER_OF_NEURONS)
+            norm_ids = np.asarray([self.__nid_offset[pre_pop],
+                                   self.__nid_offset[post_pop]])
+            conns -= norm_ids
+
             # Save the explicit connectivity for later
             stacked_weights = np.asarray([[weight]] * no_synapses)
             stacked_delays = np.asarray([[delay]] * no_synapses)
@@ -103,11 +110,6 @@ class Cerebellum(Circuit):
                                            stacked_weights,
                                             stacked_delays], axis=1)
 
-            # Normalise the source and target neuron IDs
-            # Neurons IDs used here are np.arange(0, TOTAL_NUMBER_OF_NEURONS)
-            norm_ids = np.asarray([self.__nid_offset[pre_pop],
-                                   self.__nid_offset[post_pop]])
-            conns -= norm_ids
             # Adding the projection to the network
             self.__projections[conn_label] = self.__sim.Projection(
                 self.__populations[pre_pop],  # pre-synaptic population
