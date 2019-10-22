@@ -59,7 +59,8 @@ stimulus_params = {
     'durations': durations,
 }
 stimulus = sim.Population(n_inputs, sim.extra_models.SpikeSourcePoissonVariable,
-                          stimulus_params, label='stimulus population')
+                          stimulus_params, label='stimulus population',
+                          additional_parameters={'seed': 31415926})
 # Connect stimulus to the relevant populations (here, granular)
 # The connection has the same parameters as glom_grc
 sim.Projection(stimulus, cerebellum_circuit.granule,
@@ -68,6 +69,7 @@ sim.Projection(stimulus, cerebellum_circuit.granule,
 
 # Set up recordings
 cerebellum_circuit.record_all_spikes()
+stimulus.record(['spikes'])
 
 # Record simulation start time (wall clock)
 sim_start_time = plt.datetime.datetime.now()
@@ -82,6 +84,7 @@ sim_total_time = end_time - sim_start_time
 
 # Retrieve recordings
 recorded_spikes = cerebellum_circuit.retrieve_all_recorded_spikes()
+recorded_spikes['stimulus'] = stimulus.spinnaker_get_data(['spikes'])
 
 # Save results
 suffix = end_time.strftime("_%H%M%S_%d%m%Y")
