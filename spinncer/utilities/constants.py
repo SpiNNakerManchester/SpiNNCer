@@ -233,10 +233,3 @@ CONNECTIVITY_MAP = {
         'delay': 5.0,  # ms
     },
 }
-
-# 300 ms pre-stimulus, 50 ms stimulus, and 650 ms post-stimulus.
-STIMULATION_DURATIONS = {
-    'pre': 300,  # ms
-    'during': 50,  # ms
-    'post': 650,  # ms
-}

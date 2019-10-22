@@ -5,6 +5,12 @@ DEFAULT_RESULT_DIR = 'results/'
 DEFAULT_SIMTIME = 1000  # ms, see page 5 of 10.3389/fninf.2019.00037
 DEFAULT_TIMESTEP = 0.1  # ms
 
+# Stimulus: 300 ms pre-stimulus, 50 ms stimulus, and 650 ms post-stimulus.
+DEFAULT_STIMULATION_DURATIONS = [300, 50, 650]
+DEFAULT_BACKGROUND_RATE = 1.  # Hz
+DEFAULT_BURST_RATE = 150.  # Hz
+
+
 parser = argparse.ArgumentParser(
     description='Run a cerebellar simulation on SpiNNaker.',
     formatter_class=argparse.RawTextHelpFormatter)
@@ -14,6 +20,20 @@ parser.add_argument('--simtime', type=float,
                          "-- default {}ms".format(DEFAULT_SIMTIME),
                     default=DEFAULT_SIMTIME)
 
+parser.add_argument('--f_base', type=float,
+                    help="background firing rate of the stimulus "
+                         "-- default {}Hz".format(DEFAULT_BACKGROUND_RATE),
+                    default=DEFAULT_BACKGROUND_RATE)
+
+parser.add_argument('--f_peak', type=float,
+                    help="burst firing rate of the stimulus "
+                         "-- default {}Hz".format(DEFAULT_BURST_RATE),
+                    default=DEFAULT_BURST_RATE)
+
+parser.add_argument('--stim_times', type=float, nargs="+",
+                    help="stimulations times (in ms) "
+                         "-- default {}ms".format(DEFAULT_STIMULATION_DURATIONS),
+                    default=DEFAULT_STIMULATION_DURATIONS)
 
 parser.add_argument('--timestep', type=float,
                     help="simulation timestep (in ms) "
