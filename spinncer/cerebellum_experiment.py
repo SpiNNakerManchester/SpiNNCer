@@ -61,11 +61,17 @@ stimulus_params = {
 stimulus = sim.Population(n_inputs, sim.extra_models.SpikeSourcePoissonVariable,
                           stimulus_params, label='stimulus population',
                           additional_parameters={'seed': 31415926})
-# Connect stimulus to the relevant populations (here, granular)
+# Connect stimulus to the relevant populations (granular, dcn, golgi)
 # The connection has the same parameters as glom_grc
 sim.Projection(stimulus, cerebellum_circuit.granule,
                sim.FromListConnector(cerebellum_circuit.connections['glom_grc']),
-               label="stimulus projection")
+               label="stimulus projection glom_grc")
+sim.Projection(stimulus, cerebellum_circuit.dcn,
+               sim.FromListConnector(cerebellum_circuit.connections['glom_dcn']),
+               label="stimulus projection glom_dcn")
+sim.Projection(stimulus, cerebellum_circuit.golgi,
+               sim.FromListConnector(cerebellum_circuit.connections['glom_goc']),
+               label="stimulus projection glom_goc")
 
 # Set up recordings
 cerebellum_circuit.record_all_spikes()
