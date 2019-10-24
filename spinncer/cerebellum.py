@@ -174,6 +174,15 @@ class Cerebellum(Circuit):
             pop.record(['spikes'])
 
     def retrieve_all_recorded_spikes(self, spinnaker_data=True):
+        """
+        Retrieve the recorded spikes for all populations
+        :param spinnaker_data: if True will return spikes in a 2D list where
+        the first column is the neuron id and the second column is the spike
+        time of that cell; else spikes will be returned inside a Neo object
+        :type spinnaker_data: bool
+        :return: spike times for all populations
+        :rtype: list or Neo.Block
+        """
         all_spikes = {}
         for label, pop in self.__populations.items():
             print("Retrieving recordings for ", label, "...")
@@ -182,6 +191,18 @@ class Cerebellum(Circuit):
             else:
                 all_spikes[label] = pop.get_data(['spikes'])
         return all_spikes
+
+    def retrieve_final_connectivity(self):
+        all_connections = {}
+        for label, p in self.__projections.items():
+            print("Retrieving connectivity for projection ", label, "...")
+            all_connections[label] = \
+                np.array([
+                    p._get_synaptic_data(True, 'source'),
+                    p._get_synaptic_data(True, 'target'),
+                    p._get_synaptic_data(True, 'weight'),
+                    p._get_synaptic_data(True, 'delay')]).T
+        return all_connections
 
     def retrieve_population_names(self):
         return list(self.__populations.keys())
@@ -196,4 +217,9 @@ class Cerebellum(Circuit):
 
     @property
     def connections(self):
+        """
+        This property will return the INITIAL weights
+        :return: INITIAL weights
+        :rtype: dict
+        """
         return self.__connections

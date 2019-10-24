@@ -86,6 +86,10 @@ sim_total_time = end_time - sim_start_time
 recorded_spikes = cerebellum_circuit.retrieve_all_recorded_spikes()
 recorded_spikes['stimulus'] = stimulus.spinnaker_get_data(['spikes'])
 
+# Retrieve final network connectivity
+final_connectivity = cerebellum_circuit.retrieve_final_connectivity()
+initial_connectivity = cerebellum_circuit.connections
+
 # Save results
 suffix = end_time.strftime("_%H%M%S_%d%m%Y")
 if args.filename:
@@ -103,7 +107,7 @@ sim_params = {
     "argparser": vars(args),
     "git_hash": retrieve_git_commit(),
     "run_end_time": end_time.strftime("%H:%M:%S_%d/%m/%Y"),
-    "wall_clock_run_time": str(total_time),
+    "wall_clock_script_run_time": str(total_time),
     "wall_clock_sim_run_time": str(sim_total_time),
 }
 
@@ -111,6 +115,8 @@ sim_params = {
 np.savez_compressed(os.path.join(args.result_dir, filename),
                     simulation_parameters=sim_params,
                     all_spikes=recorded_spikes,
+                    final_connectivity=final_connectivity,
+                    initial_connectivity=initial_connectivity,
                     stimulus_params=stimulus_params,
                     simtime=args.simtime,
                     **recorded_spikes)
