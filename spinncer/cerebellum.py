@@ -237,11 +237,7 @@ class Cerebellum(Circuit):
         for label, p in self.__projections.items():
             print("Retrieving connectivity for projection ", label, "...")
             all_connections[label] = \
-                np.array([
-                    p._get_synaptic_data(True, 'source'),
-                    p._get_synaptic_data(True, 'target'),
-                    p._get_synaptic_data(True, 'weight'),
-                    p._get_synaptic_data(True, 'delay')]).T
+                np.array(p.get(('weight', 'delay'), format="list"))
         return all_connections
 
     def retrieve_population_names(self):
