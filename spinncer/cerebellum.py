@@ -23,7 +23,7 @@ from spinncer.utilities.reporting import (population_reporting,
 
 class Cerebellum(Circuit):
 
-    def __init__(self, sim, connectivity, reporting=True,
+    def __init__(self, sim, connectivity, stimulus_information, reporting=True,
                  skip_projections=False):
         self.__sim = sim
         self.reporting = reporting
@@ -33,6 +33,7 @@ class Cerebellum(Circuit):
         self.__nid_offset = {k: None for k in POPULATION_ID.keys()}
         self.__projections = {k: None for k in CONNECTIVITY_MAP.keys()}
         self.__connections = {k: None for k in CONNECTIVITY_MAP.keys()}
+        self.__stimulus_information = stimulus_information
 
         __connectivity = self.__extract_connectivity(connectivity)
 
@@ -61,9 +62,20 @@ class Cerebellum(Circuit):
             _no_cells = positions[positions[:, 1] == ui, :].shape[0]
             # Store number of neurons for later
             self.__number_of_neurons[_cell_name] = _no_cells
+            # Retrieve correct cell parameters for the current cell
+            if _cell_name == "glomerulus":
+                cell_param = self.__compute_stimulus(_no_cells)
+                additional_params = {'seed': 31415926}
+            else:
+                cell_param = CELL_PARAMS[_cell_name]
+                additional_params = {}
             # Adding the population to the network
             self.__populations[_cell_name] = self.__sim.Population(
-                _no_cells, CELL_TYPES[_cell_name], label=_cell_name + " cells")
+                _no_cells,
+                cellclass=CELL_TYPES[_cell_name],
+                cellparams=cell_param,
+                label=_cell_name + " cells",
+                additional_parameters=additional_params)
             # save global neuron ID offset
             # NOTE: np.min(unique_ids) == 1
             if ui == 1:
@@ -95,6 +107,11 @@ class Cerebellum(Circuit):
             post_pop = CONNECTIVITY_MAP[conn_label]['post']
             weight = CONNECTIVITY_MAP[conn_label]['weight']
             delay = CONNECTIVITY_MAP[conn_label]['delay']
+            if (post_pop == "glomerulus" and
+                    CELL_TYPES[post_pop] ==
+                    self.__sim.extra_models.SpikeSourcePoissonVariable):
+                # Can't send projections to a spike source
+                continue
 
             # Normalise the source and target neuron IDs
             # Neurons IDs used here are np.arange(0, TOTAL_NUMBER_OF_NEURONS)
@@ -118,6 +135,29 @@ class Cerebellum(Circuit):
                     delay=delay),  # synapse type (weights + delays)
                 receptor_type="inhibitory" if weight < 0 else "excitatory",
                 label=conn_label)  # label for connection
+
+    def __compute_stimulus(self, n_inputs):
+        # convert stimulation times to numpy array
+        stim_times = np.asarray(self.__stimulus_information['stim_times'])
+        f_base = np.asarray(self.__stimulus_information['f_base'])
+        f_peak = np.asarray(self.__stimulus_information['f_peak'])
+        # compute number of rate changes required
+        number_of_slots = int(stim_times.size)
+        # compute the time at which individual rates take effect
+        stim_start = np.cumsum(np.append([0], stim_times))[:number_of_slots]
+        starts = np.ones((n_inputs, number_of_slots)) * stim_start
+        # compute the duration (in ms) for which individual rates are active
+        durations = np.ones((n_inputs, number_of_slots)) * stim_times
+        # compute the individual rates (in Hz) for each slot
+        rates = np.ones((n_inputs, number_of_slots)) * \
+                np.asarray([f_base, f_base + f_peak, f_base])
+        # Add a variable-rate poisson spike source to the network
+        stimulus_params = {
+            'rates': rates,
+            'starts': starts,
+            'durations': durations,
+        }
+        return stimulus_params
 
     def get_circuit_inputs(self):
         """

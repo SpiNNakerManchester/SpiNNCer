@@ -24,8 +24,16 @@ sim.setup(timestep=args.timestep, min_delay=args.timestep, max_delay=10)
 # Add constraints here
 sim.set_number_of_neurons_per_core(sim.IF_cond_exp, 64)
 
+# Compile stimulus information
+stimulus_information = {
+    'f_base': args.f_base,
+    'f_peak': args.f_peak,
+    'stim_times': args.stim_times
+}
+
 # Instantiate a Cerebellum
 cerebellum_circuit = Cerebellum(sim, connectivity_filename,
+                                stimulus_information=stimulus_information,
                                 reporting=args.no_reports,
                                 skip_projections=args.skip_projections)
 
@@ -37,45 +45,8 @@ assert (len(input_populations) == 1)
 output_populations = cerebellum_circuit.get_circuit_outputs()
 assert (len(output_populations) == 1)
 
-# Add stimulus to the network -- GLOM
-# number of neurons for input is number of neurons in GLOM
-n_inputs = cerebellum_circuit.number_of_neurons['glomerulus']
-# convert stimulation times to numpy array
-stim_times = np.asarray(args.stim_times)
-# compute number of rate changes required
-number_of_slots = int(stim_times.size)
-# compute the time at which individual rates take effect
-stim_start = np.cumsum(np.append([0], stim_times))[:number_of_slots]
-starts = np.ones((n_inputs, number_of_slots)) * stim_start
-# compute the duration (in ms) for which individual rates are active
-durations = np.ones((n_inputs, number_of_slots)) * stim_times
-# compute the individual rates (in Hz) for each slot
-rates = np.ones((n_inputs, number_of_slots)) * \
-        np.asarray([args.f_base, args.f_base + args.f_peak, args.f_base])
-# Add a variable-rate poisson spike source to the network
-stimulus_params = {
-    'rates': rates,
-    'starts': starts,
-    'durations': durations,
-}
-stimulus = sim.Population(n_inputs, sim.extra_models.SpikeSourcePoissonVariable,
-                          stimulus_params, label='stimulus population',
-                          additional_parameters={'seed': 31415926})
-# Connect stimulus to the relevant populations (granular, dcn, golgi)
-# The connection has the same parameters as glom_grc
-sim.Projection(stimulus, cerebellum_circuit.granule,
-               sim.FromListConnector(cerebellum_circuit.connections['glom_grc']),
-               label="stimulus projection glom_grc")
-sim.Projection(stimulus, cerebellum_circuit.dcn,
-               sim.FromListConnector(cerebellum_circuit.connections['glom_dcn']),
-               label="stimulus projection glom_dcn")
-sim.Projection(stimulus, cerebellum_circuit.golgi,
-               sim.FromListConnector(cerebellum_circuit.connections['glom_goc']),
-               label="stimulus projection glom_goc")
-
 # Set up recordings
 cerebellum_circuit.record_all_spikes()
-stimulus.record(['spikes'])
 
 # Record simulation start time (wall clock)
 sim_start_time = plt.datetime.datetime.now()
@@ -90,7 +61,6 @@ sim_total_time = end_time - sim_start_time
 
 # Retrieve recordings
 recorded_spikes = cerebellum_circuit.retrieve_all_recorded_spikes()
-recorded_spikes['stimulus'] = stimulus.spinnaker_get_data(['spikes'])
 
 # Retrieve final network connectivity
 final_connectivity = cerebellum_circuit.retrieve_final_connectivity()
@@ -123,7 +93,7 @@ np.savez_compressed(os.path.join(args.result_dir, filename),
                     all_spikes=recorded_spikes,
                     final_connectivity=final_connectivity,
                     initial_connectivity=initial_connectivity,
-                    stimulus_params=stimulus_params,
+                    stimulus_params=stimulus_information,
                     simtime=args.simtime,
                     **recorded_spikes)
 

@@ -34,7 +34,7 @@ POPULATION_ID = {
 # Cell types
 CELL_TYPES = {
     'golgi': sim.IF_cond_exp,
-    'glomerulus': sim.IF_cond_exp,
+    'glomerulus': sim.extra_models.SpikeSourcePoissonVariable,
     'granule': sim.IF_cond_exp,
     'purkinje': sim.IF_cond_exp,
     'basket': sim.IF_cond_exp,
@@ -59,7 +59,7 @@ CELL_PARAMS = {
               'tau_syn_E': 0.5,  # ms
               'tau_syn_I': 10.0  # ms
               },
-    ' glomerulus': {  # TODO figure out how to make this passthrough
+    'glomerulus': {  # TODO figure out how to make this passthrough
 
     },  # Glom is special. It's a non-neural mossy fiber terminal (input)
     'granule': {'tau_refrac': 1.5,  # ms
