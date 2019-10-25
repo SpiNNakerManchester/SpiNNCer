@@ -235,6 +235,9 @@ class Cerebellum(Circuit):
     def retrieve_final_connectivity(self):
         all_connections = {}
         for label, p in self.__projections.items():
+            if not p:
+                print("Projection", label, "is not implemented!")
+                continue
             print("Retrieving connectivity for projection ", label, "...")
             all_connections[label] = \
                 np.array(p.get(('weight', 'delay'), format="list"))
