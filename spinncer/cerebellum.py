@@ -235,7 +235,7 @@ class Cerebellum(Circuit):
     def retrieve_final_connectivity(self):
         all_connections = {}
         for label, p in self.__projections.items():
-            if not p:
+            if p is None:
                 print("Projection", label, "is not implemented!")
                 continue
             print("Retrieving connectivity for projection ", label, "...")
