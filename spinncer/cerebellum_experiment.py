@@ -11,6 +11,8 @@ except:
 from spinncer.spinncer_argparser import *
 # provenance utility
 from spinncer.utilities.provenance import retrieve_git_commit
+# analysis functions
+from spinncer.cerebellum_analysis import *
 import pylab as plt
 import os
 
@@ -88,9 +90,11 @@ sim_params = {
 }
 
 # Save results to file in [by default] the `results/' directory
-np.savez_compressed(os.path.join(args.result_dir, filename),
+results_file = os.path.join(args.result_dir, filename)
+np.savez_compressed(results_file,
                     simulation_parameters=sim_params,
                     all_spikes=recorded_spikes,
+                    all_neurons=cerebellum_circuit.number_of_neurons,
                     final_connectivity=final_connectivity,
                     initial_connectivity=initial_connectivity,
                     stimulus_params=stimulus_information,
@@ -99,6 +103,9 @@ np.savez_compressed(os.path.join(args.result_dir, filename),
 
 # Appropriately end the simulation
 sim.end()
+
+# Analysis time!
+spike_analysis(results_file=results_file, fig_folder=args.figures_dir)
 
 # Report time taken
 print("Results stored in  -- " + filename)
