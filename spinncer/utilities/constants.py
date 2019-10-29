@@ -107,7 +107,7 @@ CELL_PARAMS = {
             'v_rest': -59.0,  # mV, added 16.10.2019
             'v_reset': -69.0,  # mV
             'tau_m': 57,  # ms, changed from 57.1
-            'i_offset': 45.75,  # pA
+            'i_offset': 55.8,  # pA
             'tau_syn_E': 7.1,  # ms, changed from 0.5
             'tau_syn_I': 13.6  # ms, changed from 10.0
             }

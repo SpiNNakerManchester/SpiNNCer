@@ -98,7 +98,11 @@ def spike_analysis(results_file, fig_folder):
         # Connection holder annoyance here:
         conn = final_connectivity[key]
         if len(conn.shape) == 1 or conn.shape[1] != 4:
-            conn = np.concatenate(conn)
+            try:
+                x = np.concatenate(conn)
+                conn = x
+            except:
+                pass
             names = [('source', 'int_'),
                      ('target', 'int_'),
                      ('weight', 'float_'),
@@ -110,12 +114,20 @@ def spike_analysis(results_file, fig_folder):
             conn = useful_conn.astype(np.float)
 
         mean = np.mean(conn[:, 2])
-        is_close = np.isclose(mean, np.abs(CONNECTIVITY_MAP[key]["weight"]), 1.0e-3)
+        # replace with percentage of difference
+        original_conn = np.abs(CONNECTIVITY_MAP[key]["weight"])
+        if mean < original_conn:
+            proportion = mean / original_conn
+        else:
+            proportion = original_conn / mean
+        assert (0 <= proportion <= 1), proportion
+        is_close = proportion >= .95
         _c = Fore.GREEN if is_close else Fore.RED
 
         print("\t{:10} -> {}{:4.8f}{} uS".format(
             key, _c, mean, Style.RESET_ALL),
-            "c.f. {: 4.8f} uS".format(CONNECTIVITY_MAP[key]["weight"]))
+            "c.f. {: 4.8f} uS ({:.2%})".format(
+                CONNECTIVITY_MAP[key]["weight"], proportion))
     print("=" * 60)
     print("Plotting figures...")
     # plot .1 ms PSTH
@@ -176,7 +188,7 @@ if __name__ == "__main__":
     fig_folder = "figures"
 
     # Analyse runs below
-    res = "results/spinncer_experiment_130640_29102019"
+    res = "results/spinncer_experiment_155415_29102019"
     spike_analysis(res, fig_folder)
 
     res = "results/spinncer_no_proj"
