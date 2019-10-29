@@ -38,6 +38,7 @@ def spike_analysis(results_file, fig_folder):
         data = np.load(results_file, allow_pickle=True)
     except FileNotFoundError:
         data = np.load(results_file + ".npz", allow_pickle=True)
+        results_file += ".npz"
 
     # Check if the folders exist
     if not os.path.isdir(fig_folder) and not os.path.exists(fig_folder):
@@ -109,12 +110,12 @@ def spike_analysis(results_file, fig_folder):
             conn = useful_conn.astype(np.float)
 
         mean = np.mean(conn[:, 2])
-        is_close = np.isclose(mean, CONNECTIVITY_MAP[key]["weight"], 1.0e-3)
+        is_close = np.isclose(mean, np.abs(CONNECTIVITY_MAP[key]["weight"]), 1.0e-3)
         _c = Fore.GREEN if is_close else Fore.RED
 
         print("\t{:10} -> {}{:4.8f}{} uS".format(
             key, _c, mean, Style.RESET_ALL),
-            "c.f. {:4.8f} uS".format(CONNECTIVITY_MAP[key]["weight"]))
+            "c.f. {: 4.8f} uS".format(CONNECTIVITY_MAP[key]["weight"]))
     print("=" * 60)
     print("Plotting figures...")
     # plot .1 ms PSTH
