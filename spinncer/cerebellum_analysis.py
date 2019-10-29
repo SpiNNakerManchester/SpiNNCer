@@ -87,7 +87,7 @@ def spike_analysis(results_file, fig_folder):
         spikes_per_3ms[pop] = np.sum(reshaped_bincount, axis=1)
     # Report weights values
     print("=" * 60)
-    print("Average weight per connection")
+    print("Average weight per projection")
     print("-" * 60)
     for key in final_connectivity:
         print("\t{:10} -> {:2.8f} uS".format(
@@ -148,6 +148,6 @@ def spike_analysis(results_file, fig_folder):
 
 
 if __name__ == "__main__":
-    res = "results/spinncer_experiment_110535_29102019"
+    res = "results/spinncer_experiment_113452_29102019"
     fig_folder = "figures"
     spike_analysis(res, fig_folder)

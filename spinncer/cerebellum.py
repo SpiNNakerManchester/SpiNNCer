@@ -240,7 +240,7 @@ class Cerebellum(Circuit):
                 continue
             print("Retrieving connectivity for projection ", label, "...")
             all_connections[label] = \
-                np.array(p.get(('weight', 'delay'), format="list").connections)
+                np.array(p.get(('weight', 'delay'), format="list")._get_data_items())
         return all_connections
 
     def retrieve_population_names(self):
