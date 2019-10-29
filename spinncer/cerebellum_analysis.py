@@ -17,6 +17,8 @@ import neo
 from datetime import datetime
 import warnings
 import ntpath
+from spinncer.utilities.constants import CONNECTIVITY_MAP
+from colorama import Fore, Style, init as color_init
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -46,6 +48,8 @@ def spike_analysis(results_file, fig_folder):
                                   str(ntpath.basename(results_file))[:-4])
     if not os.path.isdir(sim_fig_folder) and not os.path.exists(sim_fig_folder):
         os.mkdir(sim_fig_folder)
+    # Set up colours
+    color_init(strip=False)
 
     # Retrieve information from results file
     all_spikes = data['all_spikes'].ravel()[0]
@@ -76,7 +80,7 @@ def spike_analysis(results_file, fig_folder):
                         minlength=no_timesteps)
         max_spikes = np.max(spikes_per_timestep[pop])
         print("\t{:10}->{:6} = {:1.4f}".format(pop, max_spikes,
-                                            max_spikes/all_neurons[pop]),
+                                               max_spikes / all_neurons[pop]),
               "per neuron")
         padded_bincount = np.pad(spikes_per_timestep[pop],
                                  (0, pad_to_compute_3ms_bins),
@@ -90,8 +94,27 @@ def spike_analysis(results_file, fig_folder):
     print("Average weight per projection")
     print("-" * 60)
     for key in final_connectivity:
-        print("\t{:10} -> {:2.8f} uS".format(
-            key, np.mean(final_connectivity[key][:, 2])))
+        # Connection holder annoyance here:
+        conn = final_connectivity[key]
+        if len(conn.shape) == 1 or conn.shape[1] != 4:
+            conn = np.concatenate(conn)
+            names = [('source', 'int_'),
+                     ('target', 'int_'),
+                     ('weight', 'float_'),
+                     ('delay', 'float_')]
+            useful_conn = np.zeros((conn.shape[0], 4), dtype=np.float)
+            for i, (n, _) in enumerate(names):
+                useful_conn[:, i] = conn[n].astype(np.float)
+            final_connectivity[key] = useful_conn.astype(np.float)
+            conn = useful_conn.astype(np.float)
+
+        mean = np.mean(conn[:, 2])
+        is_close = np.isclose(mean, CONNECTIVITY_MAP[key]["weight"], 1.0e-3)
+        _c = Fore.GREEN if is_close else Fore.RED
+
+        print("\t{:10} -> {}{:4.8f}{} uS".format(
+            key, _c, mean, Style.RESET_ALL),
+            "c.f. {:4.8f} uS".format(CONNECTIVITY_MAP[key]["weight"]))
     print("=" * 60)
     print("Plotting figures...")
     # plot .1 ms PSTH
@@ -148,6 +171,12 @@ def spike_analysis(results_file, fig_folder):
 
 
 if __name__ == "__main__":
-    res = "results/spinncer_experiment_113452_29102019"
+    # Constants
     fig_folder = "figures"
+
+    # Analyse runs below
+    res = "results/spinncer_experiment_130640_29102019"
+    spike_analysis(res, fig_folder)
+
+    res = "results/spinncer_no_proj"
     spike_analysis(res, fig_folder)
