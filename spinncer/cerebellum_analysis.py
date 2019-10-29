@@ -45,6 +45,7 @@ def spike_analysis(results_file, fig_folder):
 
     # Retrieve information from results file
     all_spikes = data['all_spikes'].ravel()[0]
+    all_neurons = data['all_neurons'].ravel()[0]
     sim_params = data['simulation_parameters'].ravel()[0]
     simtime = data['simtime'] * ms
     timestep = sim_params['argparser']['timestep'] * ms
@@ -66,15 +67,15 @@ def spike_analysis(results_file, fig_folder):
     print("-" * 60)
     for pop, spikes in all_spikes.items():
         spikes_per_timestep[pop] = np.bincount((spikes[:, 1] * time_to_bin_conversion).astype(int), minlength=no_timesteps)
-        print("\t{:10}->".format(pop), np.max(spikes_per_timestep[pop]))
+        max_spikes = np.max(spikes_per_timestep[pop])
+        print("\t{:10}->{:6} = {:6}".format(pop, max_spikes,
+                                            max_spikes/all_neurons[pop]),
+              "per neuron")
         padded_bincount = np.pad(spikes_per_timestep[pop], (0, pad_to_compute_3ms_bins), 'constant', constant_values=0)
         reshaped_bincount = padded_bincount.reshape(int(padded_bincount.shape[0] / bins_in_3ms),
                                                     bins_in_3ms)
 
         spikes_per_3ms[pop] = np.sum(reshaped_bincount, axis=1)
-    # TODO report maximum spikes per time step
-    # TODO report maximum spikes per time step NORMALISED per neuron
-
     print("=" * 60)
     print("Plotting figures...")
     # plot .1 ms PSTH
