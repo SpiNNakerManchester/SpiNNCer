@@ -161,7 +161,7 @@ CONNECTIVITY_MAP = {
         'delay': 1.0,  # ms
     },
     'gj_sc': {
-        'pre': 'granule',
+        'pre': 'stellate',
         'post': 'stellate',
         'weight': -2.0e-03,  # uS
         'delay': 1.0,  # ms
@@ -216,7 +216,7 @@ CONNECTIVITY_MAP = {
     },
     'pf_pc': {
         'pre': 'granule',
-        'post': 'golgi',
+        'post': 'purkinje',
         'weight': 2.0e-05,  # uS
         'delay': 5.0,  # ms
     },
