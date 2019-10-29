@@ -32,19 +32,24 @@ viridis_cmap = mlib.cm.get_cmap('viridis')
 
 def spike_analysis(results_file, fig_folder):
     # Retrieve results file
-    data = np.load(results_file, allow_pickle=True)
+    try:
+        data = np.load(results_file, allow_pickle=True)
+    except FileNotFoundError:
+        data = np.load(results_file + ".npz", allow_pickle=True)
 
     # Check if the folders exist
     if not os.path.isdir(fig_folder) and not os.path.exists(fig_folder):
         os.mkdir(fig_folder)
 
     # Create figures folder for this results_file
-    sim_fig_folder = os.path.join(fig_folder, str(ntpath.basename(results_file))[:-4])
+    sim_fig_folder = os.path.join(fig_folder,
+                                  str(ntpath.basename(results_file))[:-4])
     if not os.path.isdir(sim_fig_folder) and not os.path.exists(sim_fig_folder):
         os.mkdir(sim_fig_folder)
 
     # Retrieve information from results file
     all_spikes = data['all_spikes'].ravel()[0]
+    final_connectivity = data['final_connectivity'].ravel()[0]
     all_neurons = data['all_neurons'].ravel()[0]
     sim_params = data['simulation_parameters'].ravel()[0]
     simtime = data['simtime'] * ms
@@ -66,16 +71,27 @@ def spike_analysis(results_file, fig_folder):
     print("Maximum number of generated spikes per timestep")
     print("-" * 60)
     for pop, spikes in all_spikes.items():
-        spikes_per_timestep[pop] = np.bincount((spikes[:, 1] * time_to_bin_conversion).astype(int), minlength=no_timesteps)
+        spikes_per_timestep[pop] = \
+            np.bincount((spikes[:, 1] * time_to_bin_conversion).astype(int),
+                        minlength=no_timesteps)
         max_spikes = np.max(spikes_per_timestep[pop])
-        print("\t{:10}->{:6} = {:6}".format(pop, max_spikes,
+        print("\t{:10}->{:6} = {:1.4f}".format(pop, max_spikes,
                                             max_spikes/all_neurons[pop]),
               "per neuron")
-        padded_bincount = np.pad(spikes_per_timestep[pop], (0, pad_to_compute_3ms_bins), 'constant', constant_values=0)
-        reshaped_bincount = padded_bincount.reshape(int(padded_bincount.shape[0] / bins_in_3ms),
-                                                    bins_in_3ms)
+        padded_bincount = np.pad(spikes_per_timestep[pop],
+                                 (0, pad_to_compute_3ms_bins),
+                                 'constant', constant_values=0)
+        reshaped_bincount = padded_bincount.reshape(
+            int(padded_bincount.shape[0] / bins_in_3ms), bins_in_3ms)
 
         spikes_per_3ms[pop] = np.sum(reshaped_bincount, axis=1)
+    # Report weights values
+    print("=" * 60)
+    print("Average weight per connection")
+    print("-" * 60)
+    for key in final_connectivity:
+        print("\t{:10} -> {:2.8f} uS".format(
+            key, np.mean(final_connectivity[key][:, 2])))
     print("=" * 60)
     print("Plotting figures...")
     # plot .1 ms PSTH
@@ -83,7 +99,6 @@ def spike_analysis(results_file, fig_folder):
     f, axes = plt.subplots(len(spikes_per_timestep.keys()), 1,
                            figsize=(14, 20), sharex=True, dpi=500)
     for index, pop in enumerate(spikes_per_timestep.keys()):
-        print(pop)
         axes[index].bar(np.arange(spikes_per_timestep[pop].size),
                         spikes_per_timestep[pop])
         axes[index].set_title(pop)
@@ -129,8 +144,10 @@ def spike_analysis(results_file, fig_folder):
     # TODO plot weight histogram
     print("=" * 60)
 
+    # TODO plot centred connectivity
+
 
 if __name__ == "__main__":
-    res = "results/spinncer_experiment_092914_28102019.npz"
+    res = "results/spinncer_experiment_110535_29102019"
     fig_folder = "figures"
     spike_analysis(res, fig_folder)
