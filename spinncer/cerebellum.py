@@ -124,7 +124,7 @@ class Cerebellum(Circuit):
             conns -= norm_ids
 
             # Save the explicit connectivity for later
-            stacked_weights = np.asarray([[weight]] * no_synapses)
+            stacked_weights = np.asarray([[np.abs(weight)]] * no_synapses)
             stacked_delays = np.asarray([[delay]] * no_synapses)
             self.__connections[conn_label] = np.concatenate(
                 [conns, stacked_weights, stacked_delays], axis=1)
