@@ -127,12 +127,24 @@ def spike_analysis(results_file, fig_folder):
         is_close = proportion >= .95
         _c = Fore.GREEN if is_close else Fore.RED
 
-        print("\t{:10} -> {}{:4.8f}{} uS".format(
+        print("{:10} -> {}{:4.8f}{} uS".format(
             key, _c, mean, Style.RESET_ALL),
             "c.f. {: 4.8f} uS ({:.2%})".format(
                 CONNECTIVITY_MAP[key]["weight"], proportion))
     print("=" * 60)
     print("Plotting figures...")
+    # raster plot
+    print("Plotting spiking raster plot for each population")
+    f, axes = plt.subplots(len(spikes_per_timestep.keys()), 1,
+                           figsize=(14, 20), sharex=True, dpi=500)
+    for index, pop in enumerate(all_spikes.keys()):
+        axes[index].scatter(all_spikes[pop][:, 1],
+                            all_spikes[pop][:, 0])
+        axes[index].set_title(pop)
+    plt.savefig(os.path.join(sim_fig_folder,
+                             "raster_plots.png"))
+    plt.close(f)
+
     # plot .1 ms PSTH
     print("Plotting PSTH for each timestep")
     f, axes = plt.subplots(len(spikes_per_timestep.keys()), 1,
@@ -181,9 +193,10 @@ def spike_analysis(results_file, fig_folder):
     plt.close(f)
 
     # TODO plot weight histogram
-    print("=" * 60)
 
     # TODO plot centred connectivity
+
+    print("=" * 60)
 
 
 if __name__ == "__main__":
@@ -191,13 +204,14 @@ if __name__ == "__main__":
     fig_folder = "figures"
 
     # Analyse runs below
+
+    # res = "results/spinncer_experiment_144142_31102019.npz"
+    # spike_analysis(res, fig_folder)
+
     res = "results/gold_standards/gold_standard_results_158"
     spike_analysis(res, fig_folder)
 
     res = "results/gold_standards/gold_standard_results_400"
-    spike_analysis(res, fig_folder)
-
-    res = "results/spinncer_experiment_155415_29102019"
     spike_analysis(res, fig_folder)
 
     res = "results/spinncer_no_proj"
