@@ -133,14 +133,16 @@ def spike_analysis(results_file, fig_folder):
                 CONNECTIVITY_MAP[key]["weight"], proportion))
     print("=" * 60)
     print("Plotting figures...")
+    print("-" * 60)
     # raster plot
     print("Plotting spiking raster plot for each population")
-    f, axes = plt.subplots(len(spikes_per_timestep.keys()), 1,
+    f, axes = plt.subplots(len(all_spikes.keys()), 1,
                            figsize=(14, 20), sharex=True, dpi=500)
     for index, pop in enumerate(all_spikes.keys()):
         axes[index].scatter(all_spikes[pop][:, 1],
-                            all_spikes[pop][:, 0])
+                            all_spikes[pop][:, 0], alpha=.8, s=.5)
         axes[index].set_title(pop)
+    plt.xlabel("Time (ms)")
     plt.savefig(os.path.join(sim_fig_folder,
                              "raster_plots.png"))
     plt.close(f)
