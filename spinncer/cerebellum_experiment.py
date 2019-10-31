@@ -5,7 +5,7 @@ import numpy as np
 try:
     # this might be deprecated soon
     import spynnaker8 as sim
-except:
+except ImportError:
     import pyNN.spynnaker as sim
 # argparser for easily running experiment from cli
 from spinncer.spinncer_argparser import *

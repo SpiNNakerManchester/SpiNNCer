@@ -96,7 +96,10 @@ def spike_analysis(results_file, fig_folder):
     print("-" * 60)
     for key in final_connectivity:
         # Connection holder annoyance here:
-        conn = final_connectivity[key]
+        conn = np.asarray(final_connectivity[key])
+        if conn.size == 0:
+            print("Skipping analysing connection", key)
+            continue
         if len(conn.shape) == 1 or conn.shape[1] != 4:
             try:
                 x = np.concatenate(conn)
@@ -188,6 +191,12 @@ if __name__ == "__main__":
     fig_folder = "figures"
 
     # Analyse runs below
+    res = "results/gold_standards/gold_standard_results_158"
+    spike_analysis(res, fig_folder)
+
+    res = "results/gold_standards/gold_standard_results_400"
+    spike_analysis(res, fig_folder)
+
     res = "results/spinncer_experiment_155415_29102019"
     spike_analysis(res, fig_folder)
 

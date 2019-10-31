@@ -107,6 +107,10 @@ class Cerebellum(Circuit):
             post_pop = CONNECTIVITY_MAP[conn_label]['post']
             weight = CONNECTIVITY_MAP[conn_label]['weight']
             delay = CONNECTIVITY_MAP[conn_label]['delay']
+            print("Creating projection from {:10}".format(pre_pop),
+                  "to {:10}".format(post_pop),
+                  "with a weight of {: 2.6f}".format(weight),
+                  "uS and a delay of", delay, "ms")
             if (post_pop == "glomerulus" and
                     CELL_TYPES[post_pop] ==
                     self.__sim.extra_models.SpikeSourcePoissonVariable):
@@ -125,15 +129,18 @@ class Cerebellum(Circuit):
             self.__connections[conn_label] = np.concatenate(
                 [conns, stacked_weights, stacked_delays], axis=1)
 
+            assert (np.max(conns[:, 0]) < self.number_of_neurons[pre_pop]), \
+                np.max(conns[:, 0])
+            assert (np.max(conns[:, 1]) < self.number_of_neurons[post_pop]), \
+                np.max(conns[:, 1])
             # Adding the projection to the network
+            receptor_type = "inhibitory" if weight < 0 else "excitatory"
             self.__projections[conn_label] = self.__sim.Projection(
                 self.__populations[pre_pop],  # pre-synaptic population
                 self.__populations[post_pop],  # post-synaptic population
-                self.__sim.FromListConnector(conns),  # connector
-                synapse_type=self.__sim.StaticSynapse(
-                    weight=weight,
-                    delay=delay),  # synapse type (weights + delays)
-                receptor_type="inhibitory" if weight < 0 else "excitatory",
+                # connector includes (source, target, weight, delay)
+                self.__sim.FromListConnector(self.__connections[conn_label]),
+                receptor_type=receptor_type,  # inh or exc
                 label=conn_label)  # label for connection
 
     def __compute_stimulus(self, n_inputs):
