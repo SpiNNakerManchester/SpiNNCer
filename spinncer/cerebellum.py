@@ -91,7 +91,7 @@ class Cerebellum(Circuit):
         """
         if self.reporting:
             # Report statistics about the populations to be built
-            projection_reporting(connections)
+            projection_reporting(connections, self.__number_of_neurons)
         # Retrieve the Projection labels
         labels = connections.keys()
         # Loop over each connection in `connections`

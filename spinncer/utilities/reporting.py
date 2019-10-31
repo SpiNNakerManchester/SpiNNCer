@@ -46,7 +46,7 @@ def population_reporting(positions):
         "TOTAL", total_number_of_neurons), Style.RESET_ALL)
 
 
-def projection_reporting(connections):
+def projection_reporting(connections, number_of_neurons):
     """
     Helper function reporting on various aspects of the Projections
     :param connections: pre-id, post-id, xxxx
@@ -86,4 +86,10 @@ def projection_reporting(connections):
     print("-" * 60)
     for pop, fan_in in number_of_afferents.items():
         print("\t{:10} -> {:10} incoming synapses".format(pop, fan_in))
+    print("=" * 60)
+    print("Normalised number of incoming connections per population:")
+    print("-" * 60)
+    for pop, fan_in in number_of_afferents.items():
+        print("\t{:10} -> {:>8.2f} incoming synapses".format(
+            pop, fan_in/number_of_neurons[pop]))
     print("=" * 60)
