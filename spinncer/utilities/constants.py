@@ -55,7 +55,7 @@ CELL_PARAMS = {
               'v_rest': -65.0,  # mV, added 16.10.2019
               'v_reset': -75.0,  # mV
               'tau_m': 21,  # ms, changed from 21.1 on 16.10.2019
-              'i_offset': 36.8,  # pA, changed from 36.75 on 16.10.2019
+              'i_offset': 36.8e-3,  # pA, changed from 36.75 on 16.10.2019
               'tau_syn_E': 0.5,  # ms
               'tau_syn_I': 10.0  # ms
               },
@@ -68,7 +68,7 @@ CELL_PARAMS = {
                 'v_rest': -74.0,  # mV, added 16.10.2019
                 'v_reset': -84.0,  # mV
                 'tau_m': 2,  # ms, changed from 20 on 16.10.2019
-                'i_offset': 0,  # pA
+                'i_offset': 0e-3,  # pA
                 'tau_syn_E': 0.5,
                 'tau_syn_I': 10.0},
     'purkinje': {'tau_refrac': 0.8,  # ms
@@ -77,7 +77,7 @@ CELL_PARAMS = {
                  'v_rest': -62.0,  # mV, added 16.10.2019
                  'v_reset': -72.0,  # mV
                  'tau_m': 88.0,  # ms, changed from 88.6
-                 'i_offset': 600,  # pA, changed from 700
+                 'i_offset': 600e-3,  # pA, changed from 700
                  'tau_syn_E': 0.5,  # ms
                  'tau_syn_I': 1.6  # ms, changed from 10
                  },
@@ -87,7 +87,7 @@ CELL_PARAMS = {
                'v_rest': -68.0,  # mV, added 16.10.2019
                'v_reset': -78.0,  # mV
                'tau_m': 14.6,  # ms
-               'i_offset': 15.6,  # pA
+               'i_offset': 15.6e-3,  # pA
                'tau_syn_E': 0.64,  # ms, changed from 0.5 on 16.10.2019
                'tau_syn_I': 2  # ms, changed from 10.0 on 16.10.2019
                },
@@ -97,7 +97,7 @@ CELL_PARAMS = {
                  'v_rest': -68.0,  # mV, added 16.10.2019
                  'v_reset': -78.0,  # mV
                  'tau_m': 14.6,  # ms
-                 'i_offset': 15.6,  # pA
+                 'i_offset': 15.6e-3,  # pA
                  'tau_syn_E': 0.64,  # ms, changed from 0.5 on 16.10.2019
                  'tau_syn_I': 2  # ms, changed from 10.0 on 16.10.2019
                  },
@@ -107,7 +107,7 @@ CELL_PARAMS = {
             'v_rest': -59.0,  # mV, added 16.10.2019
             'v_reset': -69.0,  # mV
             'tau_m': 57,  # ms, changed from 57.1
-            'i_offset': 55.8,  # pA
+            'i_offset': 55.8e-3,  # pA
             'tau_syn_E': 7.1,  # ms, changed from 0.5
             'tau_syn_I': 13.6  # ms, changed from 10.0
             }
