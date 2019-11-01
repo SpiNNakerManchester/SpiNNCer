@@ -64,7 +64,8 @@ class Cerebellum(Circuit):
             self.__number_of_neurons[_cell_name] = _no_cells
             # Retrieve correct cell parameters for the current cell
             if _cell_name == "glomerulus":
-                cell_param = self.__compute_stimulus(_no_cells)
+                cell_param = self.compute_stimulus(
+                    self.__stimulus_information, _no_cells)
                 additional_params = {'seed': 31415926}
             else:
                 cell_param = CELL_PARAMS[_cell_name]
@@ -143,11 +144,12 @@ class Cerebellum(Circuit):
                 receptor_type=receptor_type,  # inh or exc
                 label=conn_label)  # label for connection
 
-    def __compute_stimulus(self, n_inputs):
+    @staticmethod
+    def compute_stimulus(stimulus_information, n_inputs):
         # convert stimulation times to numpy array
-        stim_times = np.asarray(self.__stimulus_information['stim_times'])
-        f_base = np.asarray(self.__stimulus_information['f_base'])
-        f_peak = np.asarray(self.__stimulus_information['f_peak'])
+        stim_times = np.asarray(stimulus_information['stim_times'])
+        f_base = np.asarray(stimulus_information['f_base'])
+        f_peak = np.asarray(stimulus_information['f_peak'])
         # compute number of rate changes required
         number_of_slots = int(stim_times.size)
         # compute the time at which individual rates take effect
