@@ -70,6 +70,8 @@ class Cerebellum(Circuit):
             else:
                 cell_param = CELL_PARAMS[_cell_name]
                 additional_params = {}
+                # add E_rev_I to all cells
+                cell_param['e_rev_I'] = cell_param['v_reset'] - 5.
             # Adding the population to the network
             self.__populations[_cell_name] = self.__sim.Population(
                 _no_cells,
