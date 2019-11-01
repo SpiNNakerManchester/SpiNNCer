@@ -19,6 +19,7 @@ import warnings
 import ntpath
 from spinncer.utilities.constants import CONNECTIVITY_MAP
 from colorama import Fore, Style, init as color_init
+from spinncer.cerebellum import Cerebellum
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -59,6 +60,13 @@ def spike_analysis(results_file, fig_folder):
     sim_params = data['simulation_parameters'].ravel()[0]
     simtime = data['simtime'] * ms
     timestep = sim_params['argparser']['timestep'] * ms
+    stimulus_params = data['stimulus_params'].ravel()[0]
+    vrpss_params = Cerebellum.compute_stimulus(stimulus_params,
+                                               all_neurons['glomerulus'])
+    time_filter = np.concatenate((vrpss_params['starts'][0], [simtime / ms]))
+    stim_durations = sim_params['argparser']['stim_times']
+    stimulus_periods = len(stim_durations)
+    filtered_firing_rates = {}
     # Report useful parameters
     print("=" * 60)
     print("Simulation parameters")
@@ -90,8 +98,32 @@ def spike_analysis(results_file, fig_folder):
             int(padded_bincount.shape[0] / bins_in_3ms), bins_in_3ms)
 
         spikes_per_3ms[pop] = np.sum(reshaped_bincount, axis=1)
-    # Report weights values
+        # temporary variable to store the population level firing rates
+        # before, during and after stimulation
+        _filtered_spike_rates = np.zeros(stimulus_periods)
+        _spike_times = spikes[:, 1]
+        for period in range(stimulus_periods):
+            _filtered_spike_times = np.logical_and(
+                _spike_times >= time_filter[period],
+                _spike_times < time_filter[period + 1])
+            _filtered_spike_rates[period] = \
+                np.count_nonzero(_filtered_spike_times) / \
+                (stim_durations[period] * ms)
+        # save the firing rate for the average neuron in this population
+        filtered_firing_rates[pop] = _filtered_spike_rates / all_neurons[pop]
+    # Report average firing rates before, during and after stimulation
     print("=" * 60)
+    print("Average firing rates before, during and after stimulation")
+    print("-" * 60)
+    for pop, spikes in all_spikes.items():
+        _x = filtered_firing_rates[pop] / Hz
+        before = _x[0]
+        during = _x[1]
+        after = _x[2]
+        print("\t{:10}->[{:>8.2f}, {:>8.2f}, {:>8.2f}] Hz".format(
+            pop, before, during, after), "per neuron")
+    print("=" * 60)
+    # Report weights values
     print("Average weight per projection")
     print("-" * 60)
     for key in final_connectivity:
@@ -129,7 +161,7 @@ def spike_analysis(results_file, fig_folder):
 
         print("{:10} -> {}{:4.8f}{} uS".format(
             key, _c, mean, Style.RESET_ALL),
-            "c.f. {: 4.8f} uS ({:.2%})".format(
+            "c.f. {: 4.8f} uS ({:>7.2%})".format(
                 CONNECTIVITY_MAP[key]["weight"], proportion))
     print("=" * 60)
     print("Plotting figures...")
@@ -198,6 +230,19 @@ def spike_analysis(results_file, fig_folder):
 
     # TODO plot centred connectivity
 
+    # plot as gold standard
+    # Select bin size
+    n_bins = int(round(simtime / ms / 20))
+    print("Plotting to gold standard")
+    f, axes = plt.subplots(len(spikes_per_3ms.keys()), 1,
+                           figsize=(14, 20), sharex=True, dpi=500)
+    for index, pop in enumerate(spikes_per_3ms.keys()):
+        axes[index].hist(all_spikes[pop][:, 1], n_bins)
+        axes[index].set_title(pop)
+    plt.savefig(os.path.join(sim_fig_folder,
+                             "gold_standard_psth_3ms.png"))
+    plt.close(f)
+
     print("=" * 60)
 
 
@@ -207,8 +252,8 @@ if __name__ == "__main__":
 
     # Analyse runs below
 
-    # res = "results/spinncer_experiment_144142_31102019.npz"
-    # spike_analysis(res, fig_folder)
+    res = "results/network_results_500x_slowdown.npz"
+    spike_analysis(res, fig_folder)
 
     res = "results/gold_standards/gold_standard_results_158"
     spike_analysis(res, fig_folder)
