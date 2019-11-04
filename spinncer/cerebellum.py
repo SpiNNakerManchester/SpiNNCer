@@ -275,8 +275,7 @@ class Cerebellum(Circuit):
                 ps = pop.size
                 _neuron_choice = np.random.choice(
                     ps, size=min(number_of_neurons, ps), replace=False)
-                pop[_neuron_choice].record(['gsyn_inh'])
-                pop[_neuron_choice].record(['gsyn_exc'])
+                pop[_neuron_choice].record(['gsyn_inh', 'gsyn_exc'])
 
     def retrieve_final_connectivity(self):
         all_connections = {}
