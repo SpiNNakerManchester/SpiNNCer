@@ -36,9 +36,10 @@ class Cerebellum(Circuit):
         self.__stimulus_information = stimulus_information
 
         __connectivity = self.__extract_connectivity(connectivity)
+        self.__cell_positions = np.asarray(__connectivity['positions'])
 
         # Construct PyNN neural Populations
-        self.__build_populations(np.asarray(__connectivity['positions']))
+        self.__build_populations(self.__cell_positions)
 
         # Construct PyNN Projections
         if not skip_projections:
@@ -62,6 +63,14 @@ class Cerebellum(Circuit):
             _no_cells = positions[positions[:, 1] == ui, :].shape[0]
             # Store number of neurons for later
             self.__number_of_neurons[_cell_name] = _no_cells
+            # save global neuron ID offset
+            # NOTE: np.min(unique_ids) == 1
+            if ui == 1:
+                self.__nid_offset[_cell_name] = 0
+            else:
+                self.__nid_offset[_cell_name] = \
+                    self.__nid_offset[CELL_NAME_FOR_ID[ui - 1]] + \
+                    self.__number_of_neurons[CELL_NAME_FOR_ID[ui - 1]]
             # Retrieve correct cell parameters for the current cell
             if _cell_name == "glomerulus":
                 cell_param = self.compute_stimulus(
@@ -79,14 +88,6 @@ class Cerebellum(Circuit):
                 cellparams=cell_param,
                 label=_cell_name + " cells",
                 additional_parameters=additional_params)
-            # save global neuron ID offset
-            # NOTE: np.min(unique_ids) == 1
-            if ui == 1:
-                self.__nid_offset[_cell_name] = 0
-            else:
-                self.__nid_offset[_cell_name] = \
-                    self.__nid_offset[CELL_NAME_FOR_ID[ui - 1]] + \
-                    self.__number_of_neurons[CELL_NAME_FOR_ID[ui - 1]]
 
     def __build_projections(self, connections):
         """
@@ -146,8 +147,8 @@ class Cerebellum(Circuit):
                 receptor_type=receptor_type,  # inh or exc
                 label=conn_label)  # label for connection
 
-    @staticmethod
-    def compute_stimulus(stimulus_information, n_inputs, positions=None):
+    def compute_stimulus(self, stimulus_information, n_inputs,
+                         with_positions=True):
         # convert stimulation times to numpy array
         stim_times = np.asarray(stimulus_information['stim_times'])
         f_base = np.asarray(stimulus_information['f_base'])
@@ -162,6 +163,26 @@ class Cerebellum(Circuit):
         # compute the individual rates (in Hz) for each slot
         rates = np.ones((n_inputs, number_of_slots)) * \
                 np.asarray([f_base, f_base + f_peak, f_base])
+        # if we should only "stimulate" certain cells which I do by setting
+        # the rates during stimulation to the base level (f_base)
+        if with_positions:
+            gloms_pos = self.__cell_positions[
+                        self.__cell_positions[:, 1] == POPULATION_ID['glomerulus'], :]
+            # find center of 'glomerular sphere'
+            x_c, y_c, z_c = np.median(gloms_pos[:, 2]), \
+                            np.median(gloms_pos[:, 3]), \
+                            np.median(gloms_pos[:, 4])
+
+            # Find glomeruli falling into the selected volume
+            target_gloms_idx = np.sum((gloms_pos[:, 2::] -
+                                       np.array([x_c, y_c, z_c])) ** 2,
+                                      axis=1).__lt__(STIMULATED_GLOMERULUS_RADIUS ** 2)
+            target_gloms = np.asarray(gloms_pos[target_gloms_idx, 0]).astype(int)
+            # The target_gloms are not normalised (they are global IDs)
+            target_gloms -= self.__nid_offset['glomerulus']
+
+            rates[target_gloms, 1] = f_base
+
         # Add a variable-rate poisson spike source to the network
         stimulus_params = {
             'rates': rates,

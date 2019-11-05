@@ -61,9 +61,8 @@ def spike_analysis(results_file, fig_folder):
     simtime = data['simtime'] * ms
     timestep = sim_params['argparser']['timestep'] * ms
     stimulus_params = data['stimulus_params'].ravel()[0]
-    vrpss_params = Cerebellum.compute_stimulus(stimulus_params,
-                                               all_neurons['glomerulus'])
-    time_filter = np.concatenate((vrpss_params['starts'][0], [simtime / ms]))
+    starts = np.cumsum(np.concatenate(([0], stimulus_params['stim_times'])))
+    time_filter = starts * ms
     stim_durations = sim_params['argparser']['stim_times']
     stimulus_periods = len(stim_durations)
     filtered_firing_rates = {}
@@ -103,6 +102,7 @@ def spike_analysis(results_file, fig_folder):
         _filtered_spike_rates = np.zeros(stimulus_periods)
         _spike_times = spikes[:, 1]
         for period in range(stimulus_periods):
+            # TODO enhance this to produce histograms of firing rates / pop
             _filtered_spike_times = np.logical_and(
                 _spike_times >= time_filter[period],
                 _spike_times < time_filter[period + 1])
