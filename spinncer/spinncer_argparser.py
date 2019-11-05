@@ -10,6 +10,8 @@ DEFAULT_STIMULATION_DURATIONS = [300, 50, 650]
 DEFAULT_BACKGROUND_RATE = 1.  # Hz
 DEFAULT_BURST_RATE = 150.  # Hz
 
+# Radius of volume of excited gloms
+STIMULATED_GLOMERULUS_RADIUS = 30  # micrometers
 
 parser = argparse.ArgumentParser(
     description='Run a cerebellar simulation on SpiNNaker.',
@@ -19,6 +21,11 @@ parser.add_argument('--simtime', type=float,
                     help="simulation time (in ms) "
                          "-- default {}ms".format(DEFAULT_SIMTIME),
                     default=DEFAULT_SIMTIME)
+
+parser.add_argument('--stim_radius', type=float,
+                    help="stimulation volume radius "
+                         "-- default {} um".format(STIMULATED_GLOMERULUS_RADIUS),
+                    default=STIMULATED_GLOMERULUS_RADIUS)
 
 parser.add_argument('--f_base', type=float,
                     help="background firing rate of the stimulus "

@@ -166,6 +166,7 @@ class Cerebellum(Circuit):
         # if we should only "stimulate" certain cells which I do by setting
         # the rates during stimulation to the base level (f_base)
         if with_positions:
+            radius = self.__stimulus_information['stim_radius']
             gloms_pos = self.__cell_positions[
                         self.__cell_positions[:, 1] == POPULATION_ID['glomerulus'], :]
             # find center of 'glomerular sphere'
@@ -176,7 +177,7 @@ class Cerebellum(Circuit):
             # Find glomeruli falling into the selected volume
             target_gloms_idx = np.sum((gloms_pos[:, 2::] -
                                        np.array([x_c, y_c, z_c])) ** 2,
-                                      axis=1).__lt__(STIMULATED_GLOMERULUS_RADIUS ** 2)
+                                      axis=1).__lt__(radius ** 2)
             target_gloms = np.asarray(gloms_pos[target_gloms_idx, 0]).astype(int)
             # The target_gloms are not normalised (they are global IDs)
             target_gloms -= self.__nid_offset['glomerulus']

@@ -30,7 +30,8 @@ sim.set_number_of_neurons_per_core(sim.IF_cond_exp, 64)
 stimulus_information = {
     'f_base': args.f_base,
     'f_peak': args.f_peak,
-    'stim_times': args.stim_times
+    'stim_times': args.stim_times,
+    'stim_radius': args.stim_radius
 }
 
 # Instantiate a Cerebellum

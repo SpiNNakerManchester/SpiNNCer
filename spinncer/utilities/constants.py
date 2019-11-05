@@ -233,5 +233,3 @@ CONNECTIVITY_MAP = {
         'delay': 5.0,  # ms
     },
 }
-# Radius of volume of excited gloms
-STIMULATED_GLOMERULUS_RADIUS = 140  # micrometers
