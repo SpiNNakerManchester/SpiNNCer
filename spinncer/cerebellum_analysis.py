@@ -62,7 +62,7 @@ def spike_analysis(results_file, fig_folder):
     timestep = sim_params['argparser']['timestep'] * ms
     stimulus_params = data['stimulus_params'].ravel()[0]
     starts = np.cumsum(np.concatenate(([0], stimulus_params['stim_times'])))
-    time_filter = starts * ms
+    time_filter = starts
     stim_durations = sim_params['argparser']['stim_times']
     stimulus_periods = len(stim_durations)
     filtered_firing_rates = {}
