@@ -11,7 +11,7 @@ DEFAULT_BACKGROUND_RATE = 1.  # Hz
 DEFAULT_BURST_RATE = 150.  # Hz
 
 # Radius of volume of excited gloms
-STIMULATED_GLOMERULUS_RADIUS = 30  # micrometers TODO change this to 140 um
+STIMULATED_GLOMERULUS_RADIUS = 140  # micrometers
 
 parser = argparse.ArgumentParser(
     description='Run a cerebellar simulation on SpiNNaker.',
