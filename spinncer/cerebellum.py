@@ -20,6 +20,7 @@ from spinncer.utilities.constants import *
 from spinncer.utilities.reporting import (population_reporting,
                                           projection_reporting)
 from elephant.spike_train_generation import homogeneous_poisson_process
+import quantities as pq
 
 
 class Cerebellum(Circuit):
@@ -37,6 +38,7 @@ class Cerebellum(Circuit):
         self.__stimulus_information = stimulus_information
 
         self.periodic_stimulus = stimulus_information['periodic_stimulus']
+        self.stimulus = None
 
         __connectivity = self.__extract_connectivity(connectivity)
         self.__cell_positions = np.asarray(__connectivity['positions'])
@@ -75,10 +77,16 @@ class Cerebellum(Circuit):
                     self.__nid_offset[CELL_NAME_FOR_ID[ui - 1]] + \
                     self.__number_of_neurons[CELL_NAME_FOR_ID[ui - 1]]
             # Retrieve correct cell parameters for the current cell
+            cell_model = CELL_TYPES[_cell_name]
             if _cell_name == "glomerulus":
                 cell_param = self.__compute_stimulus(
                     self.__stimulus_information, _no_cells)
                 additional_params = {'seed': 31415926}
+                if self.periodic_stimulus:
+                    cell_model = sim.SpikeSourceArray
+                    CELL_TYPES[_cell_name] = cell_model
+                    additional_params = {}
+                self.stimulus = cell_param
             else:
                 cell_param = CELL_PARAMS[_cell_name]
                 additional_params = {}
@@ -87,7 +95,7 @@ class Cerebellum(Circuit):
             # Adding the population to the network
             self.__populations[_cell_name] = self.__sim.Population(
                 _no_cells,
-                cellclass=CELL_TYPES[_cell_name],
+                cellclass=cell_model,
                 cellparams=cell_param,
                 label=_cell_name + " cells",
                 additional_parameters=additional_params)
@@ -211,8 +219,25 @@ class Cerebellum(Circuit):
             return stimulus_params
         else:
             # SPIKE SOURCE ARRAY + PERIODIC STIMULUS
-            # TODO Implement this
-            raise NotImplementedError()
+            # prepare spike times for all n_inputs neurons
+            spike_times = [[] for _ in range(n_inputs)]
+            for rate, start, duration in zip(rates, starts, durations):
+                curr_spikes = []
+                for r, s, d in zip(rate, start, duration):
+                    if r == f_base:
+                        curr_spikes.append(homogeneous_poisson_process(
+                            rate=r * pq.Hz,
+                            t_start=s * pq.ms,
+                            t_stop=(s + d) * pq.ms,
+                            as_array=True))
+                    else:
+                        spike_nums = np.int(np.round((r * d) / 1000.))
+                        curr_spikes.append(
+                            np.round(np.linspace(s, s+d, spike_nums)))
+                spike_times.append(np.concatenate(curr_spikes))
+            return {
+                'spike_times': spike_times
+            }
 
     def get_circuit_inputs(self):
         """
@@ -265,6 +290,10 @@ class Cerebellum(Circuit):
 
     def record_all_spikes(self):
         for label, pop in self.__populations.items():
+            if CELL_TYPES[label] == sim.SpikeSourceArray:
+                print("NOT enabling recordings for ", label,
+                      "(it's a Spike Source Array)")
+                continue
             print("Enabling recordings for ", label, "...")
             pop.record(['spikes'])
 
@@ -281,10 +310,18 @@ class Cerebellum(Circuit):
         all_spikes = {}
         for label, pop in self.__populations.items():
             print("Retrieving recordings for ", label, "...")
-            if spinnaker_data:
-                all_spikes[label] = pop.spinnaker_get_data(['spikes'])
+            if CELL_TYPES[label] == sim.SpikeSourceArray:
+                _spikes = []
+                for i, _times in enumerate(self.stimulus['spike_times']):
+                    for t in _times:
+                        _spikes.append(np.asarray([i, t]))
+                _spikes = np.asarray(_spikes)
+                all_spikes[label] = _spikes
             else:
-                all_spikes[label] = pop.get_data(['spikes'])
+                if spinnaker_data:
+                    all_spikes[label] = pop.spinnaker_get_data(['spikes'])
+                else:
+                    all_spikes[label] = pop.get_data(['spikes'])
         return all_spikes
 
     def retrieve_selective_gsyn_recordings(self, spinnaker_data=True):
