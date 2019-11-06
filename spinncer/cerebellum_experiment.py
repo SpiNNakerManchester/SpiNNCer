@@ -31,7 +31,8 @@ stimulus_information = {
     'f_base': args.f_base,
     'f_peak': args.f_peak,
     'stim_times': args.stim_times,
-    'stim_radius': args.stim_radius
+    'stim_radius': args.stim_radius,
+    'periodic_stimulus': args.periodic_stimulus,
 }
 
 # Instantiate a Cerebellum

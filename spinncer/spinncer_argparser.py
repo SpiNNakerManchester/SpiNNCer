@@ -11,7 +11,7 @@ DEFAULT_BACKGROUND_RATE = 1.  # Hz
 DEFAULT_BURST_RATE = 150.  # Hz
 
 # Radius of volume of excited gloms
-STIMULATED_GLOMERULUS_RADIUS = 30  # micrometers
+STIMULATED_GLOMERULUS_RADIUS = 30  # micrometers TODO change this to 140 um
 
 parser = argparse.ArgumentParser(
     description='Run a cerebellar simulation on SpiNNaker.',
@@ -21,6 +21,10 @@ parser.add_argument('--simtime', type=float,
                     help="simulation time (in ms) "
                          "-- default {}ms".format(DEFAULT_SIMTIME),
                     default=DEFAULT_SIMTIME)
+
+parser.add_argument('--periodic_stimulus', action="store_true",
+                    help='if this flag is present the stimulus '
+                         'is a spike source array with periodic stimulus')
 
 parser.add_argument('--stim_radius', type=float,
                     help="stimulation volume radius "

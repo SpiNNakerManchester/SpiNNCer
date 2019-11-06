@@ -19,6 +19,7 @@ from spinncer.circuit import Circuit
 from spinncer.utilities.constants import *
 from spinncer.utilities.reporting import (population_reporting,
                                           projection_reporting)
+from elephant.spike_train_generation import homogeneous_poisson_process
 
 
 class Cerebellum(Circuit):
@@ -34,6 +35,8 @@ class Cerebellum(Circuit):
         self.__projections = {k: None for k in CONNECTIVITY_MAP.keys()}
         self.__connections = {k: None for k in CONNECTIVITY_MAP.keys()}
         self.__stimulus_information = stimulus_information
+
+        self.periodic_stimulus = stimulus_information['periodic_stimulus']
 
         __connectivity = self.__extract_connectivity(connectivity)
         self.__cell_positions = np.asarray(__connectivity['positions'])
@@ -73,7 +76,7 @@ class Cerebellum(Circuit):
                     self.__number_of_neurons[CELL_NAME_FOR_ID[ui - 1]]
             # Retrieve correct cell parameters for the current cell
             if _cell_name == "glomerulus":
-                cell_param = self.compute_stimulus(
+                cell_param = self.__compute_stimulus(
                     self.__stimulus_information, _no_cells)
                 additional_params = {'seed': 31415926}
             else:
@@ -116,9 +119,12 @@ class Cerebellum(Circuit):
                   "with a weight of {: 2.6f}".format(weight),
                   "uS and a delay of", delay, "ms")
             if (post_pop == "glomerulus" and
-                    CELL_TYPES[post_pop] ==
-                    self.__sim.extra_models.SpikeSourcePoissonVariable):
+                    (CELL_TYPES[post_pop] ==
+                     self.__sim.extra_models.SpikeSourcePoissonVariable or
+                     CELL_TYPES[post_pop] ==
+                     self.__sim.SpikeSourceArray)):
                 # Can't send projections to a spike source
+                print("Ignoring connection terminating at", post_pop, "...")
                 continue
 
             # Normalise the source and target neuron IDs
@@ -147,12 +153,14 @@ class Cerebellum(Circuit):
                 receptor_type=receptor_type,  # inh or exc
                 label=conn_label)  # label for connection
 
-    def compute_stimulus(self, stimulus_information, n_inputs,
-                         with_positions=True):
+    def __compute_stimulus(self, stimulus_information, n_inputs,
+                           with_positions=True):
         # convert stimulation times to numpy array
         stim_times = np.asarray(stimulus_information['stim_times'])
         f_base = np.asarray(stimulus_information['f_base'])
         f_peak = np.asarray(stimulus_information['f_peak'])
+        periodic_stimulus = stimulus_information['periodic_stimulus']
+
         # compute number of rate changes required
         number_of_slots = int(stim_times.size)
         # compute the time at which individual rates take effect
@@ -163,16 +171,14 @@ class Cerebellum(Circuit):
         # compute the individual rates (in Hz) for each slot
         rates = np.ones((n_inputs, number_of_slots)) * \
                 np.asarray([f_base, f_base + f_peak, f_base])
-        # if we should only "stimulate" certain cells which I do by setting
-        # the rates during stimulation to the base level (f_base)
         if with_positions:
             radius = self.__stimulus_information['stim_radius']
             gloms_pos = self.__cell_positions[
                         self.__cell_positions[:, 1] == POPULATION_ID['glomerulus'], :]
             # find center of 'glomerular sphere'
-            x_c, y_c, z_c = np.median(gloms_pos[:, 2]), \
-                            np.median(gloms_pos[:, 3]), \
-                            np.median(gloms_pos[:, 4])
+            x_c, y_c, z_c = (np.median(gloms_pos[:, 2]),
+                             np.median(gloms_pos[:, 3]),
+                             np.median(gloms_pos[:, 4]))
 
             # Find glomeruli falling into the selected volume
             target_gloms_idx = np.sum((gloms_pos[:, 2::] -
@@ -182,15 +188,31 @@ class Cerebellum(Circuit):
             # The target_gloms are not normalised (they are global IDs)
             target_gloms -= self.__nid_offset['glomerulus']
 
-            rates[target_gloms, 1] = f_base
+            # Inverse selection using mask (all other target_gloms are supposed
+            # to fire at f_base Hz
+            # Thanks to
+            # https://stackoverflow.com/questions/25330959/how-to-select-inverse-of-indexes-of-a-numpy-array
+            mask = np.ones(n_inputs, np.bool)
+            mask[target_gloms] = 0
+            # Set the firing rate of other gloms to baseline level
+            rates[mask, 1] = f_base
 
-        # Add a variable-rate poisson spike source to the network
-        stimulus_params = {
-            'rates': rates,
-            'starts': starts,
-            'durations': durations,
-        }
-        return stimulus_params
+        if not periodic_stimulus:
+            # VARIABLE RATE POISSON SPIKE SOURCE + INDEPENDENT SPIKE TRAINS
+            # if we should only "stimulate" certain cells which I do by setting
+            # the rates during stimulation to the base level (f_base)
+
+            # Add a variable-rate poisson spike source to the network
+            stimulus_params = {
+                'rates': rates,
+                'starts': starts,
+                'durations': durations,
+            }
+            return stimulus_params
+        else:
+            # SPIKE SOURCE ARRAY + PERIODIC STIMULUS
+            # TODO Implement this
+            raise NotImplementedError()
 
     def get_circuit_inputs(self):
         """
