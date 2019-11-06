@@ -251,15 +251,8 @@ if __name__ == "__main__":
     fig_folder = "figures"
 
     # Analyse runs below
-
-    res = "results/network_results_500x_slowdown.npz"
-    spike_analysis(res, fig_folder)
-
     res = "results/gold_standards/gold_standard_results_158"
     spike_analysis(res, fig_folder)
 
     res = "results/gold_standards/gold_standard_results_400"
-    spike_analysis(res, fig_folder)
-
-    res = "results/spinncer_no_proj"
     spike_analysis(res, fig_folder)
