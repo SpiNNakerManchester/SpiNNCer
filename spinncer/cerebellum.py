@@ -221,7 +221,7 @@ class Cerebellum(Circuit):
             # SPIKE SOURCE ARRAY + PERIODIC STIMULUS
             # prepare spike times for all n_inputs neurons
             spike_times = [[] for _ in range(n_inputs)]
-            for rate, start, duration in zip(rates, starts, durations):
+            for i, rate, start, duration in zip(range(n_inputs), rates, starts, durations):
                 curr_spikes = []
                 for r, s, d in zip(rate, start, duration):
                     if r == f_base:
@@ -234,7 +234,7 @@ class Cerebellum(Circuit):
                         spike_nums = np.int(np.round((r * d) / 1000.))
                         curr_spikes.append(
                             np.round(np.linspace(s, s+d, spike_nums)))
-                spike_times.append(np.concatenate(curr_spikes))
+                spike_times[i] = np.concatenate(curr_spikes)
             return {
                 'spike_times': spike_times
             }
