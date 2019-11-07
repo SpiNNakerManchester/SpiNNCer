@@ -24,7 +24,8 @@ connectivity_filename = 'datasets/scaffold_detailed__158.0x158.0_v3.hdf5'
 sim.setup(timestep=args.timestep, min_delay=args.timestep, max_delay=10)
 
 # Add constraints here
-sim.set_number_of_neurons_per_core(sim.IF_cond_exp, 64)
+n_neurons_per_core = 64
+sim.set_number_of_neurons_per_core(sim.IF_cond_exp, n_neurons_per_core)
 sim.set_number_of_neurons_per_core(sim.SpikeSourceArray, 128)
 
 # Compile stimulus information
@@ -52,16 +53,12 @@ assert (len(output_populations) == 1)
 
 # Set up recordings
 cerebellum_circuit.record_all_spikes()
-# cerebellum_circuit.selectively_record_gsyn()
+cerebellum_circuit.selectively_record_all(every=n_neurons_per_core)
 
 # Record simulation start time (wall clock)
 sim_start_time = plt.datetime.datetime.now()
 # Run the simulation
 sim.run(args.simtime)  # ms
-# Initialise recordings
-recorded_gsyn = None
-recorded_spikes = None
-
 # Compute time taken to reach this point
 end_time = plt.datetime.datetime.now()
 total_time = end_time - start_time
@@ -69,7 +66,7 @@ sim_total_time = end_time - sim_start_time
 
 # Retrieve recordings
 recorded_spikes = cerebellum_circuit.retrieve_all_recorded_spikes()
-# recorded_gsyn = cerebellum_circuit.retrieve_selective_gsyn_recordings()
+other_recordings = cerebellum_circuit.retrieve_selective_recordings()
 
 # Retrieve final network connectivity
 final_connectivity = cerebellum_circuit.retrieve_final_connectivity()
@@ -101,7 +98,7 @@ results_file = os.path.join(args.result_dir, filename)
 np.savez_compressed(results_file,
                     simulation_parameters=sim_params,
                     all_spikes=recorded_spikes,
-                    all_gsyn=recorded_gsyn,
+                    other_recordings=other_recordings,
                     all_neurons=cerebellum_circuit.number_of_neurons,
                     final_connectivity=final_connectivity,
                     initial_connectivity=initial_connectivity,

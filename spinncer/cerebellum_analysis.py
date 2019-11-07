@@ -181,7 +181,7 @@ def spike_analysis(results_file, fig_folder):
     for index, pop in enumerate(plot_order):
         axes[index].scatter(all_spikes[pop][:, 1],
                             all_spikes[pop][:, 0],
-                            color=viridis_cmap(index / (n_plots+1)),
+                            color=viridis_cmap(index / (n_plots + 1)),
                             s=.5)
         axes[index].set_title(pop)
         # axes[index].set_ylim([0, all_neurons[pop]])
@@ -197,7 +197,7 @@ def spike_analysis(results_file, fig_folder):
     for index, pop in enumerate(plot_order):
         axes[index].bar(np.arange(spikes_per_timestep[pop].size),
                         spikes_per_timestep[pop],
-                        color=viridis_cmap(index / (n_plots+1)))
+                        color=viridis_cmap(index / (n_plots + 1)))
         axes[index].set_title(pop)
     plt.savefig(os.path.join(sim_fig_folder,
                              "timestep_psth.png"))
@@ -210,7 +210,7 @@ def spike_analysis(results_file, fig_folder):
     for index, pop in enumerate(spikes_per_timestep.keys()):
         axes[index].bar(np.arange(spikes_per_timestep[pop].size),
                         np.sort(spikes_per_timestep[pop]),
-                        color=viridis_cmap(index / (n_plots+1)))
+                        color=viridis_cmap(index / (n_plots + 1)))
         axes[index].set_title(pop)
     plt.savefig(os.path.join(sim_fig_folder,
                              "sorted_timestep_psth.png"))
@@ -222,7 +222,7 @@ def spike_analysis(results_file, fig_folder):
                            figsize=(14, 20), sharex=True, dpi=500)
     for index, pop in enumerate(plot_order):
         axes[index].bar(np.arange(spikes_per_3ms[pop].size), spikes_per_3ms[pop],
-                        color=viridis_cmap(index / (n_plots+1)))
+                        color=viridis_cmap(index / (n_plots + 1)))
         axes[index].set_title(pop)
     plt.savefig(os.path.join(sim_fig_folder,
                              "timestep_psth_3ms.png"))
@@ -235,7 +235,7 @@ def spike_analysis(results_file, fig_folder):
     for index, pop in enumerate(plot_order):
         axes[index].bar(np.arange(spikes_per_3ms[pop].size),
                         np.sort(spikes_per_3ms[pop]),
-                        color=viridis_cmap(index / (n_plots+1)))
+                        color=viridis_cmap(index / (n_plots + 1)))
         axes[index].set_title(pop)
     plt.savefig(os.path.join(sim_fig_folder,
                              "sorted_timestep_psth_3ms.png"))
@@ -253,7 +253,7 @@ def spike_analysis(results_file, fig_folder):
                            figsize=(14, 20), sharex=True, dpi=500)
     for index, pop in enumerate(plot_order):
         axes[index].hist(all_spikes[pop][:, 1], n_bins,
-                         color=viridis_cmap(index / (n_plots+1)))
+                         color=viridis_cmap(index / (n_plots + 1)))
         axes[index].set_title(pop)
     plt.savefig(os.path.join(sim_fig_folder,
                              "gold_standard_psth_3ms.png"))

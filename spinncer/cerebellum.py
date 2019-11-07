@@ -330,7 +330,7 @@ class Cerebellum(Circuit):
                     all_spikes[label] = pop.get_data(['spikes'])
         return all_spikes
 
-    def retrieve_selective_gsyn_recordings(self, spinnaker_data=True):
+    def retrieve_selective_recordings(self, spinnaker_data=True):
         """
         Retrieve the recorded spikes for all populations
         :param spinnaker_data: if True will return spikes in a 2D list where
@@ -347,22 +347,31 @@ class Cerebellum(Circuit):
                 gsyn_rec[label] = {}
                 gsyn_rec[label]['gsyn_inh'] = pop.spinnaker_get_data(['gsyn_inh'])
                 gsyn_rec[label]['gsyn_exc'] = pop.spinnaker_get_data(['gsyn_exc'])
+                gsyn_rec[label]['v'] = pop.spinnaker_get_data(['v'])
             else:
                 gsyn_rec[label] = {}
                 gsyn_rec[label]['gsyn_inh'] = pop.get_data(['gsyn_inh'])
                 gsyn_rec[label]['gsyn_exc'] = pop.get_data(['gsyn_exc'])
+                gsyn_rec[label]['v'] = pop.get_data(['v'])
         return gsyn_rec
 
-    def selectively_record_gsyn(self, number_of_neurons=10):
+    def selectively_record_all(self, number_of_neurons=None, every=None):
+        if bool(number_of_neurons) == bool(every):
+            raise ValueError("Specify a number of neurons (sampled randomly) "
+                             "to record from xor a linspace of neurons "
+                             "(every nth).")
         for label, pop in self.__populations.items():
             if label == "glomerulus":
-                print("Skipping selective gsyn recording for", label, "...")
+                print("Skipping selective recording for", label, "...")
             else:
-                print("Selectively recording gsyn for ", label)
+                print("Selectively recording gsyn and v for ", label)
                 ps = pop.size
-                _neuron_choice = np.random.choice(
-                    ps, size=min(number_of_neurons, ps), replace=False)
-                pop[_neuron_choice].record(['gsyn_inh', 'gsyn_exc'])
+                if number_of_neurons:
+                    _neuron_choice = np.random.choice(
+                        ps, size=min(number_of_neurons, ps), replace=False)
+                else:
+                    _neuron_choice = np.arange(0, ps, every)
+                pop[_neuron_choice].record(['gsyn_inh', 'gsyn_exc', 'v'])
 
     def retrieve_final_connectivity(self):
         all_connections = {}
