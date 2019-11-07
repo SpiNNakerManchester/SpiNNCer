@@ -342,6 +342,10 @@ class Cerebellum(Circuit):
         """
         gsyn_rec = {}
         for label, pop in self.__populations.items():
+            if label == "glomerulus":
+                print("Skipping selective recording for", label, "...")
+                continue
+
             print("Retrieving recordings for ", label, "...")
             if spinnaker_data:
                 gsyn_rec[label] = {}
