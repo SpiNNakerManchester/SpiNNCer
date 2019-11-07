@@ -24,9 +24,9 @@ connectivity_filename = 'datasets/scaffold_detailed__158.0x158.0_v3.hdf5'
 sim.setup(timestep=args.timestep, min_delay=args.timestep, max_delay=10)
 
 # Add constraints here
-n_neurons_per_core = 64
+n_neurons_per_core = 32
 sim.set_number_of_neurons_per_core(sim.IF_cond_exp, n_neurons_per_core)
-sim.set_number_of_neurons_per_core(sim.SpikeSourceArray, 128)
+sim.set_number_of_neurons_per_core(sim.SpikeSourceArray, n_neurons_per_core)
 
 # Compile stimulus information
 stimulus_information = {
