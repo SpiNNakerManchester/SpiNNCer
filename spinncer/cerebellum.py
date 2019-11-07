@@ -204,6 +204,12 @@ class Cerebellum(Circuit):
             mask[target_gloms] = 0
             # Set the firing rate of other gloms to baseline level
             rates[mask, 1] = f_base
+            # Report numbers here
+            print("=" * 60)
+            print("Number of stimulated Gloms: ", len(target_gloms),
+                  "i.e. {:6.2%} the total".format(
+                      len(target_gloms)/float(n_inputs)))
+
 
         if not periodic_stimulus:
             # VARIABLE RATE POISSON SPIKE SOURCE + INDEPENDENT SPIKE TRAINS

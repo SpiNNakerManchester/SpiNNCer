@@ -25,6 +25,7 @@ sim.setup(timestep=args.timestep, min_delay=args.timestep, max_delay=10)
 
 # Add constraints here
 sim.set_number_of_neurons_per_core(sim.IF_cond_exp, 64)
+sim.set_number_of_neurons_per_core(sim.SpikeSourceArray, 128)
 
 # Compile stimulus information
 stimulus_information = {
