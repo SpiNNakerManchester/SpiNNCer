@@ -25,9 +25,10 @@ connectivity_filename = args.dataset or \
 sim.setup(timestep=args.timestep, min_delay=args.timestep, max_delay=10)
 
 # Add constraints here
-n_neurons_per_core = 32
+n_neurons_per_core = 16
+ss_neurons_per_core = 16
 sim.set_number_of_neurons_per_core(sim.IF_cond_exp, n_neurons_per_core)
-sim.set_number_of_neurons_per_core(sim.SpikeSourceArray, 16)
+sim.set_number_of_neurons_per_core(sim.SpikeSourceArray, ss_neurons_per_core)
 
 # Compile stimulus information
 stimulus_information = {
@@ -92,6 +93,8 @@ sim_params = {
     "run_end_time": end_time.strftime("%H:%M:%S_%d/%m/%Y"),
     "wall_clock_script_run_time": str(total_time),
     "wall_clock_sim_run_time": str(sim_total_time),
+    "n_neurons_per_core": n_neurons_per_core,
+    "ss_neurons_per_core": ss_neurons_per_core,
 }
 
 # Save results to file in [by default] the `results/' directory
