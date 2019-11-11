@@ -18,7 +18,8 @@ import os
 
 # Record SCRIPT start time (wall clock)
 start_time = plt.datetime.datetime.now()
-connectivity_filename = 'datasets/scaffold_detailed__158.0x158.0_v3.hdf5'
+connectivity_filename = args.dataset or \
+                        'datasets/scaffold_detailed__158.0x158.0_v3.hdf5'
 
 # Set up the simulation
 sim.setup(timestep=args.timestep, min_delay=args.timestep, max_delay=10)
@@ -26,7 +27,7 @@ sim.setup(timestep=args.timestep, min_delay=args.timestep, max_delay=10)
 # Add constraints here
 n_neurons_per_core = 32
 sim.set_number_of_neurons_per_core(sim.IF_cond_exp, n_neurons_per_core)
-sim.set_number_of_neurons_per_core(sim.SpikeSourceArray, n_neurons_per_core)
+sim.set_number_of_neurons_per_core(sim.SpikeSourceArray, 16)
 
 # Compile stimulus information
 stimulus_information = {
