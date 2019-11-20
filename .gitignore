@@ -5,3 +5,4 @@ __pycache__/
 spynnaker.cfg
 *.egg-info
 *.npz
+*.out
