@@ -19,8 +19,8 @@ import os
 # Record SCRIPT start time (wall clock)
 start_time = plt.datetime.datetime.now()
 connectivity_filename = args.dataset or \
-                        'datasets/scaffold_detailed__158.0x158.0_v3.hdf5'
-
+                        'scaffold_detailed__158.0x158.0_v3.hdf5'
+connectivity_filename = os.path.join('datasets', connectivity_filename)
 # Set up the simulation
 sim.setup(timestep=args.timestep, min_delay=args.timestep, max_delay=10)
 
