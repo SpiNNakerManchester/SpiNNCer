@@ -10,8 +10,9 @@ DEFAULT_STIMULATION_DURATIONS = [300, 50, 650]
 DEFAULT_BACKGROUND_RATE = 1.  # Hz
 DEFAULT_BURST_RATE = 150.  # Hz
 
-# Radius of volume of excited gloms
-STIMULATED_GLOMERULUS_RADIUS = 140  # micrometers
+# Radius of volume of excited gloms -- Paper misreports this number,
+# it's actually 70 micrometers for the 400x400 um2 model
+STIMULATED_GLOMERULUS_RADIUS = 70  # micrometers
 
 parser = argparse.ArgumentParser(
     description='Run a cerebellar simulation on SpiNNaker.',
