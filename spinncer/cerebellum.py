@@ -303,13 +303,9 @@ class Cerebellum(Circuit):
             print("Enabling recordings for ", label, "...")
             pop.record(['spikes'])
 
-    def retrieve_all_recorded_spikes(self, spinnaker_data=True):
+    def retrieve_all_recorded_spikes(self):
         """
         Retrieve the recorded spikes for all populations
-        :param spinnaker_data: if True will return spikes in a 2D list where
-        the first column is the neuron id and the second column is the spike
-        time of that cell; else spikes will be returned inside a Neo object
-        :type spinnaker_data: bool
         :return: spike times for all populations
         :rtype: list or Neo.Block
         """
@@ -324,19 +320,12 @@ class Cerebellum(Circuit):
                 _spikes = np.asarray(_spikes)
                 all_spikes[label] = _spikes
             else:
-                if spinnaker_data:
-                    all_spikes[label] = pop.spinnaker_get_data(['spikes'])
-                else:
                     all_spikes[label] = pop.get_data(['spikes'])
         return all_spikes
 
-    def retrieve_selective_recordings(self, spinnaker_data=True):
+    def retrieve_selective_recordings(self):
         """
-        Retrieve the recorded spikes for all populations
-        :param spinnaker_data: if True will return spikes in a 2D list where
-        the first column is the neuron id and the second column is the spike
-        time of that cell; else spikes will be returned inside a Neo object
-        :type spinnaker_data: bool
+        Retrieve the recorded observables for all populations
         :return: spike times for all populations
         :rtype: list or Neo.Block
         """
@@ -345,18 +334,11 @@ class Cerebellum(Circuit):
             if label == "glomerulus":
                 print("Skipping selective recording for", label, "...")
                 continue
-
             print("Retrieving recordings for ", label, "...")
-            if spinnaker_data:
-                gsyn_rec[label] = {}
-                gsyn_rec[label]['gsyn_inh'] = pop.spinnaker_get_data(['gsyn_inh'])
-                gsyn_rec[label]['gsyn_exc'] = pop.spinnaker_get_data(['gsyn_exc'])
-                gsyn_rec[label]['v'] = pop.spinnaker_get_data(['v'])
-            else:
-                gsyn_rec[label] = {}
-                gsyn_rec[label]['gsyn_inh'] = pop.get_data(['gsyn_inh'])
-                gsyn_rec[label]['gsyn_exc'] = pop.get_data(['gsyn_exc'])
-                gsyn_rec[label]['v'] = pop.get_data(['v'])
+            gsyn_rec[label] = {}
+            gsyn_rec[label]['gsyn_inh'] = pop.get_data(['gsyn_inh'])
+            gsyn_rec[label]['gsyn_exc'] = pop.get_data(['gsyn_exc'])
+            gsyn_rec[label]['v'] = pop.get_data(['v'])
         return gsyn_rec
 
     def selectively_record_all(self, number_of_neurons=None, every=None):

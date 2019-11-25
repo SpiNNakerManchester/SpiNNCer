@@ -1,12 +1,5 @@
 # import sPyNNaker
 from spinncer.cerebellum import Cerebellum
-import numpy as np
-
-try:
-    # this might be deprecated soon
-    import spynnaker8 as sim
-except ImportError:
-    import pyNN.spynnaker as sim
 # argparser for easily running experiment from cli
 from spinncer.spinncer_argparser import *
 # provenance utility
@@ -15,11 +8,23 @@ from spinncer.utilities.provenance import retrieve_git_commit
 from spinncer.cerebellum_analysis import *
 import pylab as plt
 import os
+# import simulator
+if str.lower(args.simulator) in ["spinnaker", "spynnaker"]:
+    try:
+        # this might be deprecated soon
+        import spynnaker8 as sim
+    except ImportError:
+        import pyNN.spynnaker as sim
+elif str.lower(args.simulator) in ["nest"]:
+    import pyNN.nest as sim
+else:
+    raise ValueError("Simulator " + str.lower(args.simulator) +
+                     "unrecognised!")
 
 # Record SCRIPT start time (wall clock)
 start_time = plt.datetime.datetime.now()
-connectivity_filename = args.dataset or \
-                        'scaffold_detailed__158.0x158.0_v3.hdf5'
+
+connectivity_filename = args.dataset or DEFAULT_DATASET
 connectivity_filename = os.path.join('datasets', connectivity_filename)
 # Set up the simulation
 sim.setup(timestep=args.timestep, min_delay=args.timestep, max_delay=10)

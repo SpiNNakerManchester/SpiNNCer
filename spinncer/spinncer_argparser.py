@@ -13,6 +13,9 @@ DEFAULT_BURST_RATE = 150.  # Hz
 # Simulator
 DEFAULT_SIMULATOR = "spinnaker"
 
+# Default dataset file
+DEFAULT_DATASET = 'scaffold_detailed__158.0x158.0_v3.hdf5'
+
 # Radius of volume of excited gloms -- Paper misreports this number,
 # it's actually 70 micrometers for the 400x400 um2 model
 STIMULATED_GLOMERULUS_RADIUS = 70  # micrometers
