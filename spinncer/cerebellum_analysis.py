@@ -18,8 +18,8 @@ from datetime import datetime
 import warnings
 import ntpath
 from spinncer.utilities.constants import CONNECTIVITY_MAP
+from spinncer.utilities.neo_converter import convert_spikes
 from colorama import Fore, Style, init as color_init
-from spinncer.cerebellum import Cerebellum
 
 warnings.filterwarnings("ignore", category=UserWarning)
 
@@ -74,6 +74,13 @@ def spike_analysis(results_file, fig_folder):
     stim_durations = sim_params['argparser']['stim_times']
     stimulus_periods = len(stim_durations)
     filtered_firing_rates = {}
+    # Check if using neo blocks
+    neo_all_spikes = {}
+    for pop, potential_neo_block in all_spikes.items():
+        if isinstance(potential_neo_block, neo.Block):
+            # make a copy of the spikes dict
+            neo_all_spikes[pop] = potential_neo_block
+            all_spikes[pop] = convert_spikes(potential_neo_block)
     # Report useful parameters
     print("=" * 60)
     print("Simulation parameters")
@@ -263,14 +270,27 @@ def spike_analysis(results_file, fig_folder):
 
 
 if __name__ == "__main__":
+    import sys
     # Constants
     fig_folder = "figures"
 
-    # res = "results/network_results_500x_ssa_55um"
-    # spike_analysis(res, fig_folder)
 
-    # res = "results/spikes_by_beatrice"
-    # spike_analysis(res, fig_folder)
+    res = "results/network_results_1000x_ssa_27.65um"
+    spike_analysis(res, fig_folder)
+
+    res = "results/network_results_1000x_ssa_400x400_no_proj"
+    spike_analysis(res, fig_folder)
+
+    sys.exit()
+
+    res = "results/network_results_500x_ssa_55um"
+    spike_analysis(res, fig_folder)
+
+    res = "results/network_results_500x_ssa"
+    spike_analysis(res, fig_folder)
+
+    res = "results/spikes_by_beatrice"
+    spike_analysis(res, fig_folder)
 
     # Analyse runs below
     res = "results/gold_standards/gold_standard_results_158"
