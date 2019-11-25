@@ -10,18 +10,27 @@ DEFAULT_STIMULATION_DURATIONS = [300, 50, 650]
 DEFAULT_BACKGROUND_RATE = 1.  # Hz
 DEFAULT_BURST_RATE = 150.  # Hz
 
+# Simulator
+DEFAULT_SIMULATOR = "spinnaker"
+
 # Radius of volume of excited gloms -- Paper misreports this number,
 # it's actually 70 micrometers for the 400x400 um2 model
 STIMULATED_GLOMERULUS_RADIUS = 70  # micrometers
 
 parser = argparse.ArgumentParser(
-    description='Run a cerebellar simulation on SpiNNaker.',
+    description='Run a cerebellar simulation written in PyNN on '
+                'using sPyNNaker on SpiNNaker or using NEST.',
     formatter_class=argparse.RawTextHelpFormatter)
 
 parser.add_argument('--simtime', type=float,
                     help="simulation time (in ms) "
                          "-- default {}ms".format(DEFAULT_SIMTIME),
                     default=DEFAULT_SIMTIME)
+
+parser.add_argument('--simulator', type=str,
+                    help="which simulator to use "
+                         "-- default {}ms".format(DEFAULT_SIMULATOR),
+                    default=DEFAULT_SIMULATOR)
 
 parser.add_argument('--periodic_stimulus', action="store_true",
                     help='if this flag is present the stimulus '
