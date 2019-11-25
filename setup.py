@@ -1,5 +1,17 @@
 from setuptools import setup, find_packages
 
+
+install_requires = [
+    "numpy",
+    "scipy",
+    "brian2",
+    "spynnaker>= 1!5.0.0, < 1!6.0.0",
+    "spynnaker8 >= 1!5.0.0, < 1!6.0.0",
+    "pynn",
+    "matplotlib",
+    "argparse"
+]
+
 setup(
     name='spinncer',
     version='0.0.1',
@@ -10,14 +22,7 @@ setup(
     author_email='petrut.bogdan@manchester.ac.uk',
     description='Simulating a large scale Cerebellum model on SpiNNaker',
     # Requirements
-    dependency_links=[],
-
-    install_requires=["numpy",
-                      "scipy",
-                      "brian2",
-                      "spynnaker>= 1!5.0.0, < 1!6.0.0",
-                      "pynn",
-                      "matplotlib"],
+    install_requires=install_requires,
     classifiers=[
         "Development Status :: 3 - Alpha",
 
