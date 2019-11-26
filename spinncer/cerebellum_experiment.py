@@ -30,8 +30,8 @@ connectivity_filename = os.path.join('datasets', connectivity_filename)
 sim.setup(timestep=args.timestep, min_delay=args.timestep, max_delay=10)
 
 # Add constraints here
-n_neurons_per_core = 16
-ss_neurons_per_core = 16
+n_neurons_per_core = 64
+ss_neurons_per_core = 64
 sim.set_number_of_neurons_per_core(sim.IF_cond_exp, n_neurons_per_core)
 sim.set_number_of_neurons_per_core(sim.SpikeSourceArray, ss_neurons_per_core)
 
