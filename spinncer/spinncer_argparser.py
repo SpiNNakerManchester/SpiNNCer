@@ -6,7 +6,7 @@ DEFAULT_SIMTIME = 1000  # ms, see page 5 of 10.3389/fninf.2019.00037
 DEFAULT_TIMESTEP = 0.1  # ms
 
 # Stimulus: 300 ms pre-stimulus, 50 ms stimulus, and 650 ms post-stimulus.
-DEFAULT_STIMULATION_DURATIONS = [300, 50, 650]
+DEFAULT_STIMULATION_DURATIONS = [300, 100, 600]
 DEFAULT_BACKGROUND_RATE = 1.  # Hz
 DEFAULT_BURST_RATE = 150.  # Hz
 
