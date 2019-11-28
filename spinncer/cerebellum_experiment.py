@@ -61,6 +61,8 @@ assert (len(output_populations) == 1)
 # Set up recordings
 cerebellum_circuit.record_all_spikes()
 cerebellum_circuit.selectively_record_all(every=n_neurons_per_core)
+recorded_spikes = {}
+other_recordings = {}
 
 # Record simulation start time (wall clock)
 sim_start_time = plt.datetime.datetime.now()
@@ -76,7 +78,11 @@ recorded_spikes = cerebellum_circuit.retrieve_all_recorded_spikes()
 other_recordings = cerebellum_circuit.retrieve_selective_recordings()
 
 # Retrieve final network connectivity
-final_connectivity = cerebellum_circuit.retrieve_final_connectivity()
+try:
+    final_connectivity = cerebellum_circuit.retrieve_final_connectivity()
+except:
+    # This simulator might not support the way this is done
+    final_connectivity = []
 initial_connectivity = cerebellum_circuit.connections
 
 # Save results
@@ -112,8 +118,7 @@ np.savez_compressed(results_file,
                     final_connectivity=final_connectivity,
                     initial_connectivity=initial_connectivity,
                     stimulus_params=stimulus_information,
-                    simtime=args.simtime,
-                    **recorded_spikes)
+                    simtime=args.simtime)
 
 # Appropriately end the simulation
 sim.end()
