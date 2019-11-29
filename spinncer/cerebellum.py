@@ -208,8 +208,7 @@ class Cerebellum(Circuit):
             print("=" * 60)
             print("Number of stimulated Gloms: ", len(target_gloms),
                   "i.e. {:6.2%} the total".format(
-                      len(target_gloms)/float(n_inputs)))
-
+                      len(target_gloms) / float(n_inputs)))
 
         if not periodic_stimulus:
             # VARIABLE RATE POISSON SPIKE SOURCE + INDEPENDENT SPIKE TRAINS
@@ -239,7 +238,7 @@ class Cerebellum(Circuit):
                     else:
                         spike_nums = np.int(np.round((r * d) / 1000.))
                         curr_spikes.append(
-                            np.round(np.linspace(s, s+d, spike_nums)))
+                            np.round(np.linspace(s, s + d, spike_nums)))
                 spike_times[i] = np.concatenate(curr_spikes)
             return {
                 'spike_times': spike_times
@@ -320,7 +319,7 @@ class Cerebellum(Circuit):
                 _spikes = np.asarray(_spikes)
                 all_spikes[label] = _spikes
             else:
-                    all_spikes[label] = pop.get_data(['spikes'])
+                all_spikes[label] = pop.get_data(['spikes'])
         return all_spikes
 
     def retrieve_selective_recordings(self):
@@ -366,8 +365,15 @@ class Cerebellum(Circuit):
                 print("Projection", label, "is not implemented!")
                 continue
             print("Retrieving connectivity for projection ", label, "...")
-            all_connections[label] = \
-                np.array(p.get(('weight', 'delay'), format="list")._get_data_items())
+            try:
+                all_connections[label] = \
+                    np.array(p.get(('weight', 'delay'),
+                                   format="list")._get_data_items())
+            except Exception as e:
+                print("Careful! Something happened when retrieving the "
+                      "connectivity:", e, "\nRetrying...")
+                all_connections[label] = \
+                    np.array(p.get(('weight', 'delay'), format="list"))
         return all_connections
 
     def retrieve_population_names(self):
