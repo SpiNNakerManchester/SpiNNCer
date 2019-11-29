@@ -27,33 +27,33 @@ class Cerebellum(Circuit):
 
     def __init__(self, sim, connectivity, stimulus_information, reporting=True,
                  skip_projections=False):
-        self.__sim = sim
+        self.sim = sim
         self.reporting = reporting
 
-        self.__populations = {k: None for k in POPULATION_ID.keys()}
-        self.__number_of_neurons = {k: None for k in POPULATION_ID.keys()}
-        self.__nid_offset = {k: None for k in POPULATION_ID.keys()}
-        self.__projections = {k: None for k in CONNECTIVITY_MAP.keys()}
-        self.__connections = {k: None for k in CONNECTIVITY_MAP.keys()}
-        self.__stimulus_information = stimulus_information
+        self.populations = {k: None for k in POPULATION_ID.keys()}
+        self.number_of_neurons = {k: None for k in POPULATION_ID.keys()}
+        self.nid_offset = {k: None for k in POPULATION_ID.keys()}
+        self.projections = {k: None for k in CONNECTIVITY_MAP.keys()}
+        self.connections = {k: None for k in CONNECTIVITY_MAP.keys()}
+        self.stimulus_information = stimulus_information
 
         self.periodic_stimulus = stimulus_information['periodic_stimulus']
         self.stimulus = None
 
         __connectivity = self.__extract_connectivity(connectivity)
-        self.__cell_positions = np.asarray(__connectivity['positions'])
+        self.cell_positions = np.asarray(__connectivity['positions'])
 
         # Construct PyNN neural Populations
-        self.__build_populations(self.__cell_positions)
+        self.build_populations(self.cell_positions)
 
         # Construct PyNN Projections
         if not skip_projections:
-            self.__build_projections(__connectivity['connections'])
+            self.build_projections(__connectivity['connections'])
 
-        for pop_name, pop_obj in self.__populations.items():
+        for pop_name, pop_obj in self.populations.items():
             self.__setattr__(pop_name, pop_obj)
 
-    def __build_populations(self, positions):
+    def build_populations(self, positions):
         """
         Construct PyNN Projections between Populations
         """
@@ -67,20 +67,20 @@ class Cerebellum(Circuit):
             _cell_name = CELL_NAME_FOR_ID[ui]
             _no_cells = positions[positions[:, 1] == ui, :].shape[0]
             # Store number of neurons for later
-            self.__number_of_neurons[_cell_name] = _no_cells
+            self.number_of_neurons[_cell_name] = _no_cells
             # save global neuron ID offset
             # NOTE: np.min(unique_ids) == 1
             if ui == 1:
-                self.__nid_offset[_cell_name] = 0
+                self.nid_offset[_cell_name] = 0
             else:
-                self.__nid_offset[_cell_name] = \
-                    self.__nid_offset[CELL_NAME_FOR_ID[ui - 1]] + \
-                    self.__number_of_neurons[CELL_NAME_FOR_ID[ui - 1]]
+                self.nid_offset[_cell_name] = \
+                    self.nid_offset[CELL_NAME_FOR_ID[ui - 1]] + \
+                    self.number_of_neurons[CELL_NAME_FOR_ID[ui - 1]]
             # Retrieve correct cell parameters for the current cell
             cell_model = CELL_TYPES[_cell_name]
             if _cell_name == "glomerulus":
                 cell_param = self.__compute_stimulus(
-                    self.__stimulus_information, _no_cells)
+                    self.stimulus_information, _no_cells)
                 additional_params = {'seed': 31415926}
                 if self.periodic_stimulus:
                     cell_model = sim.SpikeSourceArray
@@ -93,20 +93,20 @@ class Cerebellum(Circuit):
                 # add E_rev_I to all cells
                 cell_param['e_rev_I'] = cell_param['v_reset'] - 5.
             # Adding the population to the network
-            self.__populations[_cell_name] = self.__sim.Population(
+            self.populations[_cell_name] = self.sim.Population(
                 _no_cells,
                 cellclass=cell_model,
                 cellparams=cell_param,
                 label=_cell_name + " cells",
                 additional_parameters=additional_params)
 
-    def __build_projections(self, connections):
+    def build_projections(self, connections):
         """
         Construct PyNN Projections between Populations
         """
         if self.reporting:
             # Report statistics about the populations to be built
-            projection_reporting(connections, self.__number_of_neurons)
+            projection_reporting(connections, self.number_of_neurons)
         # Retrieve the Projection labels
         labels = connections.keys()
         # Loop over each connection in `connections`
@@ -128,23 +128,23 @@ class Cerebellum(Circuit):
                   "uS and a delay of", delay, "ms")
             if (post_pop == "glomerulus" and
                     (CELL_TYPES[post_pop] ==
-                     self.__sim.extra_models.SpikeSourcePoissonVariable or
+                     self.sim.extra_models.SpikeSourcePoissonVariable or
                      CELL_TYPES[post_pop] ==
-                     self.__sim.SpikeSourceArray)):
+                     self.sim.SpikeSourceArray)):
                 # Can't send projections to a spike source
                 print("Ignoring connection terminating at", post_pop, "...")
                 continue
 
             # Normalise the source and target neuron IDs
             # Neurons IDs used here are np.arange(0, TOTAL_NUMBER_OF_NEURONS)
-            norm_ids = np.asarray([self.__nid_offset[pre_pop],
-                                   self.__nid_offset[post_pop]])
+            norm_ids = np.asarray([self.nid_offset[pre_pop],
+                                   self.nid_offset[post_pop]])
             conns -= norm_ids
 
             # Save the explicit connectivity for later
             stacked_weights = np.asarray([[np.abs(weight)]] * no_synapses)
             stacked_delays = np.asarray([[delay]] * no_synapses)
-            self.__connections[conn_label] = np.concatenate(
+            self.connections[conn_label] = np.concatenate(
                 [conns, stacked_weights, stacked_delays], axis=1)
 
             assert (np.max(conns[:, 0]) < self.number_of_neurons[pre_pop]), \
@@ -153,11 +153,11 @@ class Cerebellum(Circuit):
                 np.max(conns[:, 1])
             # Adding the projection to the network
             receptor_type = "inhibitory" if weight < 0 else "excitatory"
-            self.__projections[conn_label] = self.__sim.Projection(
-                self.__populations[pre_pop],  # pre-synaptic population
-                self.__populations[post_pop],  # post-synaptic population
+            self.projections[conn_label] = self.sim.Projection(
+                self.populations[pre_pop],  # pre-synaptic population
+                self.populations[post_pop],  # post-synaptic population
                 # connector includes (source, target, weight, delay)
-                self.__sim.FromListConnector(self.__connections[conn_label]),
+                self.sim.FromListConnector(self.connections[conn_label]),
                 receptor_type=receptor_type,  # inh or exc
                 label=conn_label)  # label for connection
 
@@ -180,9 +180,9 @@ class Cerebellum(Circuit):
         rates = np.ones((n_inputs, number_of_slots)) * \
                 np.asarray([f_base, f_base + f_peak, f_base])
         if with_positions:
-            radius = self.__stimulus_information['stim_radius']
-            gloms_pos = self.__cell_positions[
-                        self.__cell_positions[:, 1] == POPULATION_ID['glomerulus'], :]
+            radius = self.stimulus_information['stim_radius']
+            gloms_pos = self.cell_positions[
+                        self.cell_positions[:, 1] == POPULATION_ID['glomerulus'], :]
             # find center of 'glomerular sphere'
             x_c, y_c, z_c = (np.median(gloms_pos[:, 2]),
                              np.median(gloms_pos[:, 3]),
@@ -194,7 +194,7 @@ class Cerebellum(Circuit):
                                       axis=1).__lt__(radius ** 2)
             target_gloms = np.asarray(gloms_pos[target_gloms_idx, 0]).astype(int)
             # The target_gloms are not normalised (they are global IDs)
-            target_gloms -= self.__nid_offset['glomerulus']
+            target_gloms -= self.nid_offset['glomerulus']
 
             # Inverse selection using mask (all other target_gloms are supposed
             # to fire at f_base Hz
@@ -251,7 +251,7 @@ class Cerebellum(Circuit):
         :return: INPUT populations in the Cerebellar circuit
         :rtype: dict
         """
-        return {k: v for k, v in self.__populations.items()
+        return {k: v for k, v in self.populations.items()
                 if CELL_IO_STATUS[k] == IO_Status.INPUT}
 
     def get_circuit_outputs(self):
@@ -260,7 +260,7 @@ class Cerebellum(Circuit):
         :return: OUTPUT populations in the Cerebellar circuit
         :rtype: dict
         """
-        return {k: v for k, v in self.__populations.items()
+        return {k: v for k, v in self.populations.items()
                 if CELL_IO_STATUS[k] == IO_Status.OUTPUT}
 
     def get_all_populations(self):
@@ -269,7 +269,7 @@ class Cerebellum(Circuit):
         :return: populations in the Cerebellar circuit
         :rtype: dict
         """
-        return {k: v for k, v in self.__populations.items()}
+        return {k: v for k, v in self.populations.items()}
 
     def __extract_connectivity(self, connectivity):
         """
@@ -295,7 +295,7 @@ class Cerebellum(Circuit):
             return connectivity
 
     def record_all_spikes(self):
-        for label, pop in self.__populations.items():
+        for label, pop in self.populations.items():
             if CELL_TYPES[label] == sim.SpikeSourceArray:
                 print("NOT enabling recordings for ", label,
                       "(it's a Spike Source Array)")
@@ -310,7 +310,7 @@ class Cerebellum(Circuit):
         :rtype: list or Neo.Block
         """
         all_spikes = {}
-        for label, pop in self.__populations.items():
+        for label, pop in self.populations.items():
             print("Retrieving recordings for ", label, "...")
             if CELL_TYPES[label] == sim.SpikeSourceArray:
                 _spikes = []
@@ -330,7 +330,7 @@ class Cerebellum(Circuit):
         :rtype: list or Neo.Block
         """
         gsyn_rec = {}
-        for label, pop in self.__populations.items():
+        for label, pop in self.populations.items():
             if label == "glomerulus":
                 print("Skipping selective recording for", label, "...")
                 continue
@@ -346,7 +346,7 @@ class Cerebellum(Circuit):
             raise ValueError("Specify a number of neurons (sampled randomly) "
                              "to record from xor a linspace of neurons "
                              "(every nth).")
-        for label, pop in self.__populations.items():
+        for label, pop in self.populations.items():
             if label == "glomerulus":
                 print("Skipping selective recording for", label, "...")
             else:
@@ -361,7 +361,7 @@ class Cerebellum(Circuit):
 
     def retrieve_final_connectivity(self):
         all_connections = {}
-        for label, p in self.__projections.items():
+        for label, p in self.projections.items():
             if p is None:
                 print("Projection", label, "is not implemented!")
                 continue
@@ -371,21 +371,8 @@ class Cerebellum(Circuit):
         return all_connections
 
     def retrieve_population_names(self):
-        return list(self.__populations.keys())
+        return list(self.populations.keys())
 
     @staticmethod
     def retrieve_cell_params():
         return CELL_PARAMS
-
-    @property
-    def number_of_neurons(self):
-        return self.__number_of_neurons
-
-    @property
-    def connections(self):
-        """
-        This property will return the INITIAL weights
-        :return: INITIAL weights
-        :rtype: dict
-        """
-        return self.__connections
