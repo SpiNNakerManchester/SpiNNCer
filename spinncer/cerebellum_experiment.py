@@ -8,6 +8,7 @@ from spinncer.utilities.provenance import retrieve_git_commit
 from spinncer.cerebellum_analysis import *
 import pylab as plt
 import os
+import traceback
 # import simulator
 if str.lower(args.simulator) in ["spinnaker", "spynnaker"]:
     try:
@@ -66,8 +67,15 @@ other_recordings = {}
 
 # Record simulation start time (wall clock)
 sim_start_time = plt.datetime.datetime.now()
+current_error = None
 # Run the simulation
-sim.run(args.simtime)  # ms
+try:
+    sim.run(args.simtime)  # ms
+except Exception as e:
+    print("An exception occurred during execution!")
+    traceback.print_exc()
+    current_error = e
+
 # Compute time taken to reach this point
 end_time = plt.datetime.datetime.now()
 total_time = end_time - start_time
@@ -91,6 +99,9 @@ if args.filename:
     filename = args.filename
 else:
     filename = "spinncer_experiment" + str(suffix)
+
+if current_error:
+    filename = "error_" + filename
 
 # Check if the results folder exist
 if not os.path.isdir(args.result_dir) and not os.path.exists(args.result_dir):
