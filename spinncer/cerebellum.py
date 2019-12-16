@@ -26,7 +26,7 @@ import quantities as pq
 class Cerebellum(Circuit):
 
     def __init__(self, sim, connectivity, stimulus_information, reporting=True,
-                 skip_projections=False):
+                 skip_projections=False, weight_scaling=None):
         self.sim = sim
         self.reporting = reporting
 
@@ -39,6 +39,7 @@ class Cerebellum(Circuit):
 
         self.periodic_stimulus = stimulus_information['periodic_stimulus']
         self.stimulus = None
+        self.weight_scaling = weight_scaling or 1.0
 
         __connectivity = self.__extract_connectivity(connectivity)
         self.cell_positions = np.asarray(__connectivity['positions'])
@@ -91,7 +92,8 @@ class Cerebellum(Circuit):
                 cell_param = CELL_PARAMS[_cell_name]
                 additional_params = {}
                 # add E_rev_I to all cells
-                cell_param['e_rev_I'] = cell_param['v_reset'] - 5.
+                if cell_model == self.sim.IF_cond_exp:
+                    cell_param['e_rev_I'] = cell_param['v_reset'] - 5.
             # Adding the population to the network
             self.populations[_cell_name] = self.sim.Population(
                 _no_cells,
@@ -142,7 +144,9 @@ class Cerebellum(Circuit):
             conns -= norm_ids
 
             # Save the explicit connectivity for later
-            stacked_weights = np.asarray([[np.abs(weight)]] * no_synapses)
+            # (after scaling the weights)
+            stacked_weights = np.asarray([[np.abs(weight)]] * no_synapses) * \
+                self.weight_scaling
             stacked_delays = np.asarray([[delay]] * no_synapses)
             self.connections[conn_label] = np.concatenate(
                 [conns, stacked_weights, stacked_delays], axis=1)

@@ -27,12 +27,13 @@ start_time = plt.datetime.datetime.now()
 connectivity_filename = args.dataset or DEFAULT_DATASET
 connectivity_filename = os.path.join('datasets', connectivity_filename)
 # Set up the simulation
-sim.setup(timestep=args.timestep, min_delay=args.timestep, max_delay=10)
+sim.setup(timestep=args.timestep, min_delay=args.timestep, max_delay=6.4)
 
 # Add constraints here
 n_neurons_per_core = 64
 ss_neurons_per_core = 64
 sim.set_number_of_neurons_per_core(sim.IF_cond_exp, n_neurons_per_core)
+sim.set_number_of_neurons_per_core(sim.IF_curr_exp, n_neurons_per_core)
 sim.set_number_of_neurons_per_core(sim.SpikeSourceArray, ss_neurons_per_core)
 
 # Compile stimulus information
@@ -48,7 +49,8 @@ stimulus_information = {
 cerebellum_circuit = Cerebellum(sim, connectivity_filename,
                                 stimulus_information=stimulus_information,
                                 reporting=args.no_reports,
-                                skip_projections=args.skip_projections)
+                                skip_projections=args.skip_projections,
+                                weight_scaling=args.weight_scaling)
 
 # Test various exposed methods
 populations = cerebellum_circuit.get_all_populations()

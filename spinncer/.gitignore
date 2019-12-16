@@ -6,3 +6,4 @@ spynnaker.cfg
 *.egg-info
 *.npz
 *.out
+figures/

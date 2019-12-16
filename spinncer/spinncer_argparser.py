@@ -13,6 +13,9 @@ DEFAULT_BURST_RATE = 150.  # Hz
 # Simulator
 DEFAULT_SIMULATOR = "spinnaker"
 
+# Scale weights from the default
+DEFAULT_WEIGHT_SCALING = 1.
+
 # Default dataset file
 DEFAULT_DATASET = 'scaffold_detailed__158.0x158.0_v3.hdf5'
 
@@ -29,6 +32,11 @@ parser.add_argument('--simtime', type=float,
                     help="simulation time (in ms) "
                          "-- default {}ms".format(DEFAULT_SIMTIME),
                     default=DEFAULT_SIMTIME)
+
+parser.add_argument('--weight_scaling', type=float,
+                    help="scale the weights before passing them to sPyNNaker "
+                         "-- default {}".format(DEFAULT_WEIGHT_SCALING),
+                    default=DEFAULT_WEIGHT_SCALING)
 
 parser.add_argument('--simulator', type=str,
                     help="which simulator to use "
