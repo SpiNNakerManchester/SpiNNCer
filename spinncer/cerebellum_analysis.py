@@ -95,6 +95,8 @@ def spike_analysis(results_file, fig_folder):
     # Bincount
     spikes_per_timestep = {}
     spikes_per_3ms = {}
+    # Per neuron firing rate in each stimulus period
+    per_neuron_firing = {}
     print("Maximum number of generated spikes per timestep")
     print("-" * 60)
     for pop, spikes in all_spikes.items():
@@ -116,6 +118,9 @@ def spike_analysis(results_file, fig_folder):
         # before, during and after stimulation
         _filtered_spike_rates = np.zeros(stimulus_periods)
         _spike_times = spikes[:, 1]
+        # Initialise per_neuron_firing
+        per_neuron_firing[pop] = np.ones((all_neurons[pop],
+                                          stimulus_periods)) * -10
         for period in range(stimulus_periods):
             # TODO enhance this to produce histograms of firing rates / pop
             _filtered_spike_times = np.logical_and(
@@ -124,6 +129,13 @@ def spike_analysis(results_file, fig_folder):
             _filtered_spike_rates[period] = \
                 np.count_nonzero(_filtered_spike_times) / \
                 (stim_durations[period] * ms)
+            for nid in range(all_neurons[pop]):
+                _spikes_for_nid = spikes[spikes[:, 0] == nid][:, 1]
+                _no_spike_for_nid = np.count_nonzero(np.logical_and(
+                    _spikes_for_nid >= time_filter[period],
+                    _spikes_for_nid < time_filter[period + 1]))
+                per_neuron_firing[pop][nid, period] = _no_spike_for_nid / \
+                                                      (stim_durations[period] * ms)
         # save the firing rate for the average neuron in this population
         filtered_firing_rates[pop] = _filtered_spike_rates / all_neurons[pop]
     # Report average firing rates before, during and after stimulation
@@ -181,6 +193,27 @@ def spike_analysis(results_file, fig_folder):
     print("=" * 60)
     print("Plotting figures...")
     print("-" * 60)
+    # plot firing rate histogram per PSTH region
+    print("Plotting firing rate histograms")
+    f, axes = plt.subplots(len(plot_order), 3,
+                           figsize=(14, 20), sharex=True, dpi=700)
+    for index, pop in enumerate(plot_order):
+        for period in range(stimulus_periods):
+            curr_ax = axes[index, period]
+            curr_ax.hist(per_neuron_firing[pop][:, period],
+                         color=viridis_cmap(index / (n_plots + 1)),
+                         bins=20)
+            if period == 1:
+                curr_ax.set_title(pop)
+            curr_ax.set_xlabel("Hz")
+            curr_ax.xaxis.set_tick_params(which='both',
+                                          labelbottom=True)
+            curr_ax.set_xticks([0, 100, 200])
+
+    plt.savefig(os.path.join(sim_fig_folder,
+                             "neuron_firing_rate_hist.png"))
+    plt.close(f)
+
     # raster plot
     print("Plotting spiking raster plot for each population")
     f, axes = plt.subplots(len(all_spikes.keys()), 1,
@@ -200,7 +233,7 @@ def spike_analysis(results_file, fig_folder):
     # plot .1 ms PSTH
     print("Plotting PSTH for each timestep")
     f, axes = plt.subplots(len(spikes_per_timestep.keys()), 1,
-                           figsize=(14, 20), sharex=True, dpi=500)
+                           figsize=(14, 20), sharex=True, dpi=700)
     for index, pop in enumerate(plot_order):
         axes[index].bar(np.arange(spikes_per_timestep[pop].size),
                         spikes_per_timestep[pop],
@@ -213,7 +246,7 @@ def spike_analysis(results_file, fig_folder):
     # plot sorted .1 ms PSTH
     print("Plotting sorted PSTH for each timestep")
     f, axes = plt.subplots(len(plot_order), 1,
-                           figsize=(14, 20), sharex=True, dpi=500)
+                           figsize=(14, 20), sharex=True, dpi=700)
     for index, pop in enumerate(spikes_per_timestep.keys()):
         axes[index].bar(np.arange(spikes_per_timestep[pop].size),
                         np.sort(spikes_per_timestep[pop]),
@@ -226,7 +259,7 @@ def spike_analysis(results_file, fig_folder):
     # plot 3 ms PSTH
     print("Plotting PSTH in bins of 3 ms")
     f, axes = plt.subplots(len(spikes_per_3ms.keys()), 1,
-                           figsize=(14, 20), sharex=True, dpi=500)
+                           figsize=(14, 20), sharex=True, dpi=700)
     for index, pop in enumerate(plot_order):
         axes[index].bar(np.arange(spikes_per_3ms[pop].size), spikes_per_3ms[pop],
                         color=viridis_cmap(index / (n_plots + 1)))
@@ -238,7 +271,7 @@ def spike_analysis(results_file, fig_folder):
     # plot sorted 3 ms PSTH
     print("Plotting sorted PSTH in bins of 3 ms")
     f, axes = plt.subplots(len(spikes_per_3ms.keys()), 1,
-                           figsize=(14, 20), sharex=True, dpi=500)
+                           figsize=(14, 20), sharex=True, dpi=700)
     for index, pop in enumerate(plot_order):
         axes[index].bar(np.arange(spikes_per_3ms[pop].size),
                         np.sort(spikes_per_3ms[pop]),
@@ -257,7 +290,7 @@ def spike_analysis(results_file, fig_folder):
     n_bins = int(round(simtime / ms / 20))
     print("Plotting to gold standard")
     f, axes = plt.subplots(len(spikes_per_3ms.keys()), 1,
-                           figsize=(14, 20), sharex=True, dpi=500)
+                           figsize=(14, 20), sharex=True, dpi=700)
     for index, pop in enumerate(plot_order):
         axes[index].hist(all_spikes[pop][:, 1], n_bins,
                          color=viridis_cmap(index / (n_plots + 1)))
@@ -271,30 +304,9 @@ def spike_analysis(results_file, fig_folder):
 
 if __name__ == "__main__":
     import sys
+
     # Constants
     fig_folder = "figures"
-
-
-    res = "results/network_results_1000x_ssa_27.65um"
-    spike_analysis(res, fig_folder)
-
-    res = "results/network_results_1000x_ssa_400x400_no_proj"
-    spike_analysis(res, fig_folder)
-
-    sys.exit()
-
-    res = "results/network_results_500x_ssa_55um"
-    spike_analysis(res, fig_folder)
-
-    res = "results/network_results_500x_ssa"
-    spike_analysis(res, fig_folder)
-
-    res = "results/spikes_by_beatrice"
-    spike_analysis(res, fig_folder)
-
-    # Analyse runs below
-    res = "results/gold_standards/gold_standard_results_158"
-    spike_analysis(res, fig_folder)
 
     res = "results/gold_standards/gold_standard_results_400"
     spike_analysis(res, fig_folder)
