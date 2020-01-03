@@ -97,8 +97,8 @@ def spike_analysis(results_file, fig_folder):
     print("=" * 60)
     print("Number of neurons in each population")
     print("-" * 60)
-    for pop, no_neurons in all_neurons.items():
-        print("\t{:10} -> {:10} neurons".format(pop, no_neurons))
+    for pop in plot_order:
+        print("\t{:10} -> {:10} neurons".format(pop, all_neurons[pop]))
     # Pre-compute conversions
     time_to_bin_conversion = 1. / (timestep / ms)
     bins_in_3ms = int(3 * time_to_bin_conversion)
@@ -112,7 +112,8 @@ def spike_analysis(results_file, fig_folder):
     print("=" * 60)
     print("Maximum number of generated spikes per timestep")
     print("-" * 60)
-    for pop, spikes in all_spikes.items():
+    for pop in plot_order:
+        spikes = all_spikes[pop]
         spikes_per_timestep[pop] = \
             np.bincount((spikes[:, 1] * time_to_bin_conversion).astype(int),
                         minlength=no_timesteps)
@@ -154,7 +155,8 @@ def spike_analysis(results_file, fig_folder):
     print("=" * 60)
     print("Average firing rates before, during and after stimulation")
     print("-" * 60)
-    for pop, spikes in all_spikes.items():
+    for pop in plot_order:
+        spikes = all_spikes[pop]
         _x = filtered_firing_rates[pop] / Hz
         before = _x[0]
         during = _x[1]
