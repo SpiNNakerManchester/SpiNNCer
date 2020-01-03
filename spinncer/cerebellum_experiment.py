@@ -51,7 +51,8 @@ cerebellum_circuit = Cerebellum(sim, connectivity_filename,
                                 stimulus_information=stimulus_information,
                                 reporting=args.no_reports,
                                 skip_projections=args.skip_projections,
-                                weight_scaling=args.weight_scaling)
+                                weight_scaling=args.weight_scaling,
+                                save_conversion_file=args.generate_conversion_constants)
 
 # Test various exposed methods
 populations = cerebellum_circuit.get_all_populations()

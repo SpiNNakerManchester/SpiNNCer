@@ -1,5 +1,5 @@
 import numpy as np
-import matplotlib.pyplot as plt
+import pylab as plt
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm as cm_mlib
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
@@ -21,6 +21,7 @@ from spinncer.utilities.constants import CONNECTIVITY_MAP
 from spinncer.utilities.neo_converter import convert_spikes
 from colorama import Fore, Style, init as color_init
 
+mlib.use('Agg')
 warnings.filterwarnings("ignore", category=UserWarning)
 
 # ensure we use viridis as the default cmap
@@ -86,7 +87,18 @@ def spike_analysis(results_file, fig_folder):
     print("Simulation parameters")
     print("-" * 60)
     pp(sim_params)
+    # Report useful parameters
     print("=" * 60)
+    print("Analysis report")
+    print("-" * 60)
+    print("Current time",
+          plt.datetime.datetime.now().strftime("%H:%M:%S on %d.%m.%Y"))
+    # Report number of neurons
+    print("=" * 60)
+    print("Number of neurons in each population")
+    print("-" * 60)
+    for pop, no_neurons in all_neurons.items():
+        print("\t{:10} -> {:10} neurons".format(pop, no_neurons))
     # Pre-compute conversions
     time_to_bin_conversion = 1. / (timestep / ms)
     bins_in_3ms = int(3 * time_to_bin_conversion)
@@ -97,6 +109,7 @@ def spike_analysis(results_file, fig_folder):
     spikes_per_3ms = {}
     # Per neuron firing rate in each stimulus period
     per_neuron_firing = {}
+    print("=" * 60)
     print("Maximum number of generated spikes per timestep")
     print("-" * 60)
     for pop, spikes in all_spikes.items():
@@ -122,7 +135,6 @@ def spike_analysis(results_file, fig_folder):
         per_neuron_firing[pop] = np.ones((all_neurons[pop],
                                           stimulus_periods)) * -10
         for period in range(stimulus_periods):
-            # TODO enhance this to produce histograms of firing rates / pop
             _filtered_spike_times = np.logical_and(
                 _spike_times >= time_filter[period],
                 _spike_times < time_filter[period + 1])
@@ -150,15 +162,23 @@ def spike_analysis(results_file, fig_folder):
         print("\t{:10}->[{:>8.2f}, {:>8.2f}, {:>8.2f}] Hz".format(
             pop, before, during, after), "per neuron")
     print("=" * 60)
+    # Count incoming spikes
+    inc_spike_count = {k: np.zeros((all_neurons[k], no_timesteps)) for k in all_neurons.keys()}
+
+    # flag set if some connectivity exists
+    conn_exists = False
+
     # Report weights values
     print("Average weight per projection")
     print("-" * 60)
+    conn_dict = {}
     for key in final_connectivity:
         # Connection holder annoyance here:
         conn = np.asarray(final_connectivity[key])
-        if conn.size == 0:
+        if final_connectivity[key] is None or conn.size == 0:
             print("Skipping analysing connection", key)
             continue
+        conn_exists = True
         if len(conn.shape) == 1 or conn.shape[1] != 4:
             try:
                 x = np.concatenate(conn)
@@ -174,7 +194,7 @@ def spike_analysis(results_file, fig_folder):
                 useful_conn[:, i] = conn[n].astype(np.float)
             final_connectivity[key] = useful_conn.astype(np.float)
             conn = useful_conn.astype(np.float)
-
+        conn_dict[key] = conn
         mean = np.mean(conn[:, 2])
         # replace with percentage of difference
         original_conn = np.abs(CONNECTIVITY_MAP[key]["weight"])
@@ -182,7 +202,7 @@ def spike_analysis(results_file, fig_folder):
             proportion = mean / original_conn
         else:
             proportion = original_conn / mean
-        assert (0 <= proportion <= 1), proportion
+        # assert (0 <= proportion <= 1), proportion
         is_close = proportion >= .95
         _c = Fore.GREEN if is_close else Fore.RED
 
@@ -190,6 +210,27 @@ def spike_analysis(results_file, fig_folder):
             key, _c, mean, Style.RESET_ALL),
             "c.f. {: 4.8f} uS ({:>7.2%})".format(
                 CONNECTIVITY_MAP[key]["weight"], proportion))
+
+    for key, conn in conn_dict.items():
+        post_pop = CONNECTIVITY_MAP[key]["post"]
+        pre_pop = CONNECTIVITY_MAP[key]["pre"]
+        curr_spikes = all_spikes[pre_pop]
+        for nid, t in curr_spikes:
+            nid = int(nid)
+            times = int(t * time_to_bin_conversion)
+            targets = conn[conn[:, 0] == nid][:, 1].astype(int)
+            inc_spike_count[post_pop][targets, times] += 1
+
+    if conn_exists:
+        print("=" * 60)
+        print("Incoming spikes statistics")
+        print("-" * 60)
+        for pop, counts in inc_spike_count.items():
+            nid, timestep = np.unravel_index(np.argmax(counts, axis=None), counts.shape)
+            print("{:10}-> neuron {:>8d} saw {:>6d}".format(
+                pop, int(nid), int(np.max(counts))),
+                "spikes in timestep #{:8d}".format(int(timestep)))
+
     print("=" * 60)
     print("Plotting figures...")
     print("-" * 60)
@@ -308,5 +349,13 @@ if __name__ == "__main__":
     # Constants
     fig_folder = "figures"
 
-    res = "results/gold_standards/gold_standard_results_400"
+    # res = "results/1000x_ssa_400x400.npz"
+    # spike_analysis(res, fig_folder)
+    #
+    # sys.exit()
+
+    res = "results/gold_standards/gold_standard_results_400_stim_radius_140"
+    spike_analysis(res, fig_folder)
+
+    res = "results/gold_standards/gold_standard_results_400_stim_radius_70"
     spike_analysis(res, fig_folder)

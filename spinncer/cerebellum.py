@@ -1,4 +1,4 @@
-'''
+"""
 
 Script to simulate a model of a cerebellum:
 https://www.frontiersin.org/articles/10.3389/fninf.2019.00037/full
@@ -11,7 +11,7 @@ simulation results (generally, spikes) saved to a numpy compressed archive.
 Analysis of the recorded observables is performed in a different location from
 this script.
 
-'''
+"""
 # imports
 import numpy as np
 import h5py
@@ -21,12 +21,14 @@ from spinncer.utilities.reporting import (population_reporting,
                                           projection_reporting)
 from elephant.spike_train_generation import homogeneous_poisson_process
 import quantities as pq
+import sys
 
 
 class Cerebellum(Circuit):
 
     def __init__(self, sim, connectivity, stimulus_information, reporting=True,
-                 skip_projections=False, weight_scaling=None):
+                 skip_projections=False, weight_scaling=None,
+                 save_conversion_file=False):
         self.sim = sim
         self.reporting = reporting
 
@@ -50,6 +52,15 @@ class Cerebellum(Circuit):
         # Construct PyNN Projections
         if not skip_projections:
             self.build_projections(__connectivity['connections'])
+
+        if save_conversion_file:
+            np.savez_compressed("conversion_constants",
+                                nid_offsets=self.nid_offset,
+                                connectivity=self.connections,
+                                all_neurons=self.number_of_neurons,
+                                connectivity_file=connectivity)
+            print("Saved conversion_constants.npz. Exiting...")
+            sys.exit(0)
 
         for pop_name, pop_obj in self.populations.items():
             self.__setattr__(pop_name, pop_obj)
@@ -146,7 +157,7 @@ class Cerebellum(Circuit):
             # Save the explicit connectivity for later
             # (after scaling the weights)
             stacked_weights = np.asarray([[np.abs(weight)]] * no_synapses) * \
-                self.weight_scaling
+                              self.weight_scaling
             stacked_delays = np.asarray([[delay]] * no_synapses)
             self.connections[conn_label] = np.concatenate(
                 [conns, stacked_weights, stacked_delays], axis=1)
