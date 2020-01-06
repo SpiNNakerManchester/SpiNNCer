@@ -135,13 +135,13 @@ CONNECTIVITY_MAP = {
     'aa_goc': {
         'pre': 'granule',
         'post': 'golgi',
-        'weight': 2.0e-02,  # uS
+        'weight': 20.0e-03,  # uS
         'delay': 2.0,  # ms
     },
     'aa_pc': {
         'pre': 'granule',
         'post': 'purkinje',
-        'weight': 7.5e-02,  # uS
+        'weight': 75.0e-03,  # uS
         'delay': 2.0,  # ms
     },
     'bc_pc': {
@@ -171,7 +171,7 @@ CONNECTIVITY_MAP = {
     'glom_dcn': {
         'pre': 'glomerulus',
         'post': 'dcn',
-        'weight': 6.0e-06,  # uS
+        'weight': 0.006e-03,  # uS
         'delay': 4.0,  # ms
     },
     'glom_goc': {
@@ -201,31 +201,31 @@ CONNECTIVITY_MAP = {
     'pc_dcn': {
         'pre': 'purkinje',
         'post': 'dcn',
-        'weight': -7.5e-06,  # uS
+        'weight': -0.0075e-03,  # uS
         'delay': 4.0,  # ms
     },
     'pf_bc': {
         'pre': 'granule',
         'post': 'basket',
-        'weight': 2.0e-05,  # uS
+        'weight': 0.2e-03,  # uS
         'delay': 5.0,  # ms
     },
     'pf_goc': {
         'pre': 'granule',
         'post': 'golgi',
-        'weight': 4.0e-04,  # uS
+        'weight': 0.4e-03,  # uS
         'delay': 5.0,  # ms
     },
     'pf_pc': {
         'pre': 'granule',
         'post': 'purkinje',
-        'weight': 2.0e-05,  # uS
+        'weight': 0.02e-03,  # uS
         'delay': 5.0,  # ms
     },
     'pf_sc': {
         'pre': 'granule',
         'post': 'stellate',
-        'weight': 2.0e-05,  # uS
+        'weight': 0.2e-03,  # uS
         'delay': 5.0,  # ms
     },
     'sc_pc': {
