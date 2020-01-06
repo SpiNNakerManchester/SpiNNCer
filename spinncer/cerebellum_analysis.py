@@ -1,5 +1,6 @@
 import numpy as np
 import pylab as plt
+from spinncer.analysis_argparser import *
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm as cm_mlib
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
@@ -348,16 +349,20 @@ def spike_analysis(results_file, fig_folder):
 if __name__ == "__main__":
     import sys
 
-    # Constants
-    fig_folder = "figures"
+    if len(args.input) > 0:
+        for in_file in args.input:
+            spike_analysis(in_file, args.figures_dir)
+    else:
+        # Constants
+        fig_folder = "figures"
 
-    # res = "results/1000x_ssa_400x400.npz"
-    # spike_analysis(res, fig_folder)
-    #
-    # sys.exit()
+        res = "results/1000x_ssa_400x400.npz"
+        spike_analysis(res, fig_folder)
+        #
+        # sys.exit()
 
-    res = "results/gold_standards/gold_standard_results_400_stim_radius_140"
-    spike_analysis(res, fig_folder)
+        res = "results/gold_standards/gold_standard_results_400_stim_radius_140"
+        spike_analysis(res, fig_folder)
 
-    res = "results/gold_standards/gold_standard_results_400_stim_radius_70"
-    spike_analysis(res, fig_folder)
+        res = "results/gold_standards/gold_standard_results_400_stim_radius_70"
+        spike_analysis(res, fig_folder)
