@@ -32,14 +32,16 @@ POPULATION_ID = {
 }
 
 # Cell types
+# _model = sim.IF_cond_exp
+_model = sim.IF_curr_exp
 CELL_TYPES = {
-    'golgi': sim.IF_cond_exp,
+    'golgi': _model,
     'glomerulus': sim.extra_models.SpikeSourcePoissonVariable,
-    'granule': sim.IF_cond_exp,
-    'purkinje': sim.IF_cond_exp,
-    'basket': sim.IF_cond_exp,
-    'stellate': sim.IF_cond_exp,
-    'dcn': sim.IF_cond_exp
+    'granule': _model,
+    'purkinje': _model,
+    'basket': _model,
+    'stellate': _model,
+    'dcn': _model
 }
 
 # Python 3+ syntax to invert a dictionary
@@ -125,7 +127,7 @@ CELL_IO_STATUS = {
 
 # PyNN units for synapses:
 # http://neuralensemble.org/docs/PyNN/reference/plasticitymodels.html#weight-dependence-components
-# suggest that conductance-based synapses have weight = uS
+# suggests that conductance-based synapses have weight = uS
 # NB paper weights are defined using nS:
 # https://www.frontiersin.org/files/Articles/444802/fninf-13-00037-HTML-r1/image_m/fninf-13-00037-t003.jpg
 # delay = ms

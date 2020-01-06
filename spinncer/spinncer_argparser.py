@@ -24,13 +24,13 @@ DEFAULT_DATASET = 'scaffold_detailed__158.0x158.0_v3.hdf5'
 STIMULATED_GLOMERULUS_RADIUS = 70  # micrometers
 
 parser = argparse.ArgumentParser(
-    description='Run a cerebellar simulation written in PyNN on '
-                'using sPyNNaker on SpiNNaker or using NEST.',
+    description='Run a cerebellar simulation written in PyNN'
+                'using sPyNNaker on SpiNNaker or using NEST on H/PC.',
     formatter_class=argparse.RawTextHelpFormatter)
 
 parser.add_argument('--simtime', type=float,
                     help="simulation time (in ms) "
-                         "-- default {}ms".format(DEFAULT_SIMTIME),
+                         "-- default {} ms".format(DEFAULT_SIMTIME),
                     default=DEFAULT_SIMTIME)
 
 parser.add_argument('--weight_scaling', type=float,
@@ -40,7 +40,7 @@ parser.add_argument('--weight_scaling', type=float,
 
 parser.add_argument('--simulator', type=str,
                     help="which simulator to use "
-                         "-- default {}ms".format(DEFAULT_SIMULATOR),
+                         "-- default {} ms".format(DEFAULT_SIMULATOR),
                     default=DEFAULT_SIMULATOR)
 
 parser.add_argument('--periodic_stimulus', action="store_true",
@@ -84,7 +84,7 @@ parser.add_argument('-i', '--input', type=str,
                     dest='dataset')
 
 parser.add_argument('-o', '--output', type=str,
-                    help="name of the numpy archive "
+                    help="name of the numpy archive (.npz) "
                          "storing simulation results",
                     dest='filename')
 
@@ -97,7 +97,7 @@ parser.add_argument('--skip_projections', action="store_true",
                          'creation of projections in the network')
 
 parser.add_argument('--figures_dir', type=str,
-                    help='directory into which save figures',
+                    help='directory into which to save figures',
                     default=DEFAULT_FIGURE_DIR)
 
 parser.add_argument('--result_dir', type=str,
