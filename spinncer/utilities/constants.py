@@ -32,8 +32,7 @@ POPULATION_ID = {
 }
 
 # Cell types
-# _model = sim.IF_cond_exp
-_model = sim.IF_curr_exp
+_model = sim.IF_cond_exp
 CELL_TYPES = {
     'golgi': _model,
     'glomerulus': sim.extra_models.SpikeSourcePoissonVariable,

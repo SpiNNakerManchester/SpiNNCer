@@ -1,6 +1,5 @@
 import numpy as np
 import pylab as plt
-from spinncer.analysis_argparser import *
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm as cm_mlib
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
@@ -347,11 +346,11 @@ def spike_analysis(results_file, fig_folder):
 
 
 if __name__ == "__main__":
-    import sys
+    from spinncer.analysis_argparser import *
 
-    if len(args.input) > 0:
-        for in_file in args.input:
-            spike_analysis(in_file, args.figures_dir)
+    if len(analysis_args.input) > 0:
+        for in_file in analysis_args.input:
+            spike_analysis(in_file, analysis_args.figures_dir)
     else:
         # Constants
         fig_folder = "figures"
