@@ -10,12 +10,14 @@ import pylab as plt
 import os
 import traceback
 # import simulator
+spinnaker_sim = False
 if str.lower(args.simulator) in ["spinnaker", "spynnaker"]:
     try:
         # this might be deprecated soon
         import spynnaker8 as sim
     except ImportError:
         import pyNN.spynnaker as sim
+    spinnaker_sim = True
 elif str.lower(args.simulator) in ["nest"]:
     import pyNN.nest as sim
 else:
@@ -31,11 +33,12 @@ connectivity_filename = os.path.join('datasets', connectivity_filename)
 sim.setup(timestep=args.timestep, min_delay=args.timestep, max_delay=6.4)
 
 # Add constraints here
-n_neurons_per_core = 64
-ss_neurons_per_core = 64
-sim.set_number_of_neurons_per_core(sim.IF_cond_exp, n_neurons_per_core)
-sim.set_number_of_neurons_per_core(sim.IF_curr_exp, n_neurons_per_core)
-sim.set_number_of_neurons_per_core(sim.SpikeSourceArray, ss_neurons_per_core)
+if spinnaker_sim:
+    n_neurons_per_core = 64
+    ss_neurons_per_core = 64
+    sim.set_number_of_neurons_per_core(sim.IF_cond_exp, n_neurons_per_core)
+    sim.set_number_of_neurons_per_core(sim.IF_curr_exp, n_neurons_per_core)
+    sim.set_number_of_neurons_per_core(sim.SpikeSourceArray, ss_neurons_per_core)
 
 # Compile stimulus information
 stimulus_information = {
