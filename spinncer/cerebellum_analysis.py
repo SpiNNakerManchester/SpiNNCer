@@ -67,6 +67,7 @@ def spike_analysis(results_file, fig_folder):
     final_connectivity = data['final_connectivity'].ravel()[0]
     all_neurons = data['all_neurons'].ravel()[0]
     sim_params = data['simulation_parameters'].ravel()[0]
+    other_recordings = data['other_recordings'].ravel()[0]
     simtime = data['simtime'] * ms
     timestep = sim_params['argparser']['timestep'] * ms
     stimulus_params = data['stimulus_params'].ravel()[0]
@@ -83,20 +84,20 @@ def spike_analysis(results_file, fig_folder):
             neo_all_spikes[pop] = potential_neo_block
             all_spikes[pop] = convert_spikes(potential_neo_block)
     # Report useful parameters
-    print("=" * 60)
+    print("=" * 80)
     print("Simulation parameters")
-    print("-" * 60)
+    print("-" * 80)
     pp(sim_params)
     # Report useful parameters
-    print("=" * 60)
+    print("=" * 80)
     print("Analysis report")
-    print("-" * 60)
+    print("-" * 80)
     print("Current time",
           plt.datetime.datetime.now().strftime("%H:%M:%S on %d.%m.%Y"))
     # Report number of neurons
-    print("=" * 60)
+    print("=" * 80)
     print("Number of neurons in each population")
-    print("-" * 60)
+    print("-" * 80)
     for pop in plot_order:
         print("\t{:10} -> {:10} neurons".format(pop, all_neurons[pop]))
     # Pre-compute conversions
@@ -109,9 +110,9 @@ def spike_analysis(results_file, fig_folder):
     spikes_per_3ms = {}
     # Per neuron firing rate in each stimulus period
     per_neuron_firing = {}
-    print("=" * 60)
+    print("=" * 80)
     print("Maximum number of generated spikes per timestep")
-    print("-" * 60)
+    print("-" * 80)
     for pop in plot_order:
         spikes = all_spikes[pop]
         spikes_per_timestep[pop] = \
@@ -152,9 +153,9 @@ def spike_analysis(results_file, fig_folder):
         # save the firing rate for the average neuron in this population
         filtered_firing_rates[pop] = _filtered_spike_rates / all_neurons[pop]
     # Report average firing rates before, during and after stimulation
-    print("=" * 60)
+    print("=" * 80)
     print("Average firing rates before, during and after stimulation")
-    print("-" * 60)
+    print("-" * 80)
     for pop in plot_order:
         spikes = all_spikes[pop]
         _x = filtered_firing_rates[pop] / Hz
@@ -163,7 +164,7 @@ def spike_analysis(results_file, fig_folder):
         after = _x[2]
         print("\t{:10}->[{:>8.2f}, {:>8.2f}, {:>8.2f}] Hz".format(
             pop, before, during, after), "per neuron")
-    print("=" * 60)
+    print("=" * 80)
     # Count incoming spikes
     inc_spike_count = {k: np.zeros((all_neurons[k], no_timesteps)) for k in all_neurons.keys()}
 
@@ -172,7 +173,7 @@ def spike_analysis(results_file, fig_folder):
 
     # Report weights values
     print("Average weight per projection")
-    print("-" * 60)
+    print("-" * 80)
     conn_dict = {}
     for key in final_connectivity:
         # Connection holder annoyance here:
@@ -213,6 +214,48 @@ def spike_analysis(results_file, fig_folder):
             "c.f. {: 4.8f} uS ({:>7.2%})".format(
                 CONNECTIVITY_MAP[key]["weight"], proportion))
 
+    # Check voltage information
+
+    print("=" * 80)
+    print("Input current analysis")
+    print("-" * 80)
+    all_voltages = {}
+
+    if other_recordings is not None:
+        for pop in plot_order:
+            try:
+                curr_v = other_recordings[pop]
+                if curr_v is None:
+                    raise KeyError()
+                else:
+                    curr_v = curr_v['v']
+            except KeyError:
+                print("No voltage information for", pop)
+                continue
+            # Create a useful, aligned numpy array of shape (sh0, sh1)
+            # where sh0 = number of neurons in pop
+            # and   sh1 = number of timesteps in the simulation
+            if isinstance(curr_v, neo.Block):
+                all_voltages[pop] = np.array(curr_v.segments[0].filter(name='v')[0]).T
+            elif curr_v.shape[1] == 4:
+                all_voltages[pop + "_exc"] = np.zeros((all_neurons[pop], no_timesteps))
+                all_voltages[pop + "_inh"] = np.zeros((all_neurons[pop], no_timesteps))
+                for nid, time, v_exc, v_inh in curr_v:
+                    all_voltages[pop + "_exc"][int(nid), int(time * time_to_bin_conversion)] = v_exc
+                    all_voltages[pop + "_inh"][int(nid), int(time * time_to_bin_conversion)] = v_inh
+            else:
+                print("Only synaptic current contribution is supported "
+                      "for analysis currently")
+        # Report statistics here
+        for key, v in all_voltages.items():
+            nid, timestep = np.unravel_index(np.argmax(v, axis=None), v.shape)
+            print("{:10}-> neuron {:>8d} received {:>6d}".format(
+                key, int(nid), int(np.max(v))),
+                "nA in timestep #{:8d}".format(int(timestep)))
+    else:
+        print("No voltage information present.")
+
+    # The following is expensive time wise
     for key, conn in conn_dict.items():
         post_pop = CONNECTIVITY_MAP[key]["post"]
         pre_pop = CONNECTIVITY_MAP[key]["pre"]
@@ -224,18 +267,20 @@ def spike_analysis(results_file, fig_folder):
             inc_spike_count[post_pop][targets, times] += 1
 
     if conn_exists:
-        print("=" * 60)
+        print("=" * 80)
         print("Incoming spikes statistics")
-        print("-" * 60)
+        print("-" * 80)
         for pop, counts in inc_spike_count.items():
             nid, timestep = np.unravel_index(np.argmax(counts, axis=None), counts.shape)
             print("{:10}-> neuron {:>8d} saw {:>6d}".format(
                 pop, int(nid), int(np.max(counts))),
                 "spikes in timestep #{:8d}".format(int(timestep)))
+            # Break down spikes in that timestep
 
-    print("=" * 60)
+
+    print("=" * 80)
     print("Plotting figures...")
-    print("-" * 60)
+    print("-" * 80)
     # plot firing rate histogram per PSTH region
     print("Plotting firing rate histograms")
     f, axes = plt.subplots(len(plot_order), 3,
@@ -342,7 +387,7 @@ def spike_analysis(results_file, fig_folder):
                              "gold_standard_psth_3ms.png"))
     plt.close(f)
 
-    print("=" * 60)
+    print("=" * 80)
 
 
 if __name__ == "__main__":
