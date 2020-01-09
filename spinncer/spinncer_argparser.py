@@ -21,11 +21,11 @@ DEFAULT_DATASET = 'scaffold_detailed__158.0x158.0_v3.hdf5'
 
 # Radius of volume of excited gloms -- Paper misreports this number,
 # it's actually 70 micrometers for the 400x400 um2 model
-STIMULATED_GLOMERULUS_RADIUS = 70  # micrometers
+STIMULATED_GLOMERULUS_RADIUS = 140  # micrometers
 
 parser = argparse.ArgumentParser(
-    description='Run a cerebellar simulation written in PyNN'
-                'using sPyNNaker on SpiNNaker or using NEST on H/PC.',
+    description='Run a cerebellar simulation written in PyNN '
+                'using sPyNNaker on SpiNNaker or using NEST on (H)PC.',
     formatter_class=argparse.RawTextHelpFormatter)
 
 parser.add_argument('--simtime', type=float,
