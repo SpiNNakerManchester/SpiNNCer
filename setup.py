@@ -5,8 +5,6 @@ install_requires = [
     "numpy",
     "scipy",
     "brian2",
-    "spynnaker>= 1!5.0.0, < 1!6.0.0",
-    "spynnaker8 >= 1!5.0.0, < 1!6.0.0",
     "pynn",
     "matplotlib",
     "argparse"

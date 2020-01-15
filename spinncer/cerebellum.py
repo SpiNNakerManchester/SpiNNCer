@@ -95,16 +95,24 @@ class Cerebellum(Circuit):
                     self.stimulus_information, _no_cells)
                 additional_params = {'seed': 31415926}
                 if self.periodic_stimulus:
-                    cell_model = sim.SpikeSourceArray
+                    cell_model = self.sim.SpikeSourceArray
                     CELL_TYPES[_cell_name] = cell_model
                     additional_params = {}
+                else:
+                    cell_model = self.sim.extra_models.SpikeSourcePoissonVariable
                 self.stimulus = cell_param
+
             else:
                 cell_param = CELL_PARAMS[_cell_name]
                 additional_params = {}
                 # add E_rev_I to all cells
-                if cell_model == self.sim.IF_cond_exp:
+                if cell_model == "IF_cond_exp":
+                    cell_model = self.sim.IF_cond_exp
                     cell_param['e_rev_I'] = cell_param['v_reset'] - 5.
+                elif cell_model == "IF_curr_exp":
+                    cell_model = self.sim.IF_curr_exp
+                elif cell_model == "IF_curr_alpha":
+                    cell_model = self.sim.IF_curr_alpha
             # Adding the population to the network
             self.populations[_cell_name] = self.sim.Population(
                 _no_cells,
@@ -139,11 +147,7 @@ class Cerebellum(Circuit):
                   "to {:10}".format(post_pop),
                   "with a weight of {: 2.6f}".format(weight),
                   "uS and a delay of", delay, "ms")
-            if (post_pop == "glomerulus" and
-                    (CELL_TYPES[post_pop] ==
-                     self.sim.extra_models.SpikeSourcePoissonVariable or
-                     CELL_TYPES[post_pop] ==
-                     self.sim.SpikeSourceArray)):
+            if (post_pop == "glomerulus"):
                 # Can't send projections to a spike source
                 print("Ignoring connection terminating at", post_pop, "...")
                 continue
@@ -310,7 +314,7 @@ class Cerebellum(Circuit):
 
     def record_all_spikes(self):
         for label, pop in self.populations.items():
-            if CELL_TYPES[label] == sim.SpikeSourceArray:
+            if CELL_TYPES[label] == "SpikeSourceArray":
                 print("NOT enabling recordings for ", label,
                       "(it's a Spike Source Array)")
                 continue
@@ -326,7 +330,7 @@ class Cerebellum(Circuit):
         all_spikes = {}
         for label, pop in self.populations.items():
             print("Retrieving recordings for ", label, "...")
-            if CELL_TYPES[label] == sim.SpikeSourceArray:
+            if CELL_TYPES[label] == "SpikeSourceArray":
                 _spikes = []
                 for i, _times in enumerate(self.stimulus['spike_times']):
                     for t in _times:

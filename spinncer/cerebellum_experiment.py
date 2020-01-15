@@ -1,14 +1,6 @@
-# import sPyNNaker
-from spinncer.cerebellum import Cerebellum
 # argparser for easily running experiment from cli
 from spinncer.spinncer_argparser import *
-# provenance utility
-from spinncer.utilities.provenance import retrieve_git_commit
-# analysis functions
-from spinncer.cerebellum_analysis import *
-import pylab as plt
-import os
-import traceback
+# import sPyNNaker
 # import simulator
 spinnaker_sim = False
 if str.lower(args.simulator) in ["spinnaker", "spynnaker"]:
@@ -23,6 +15,15 @@ elif str.lower(args.simulator) in ["nest"]:
 else:
     raise ValueError("Simulator " + str.lower(args.simulator) +
                      "unrecognised!")
+from spinncer.cerebellum import Cerebellum
+# provenance utility
+from spinncer.utilities.provenance import retrieve_git_commit
+# analysis functions
+from spinncer.cerebellum_analysis import *
+import pylab as plt
+import os
+import traceback
+
 
 # Record SCRIPT start time (wall clock)
 start_time = plt.datetime.datetime.now()

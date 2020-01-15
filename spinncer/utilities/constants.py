@@ -1,11 +1,5 @@
 from enum import Enum
 
-# import sPyNNaker
-try:
-    import spynnaker8 as sim
-except:
-    import pyNN.spynnaker as sim
-
 
 # Helpful Enum to easily check whether a population should e.g be
 # returned from a Circuit object when a user asks for Inputs / Outputs
@@ -32,10 +26,10 @@ POPULATION_ID = {
 }
 
 # Cell types
-_model = sim.IF_cond_exp
+_model = "IF_cond_exp"
 CELL_TYPES = {
     'golgi': _model,
-    'glomerulus': sim.extra_models.SpikeSourcePoissonVariable,
+    'glomerulus': "SpikeSourcePoissonVariable",
     'granule': _model,
     'purkinje': _model,
     'basket': _model,
