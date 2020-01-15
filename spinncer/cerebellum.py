@@ -114,12 +114,20 @@ class Cerebellum(Circuit):
                 elif cell_model == "IF_curr_alpha":
                     cell_model = self.sim.IF_curr_alpha
             # Adding the population to the network
-            self.populations[_cell_name] = self.sim.Population(
-                _no_cells,
-                cellclass=cell_model,
-                cellparams=cell_param,
-                label=_cell_name + " cells",
-                additional_parameters=additional_params)
+            try:
+                self.populations[_cell_name] = self.sim.Population(
+                    _no_cells,
+                    cellclass=cell_model,
+                    cellparams=cell_param,
+                    label=_cell_name + " cells",
+                    additional_parameters=additional_params)
+            except TypeError as te:
+                self.populations[_cell_name] = self.sim.Population(
+                    _no_cells,
+                    cellclass=cell_model,
+                    cellparams=cell_param,
+                    label=_cell_name + " cells")
+
 
     def build_projections(self, connections):
         """
