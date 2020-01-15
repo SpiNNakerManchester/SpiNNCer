@@ -7,7 +7,8 @@ install_requires = [
     "brian2",
     "pynn",
     "matplotlib",
-    "argparse"
+    "argparse",
+    "elephant"
 ]
 
 setup(

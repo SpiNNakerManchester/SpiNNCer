@@ -4,3 +4,4 @@ brian2
 pynn
 matplotlib
 argparse
+elephant
