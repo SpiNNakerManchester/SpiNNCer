@@ -75,6 +75,7 @@ def spike_analysis(results_file, fig_folder):
     time_filter = starts
     stim_durations = sim_params['argparser']['stim_times']
     stimulus_periods = len(stim_durations)
+    average_firing_rates = {}
     filtered_firing_rates = {}
     # Check if using neo blocks
     neo_all_spikes = {}
@@ -110,6 +111,7 @@ def spike_analysis(results_file, fig_folder):
     spikes_per_3ms = {}
     # Per neuron firing rate in each stimulus period
     per_neuron_firing = {}
+    per_neuron_spike_count = {}
     print("=" * 80)
     print("Maximum number of generated spikes per timestep")
     print("-" * 80)
@@ -136,6 +138,8 @@ def spike_analysis(results_file, fig_folder):
         # Initialise per_neuron_firing
         per_neuron_firing[pop] = np.ones((all_neurons[pop],
                                           stimulus_periods)) * -10
+        per_neuron_spike_count[pop] = np.ones((all_neurons[pop],
+                                               stimulus_periods)) * -10
         for period in range(stimulus_periods):
             _filtered_spike_times = np.logical_and(
                 _spike_times >= time_filter[period],
@@ -148,23 +152,67 @@ def spike_analysis(results_file, fig_folder):
                 _no_spike_for_nid = np.count_nonzero(np.logical_and(
                     _spikes_for_nid >= time_filter[period],
                     _spikes_for_nid < time_filter[period + 1]))
-                per_neuron_firing[pop][nid, period] = _no_spike_for_nid / \
-                                                      (stim_durations[period] * ms)
+                per_neuron_spike_count[pop][nid, period] = _no_spike_for_nid
+                per_neuron_firing[pop][nid, period] = \
+                    _no_spike_for_nid / (stim_durations[period] * ms)
         # save the firing rate for the average neuron in this population
-        filtered_firing_rates[pop] = _filtered_spike_rates / all_neurons[pop]
+        average_firing_rates[pop] = _filtered_spike_rates / all_neurons[pop]
     # Report average firing rates before, during and after stimulation
     print("=" * 80)
     print("Average firing rates before, during and after stimulation")
     print("-" * 80)
     for pop in plot_order:
-        spikes = all_spikes[pop]
-        _x = filtered_firing_rates[pop] / Hz
+        _x = average_firing_rates[pop] / Hz
         before = _x[0]
         during = _x[1]
         after = _x[2]
         print("\t{:10}->[{:>8.2f}, {:>8.2f}, {:>8.2f}] Hz".format(
             pop, before, during, after), "per neuron")
     print("=" * 80)
+    # TODO filter out neurons that don't fire at all
+    # TODO filter out neurons that are not "excited" as defined in the
+    # scaffold paper, i.e., cells that fire twice as much when stimulated as
+    # compared to before stimulation
+    # TODO for GrC filter out neurons that don't fire more than once?
+    print("=" * 80)
+    print("FILTERED average firing rates before, during and after stimulation")
+    print("-" * 80)
+    for pop in plot_order:
+        # Retrieve firing rate for each neuron in each of the periods
+        _x = per_neuron_firing[pop]
+        # _filtered_rates = np.zeros(stimulus_periods)
+        _excited_map = np.zeros(_x.shape[0])
+        _inhibited_map = np.zeros(_x.shape[0])
+
+        # Populate the excited map with neurons that
+        _excited_map = np.greater(_x[:, 1], 2 * _x[:, 0])
+        _inhibited_map = np.less(_x[:, 1], 2 * _x[:, 0])
+
+        if pop == "granule":
+            # for GrC filter out neurons that don't fire more than once
+            _excited_map = np.logical_and(
+                _excited_map, per_neuron_spike_count[pop][:, 1] > 1
+            )
+
+        excited_filteread_mean = np.mean(_x[_excited_map], axis=0)
+        excited_before = excited_filteread_mean[0]
+        excited_during = excited_filteread_mean[1]
+        excited_after = excited_filteread_mean[2]
+        print("\t{:10} excited   ->[{:>8.2f}, {:>8.2f}, {:>8.2f}] Hz".format(
+            pop, excited_before, excited_during, excited_after),
+            "per neuron")
+        print("\t\t n_neurons=", np.count_nonzero(_excited_map))
+
+        inhibited_filteread_mean = np.mean(_x[_inhibited_map], axis=0)
+        inhibited_before = inhibited_filteread_mean[0]
+        inhibited_during = inhibited_filteread_mean[1]
+        inhibited_after = inhibited_filteread_mean[2]
+        print("\t{:10} inhibited ->[{:>8.2f}, {:>8.2f}, {:>8.2f}] Hz".format(
+            pop, inhibited_before, inhibited_during, inhibited_after),
+            "per neuron")
+        print("\t\t n_neurons=", np.count_nonzero(_inhibited_map))
+    print("=" * 80)
+
     # Count incoming spikes
     inc_spike_count = {k: np.zeros((all_neurons[k], no_timesteps)) for k in all_neurons.keys()}
 
@@ -236,7 +284,11 @@ def spike_analysis(results_file, fig_folder):
             # where sh0 = number of neurons in pop
             # and   sh1 = number of timesteps in the simulation
             if isinstance(curr_v, neo.Block):
-                all_voltages[pop] = np.array(curr_v.segments[0].filter(name='v')[0]).T
+                try:
+                    all_voltages[pop] = np.array(curr_v.segments[0].filter(name='v')[0]).T
+                except AttributeError as ae:
+                    print("[WARNING]", pop, "has no voltage information.")
+                    all_voltages[pop] = np.ones((1, no_timesteps)) * 3.14
             elif curr_v.shape[1] == 4:
                 all_voltages[pop + "_exc"] = np.zeros((all_neurons[pop], no_timesteps))
                 all_voltages[pop + "_inh"] = np.zeros((all_neurons[pop], no_timesteps))
@@ -276,7 +328,6 @@ def spike_analysis(results_file, fig_folder):
                 pop, int(nid), int(np.max(counts))),
                 "spikes in timestep #{:8d}".format(int(timestep)))
             # Break down spikes in that timestep
-
 
     print("=" * 80)
     print("Plotting figures...")
