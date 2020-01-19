@@ -8,7 +8,8 @@ install_requires = [
     "pynn",
     "matplotlib",
     "argparse",
-    "elephant"
+    "elephant",
+    "colorama"
 ]
 
 setup(
