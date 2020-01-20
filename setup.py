@@ -6,6 +6,7 @@ install_requires = [
     "scipy",
     "brian2",
     "pynn",
+    "h5py",
     "matplotlib",
     "argparse",
     "elephant",
