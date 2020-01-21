@@ -117,6 +117,7 @@ def spike_analysis(results_file, fig_folder):
     print("-" * 80)
     for pop in plot_order:
         spikes = all_spikes[pop]
+
         spikes_per_timestep[pop] = \
             np.bincount((spikes[:, 1] * time_to_bin_conversion).astype(int),
                         minlength=no_timesteps)
@@ -124,9 +125,12 @@ def spike_analysis(results_file, fig_folder):
         print("\t{:10}->{:6} = {:1.4f}".format(pop, max_spikes,
                                                max_spikes / all_neurons[pop]),
               "per neuron")
-        padded_bincount = np.pad(spikes_per_timestep[pop],
-                                 (0, pad_to_compute_3ms_bins),
-                                 'constant', constant_values=0)
+        padded_bincount = np.pad(
+            spikes_per_timestep[pop],
+            (0, pad_to_compute_3ms_bins -
+             (spikes_per_timestep[pop].size - no_timesteps)),  # This should be 0 or 1 corresponding to SpiNNaker or NEST
+            'constant', constant_values=0)
+
         reshaped_bincount = padded_bincount.reshape(
             int(padded_bincount.shape[0] / bins_in_3ms), bins_in_3ms)
 
@@ -169,11 +173,7 @@ def spike_analysis(results_file, fig_folder):
         print("\t{:10}->[{:>8.2f}, {:>8.2f}, {:>8.2f}] Hz".format(
             pop, before, during, after), "per neuron")
     print("=" * 80)
-    # TODO filter out neurons that don't fire at all
-    # TODO filter out neurons that are not "excited" as defined in the
-    # scaffold paper, i.e., cells that fire twice as much when stimulated as
-    # compared to before stimulation
-    # TODO for GrC filter out neurons that don't fire more than once?
+
     print("=" * 80)
     print("FILTERED average firing rates before, during and after stimulation")
     print("-" * 80)
@@ -184,9 +184,19 @@ def spike_analysis(results_file, fig_folder):
         _excited_map = np.zeros(_x.shape[0])
         _inhibited_map = np.zeros(_x.shape[0])
 
-        # Populate the excited map with neurons that
+        # filter out neurons that are not "excited" as defined in the
+        # scaffold paper, i.e., cells that fire twice as much when stimulated as
+        # compared to before stimulation
         _excited_map = np.greater(_x[:, 1], 2 * _x[:, 0])
         _inhibited_map = np.less(_x[:, 1], 2 * _x[:, 0])
+
+        # filter out neurons that don't fire at all
+        _excited_map = np.logical_and(
+            _excited_map, per_neuron_spike_count[pop][:, 1] > 0
+        )
+        _inhibited_map = np.logical_and(
+            _inhibited_map, per_neuron_spike_count[pop][:, 1] > 0
+        )
 
         if pop == "granule":
             # for GrC filter out neurons that don't fire more than once
@@ -201,7 +211,9 @@ def spike_analysis(results_file, fig_folder):
         print("\t{:10} excited   ->[{:>8.2f}, {:>8.2f}, {:>8.2f}] Hz".format(
             pop, excited_before, excited_during, excited_after),
             "per neuron")
-        print("\t\t n_neurons=", np.count_nonzero(_excited_map))
+        no_excited = np.count_nonzero(_excited_map)
+        print("\t\t\t {:6d} excited neurons, i.e. {:7.2%} of cells".format(
+            no_excited, no_excited / all_neurons[pop]))
 
         inhibited_filteread_mean = np.mean(_x[_inhibited_map], axis=0)
         inhibited_before = inhibited_filteread_mean[0]
@@ -210,11 +222,13 @@ def spike_analysis(results_file, fig_folder):
         print("\t{:10} inhibited ->[{:>8.2f}, {:>8.2f}, {:>8.2f}] Hz".format(
             pop, inhibited_before, inhibited_during, inhibited_after),
             "per neuron")
-        print("\t\t n_neurons=", np.count_nonzero(_inhibited_map))
+        no_inhibited = np.count_nonzero(_inhibited_map)
+        print("\t\t\t {:6d} inhibited neurons, i.e. {:7.2%} of cells".format(
+            no_inhibited, no_inhibited / all_neurons[pop]))
     print("=" * 80)
 
     # Count incoming spikes
-    inc_spike_count = {k: np.zeros((all_neurons[k], no_timesteps)) for k in all_neurons.keys()}
+    inc_spike_count = {k: np.zeros((all_neurons[k], no_timesteps + 1)) for k in all_neurons.keys()}
 
     # flag set if some connectivity exists
     conn_exists = False
@@ -286,9 +300,13 @@ def spike_analysis(results_file, fig_folder):
             if isinstance(curr_v, neo.Block):
                 try:
                     all_voltages[pop] = np.array(curr_v.segments[0].filter(name='v')[0]).T
+                    if pop == "dcn":
+                        # TODO plot voltage traces
+                        pass
                 except AttributeError as ae:
                     print("[WARNING]", pop, "has no voltage information.")
                     all_voltages[pop] = np.ones((1, no_timesteps)) * 3.14
+
             elif curr_v.shape[1] == 4:
                 all_voltages[pop + "_exc"] = np.zeros((all_neurons[pop], no_timesteps))
                 all_voltages[pop + "_inh"] = np.zeros((all_neurons[pop], no_timesteps))
@@ -347,7 +365,7 @@ def spike_analysis(results_file, fig_folder):
             curr_ax.set_xlabel("Hz")
             curr_ax.xaxis.set_tick_params(which='both',
                                           labelbottom=True)
-            curr_ax.set_xticks([0, 100, 200])
+            curr_ax.set_xticks([0, 75, 150])
 
     plt.savefig(os.path.join(sim_fig_folder,
                              "neuron_firing_rate_hist.png"))
@@ -444,17 +462,12 @@ def spike_analysis(results_file, fig_folder):
 if __name__ == "__main__":
     from spinncer.analysis_argparser import *
 
-    if len(analysis_args.input) > 0:
+    if analysis_args.input and len(analysis_args.input) > 0:
         for in_file in analysis_args.input:
             spike_analysis(in_file, analysis_args.figures_dir)
     else:
         # Constants
         fig_folder = "figures"
-
-        res = "results/1000x_ssa_400x400.npz"
-        spike_analysis(res, fig_folder)
-        #
-        # sys.exit()
 
         res = "results/gold_standards/gold_standard_results_400_stim_radius_140"
         spike_analysis(res, fig_folder)
