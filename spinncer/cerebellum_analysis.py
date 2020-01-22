@@ -191,11 +191,12 @@ def spike_analysis(results_file, fig_folder):
         _inhibited_map = np.less(_x[:, 1], 2 * _x[:, 0])
 
         # filter out neurons that don't fire at all
+        _neurons_that_fire = per_neuron_spike_count[pop][:, 1] > 0
         _excited_map = np.logical_and(
-            _excited_map, per_neuron_spike_count[pop][:, 1] > 0
+            _excited_map, _neurons_that_fire
         )
         _inhibited_map = np.logical_and(
-            _inhibited_map, per_neuron_spike_count[pop][:, 1] > 0
+            _inhibited_map, _neurons_that_fire
         )
 
         if pop == "granule":
@@ -225,6 +226,9 @@ def spike_analysis(results_file, fig_folder):
         no_inhibited = np.count_nonzero(_inhibited_map)
         print("\t\t\t {:6d} inhibited neurons, i.e. {:7.2%} of cells".format(
             no_inhibited, no_inhibited / all_neurons[pop]))
+        print("\t{:10} neurons don't fire at all".format(
+            np.count_nonzero(np.invert(_neurons_that_fire))))
+        print("-" * 80)
     print("=" * 80)
 
     # Count incoming spikes
