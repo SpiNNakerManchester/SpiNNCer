@@ -1,5 +1,6 @@
 # argparser for easily running experiment from cli
 from spinncer.spinncer_argparser import *
+
 # import sPyNNaker
 # import simulator
 spinnaker_sim = False
@@ -24,12 +25,13 @@ import pylab as plt
 import os
 import traceback
 
-
 # Record SCRIPT start time (wall clock)
 start_time = plt.datetime.datetime.now()
 
 connectivity_filename = args.dataset or DEFAULT_DATASET
-connectivity_filename = os.path.join('datasets', connectivity_filename)
+connectivity_filename = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    'datasets', connectivity_filename)
 # Set up the simulation
 sim.setup(timestep=args.timestep, min_delay=args.timestep, max_delay=6.4)
 
