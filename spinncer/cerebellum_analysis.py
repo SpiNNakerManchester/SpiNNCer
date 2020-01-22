@@ -226,13 +226,14 @@ def spike_analysis(results_file, fig_folder):
         no_inhibited = np.count_nonzero(_inhibited_map)
         print("\t\t\t {:6d} inhibited neurons, i.e. {:7.2%} of cells".format(
             no_inhibited, no_inhibited / all_neurons[pop]))
-        print("\t{:10} neurons don't fire at all".format(
+        print("\t{:10} neurons didn't fire at all".format(
             np.count_nonzero(np.invert(_neurons_that_fire))))
         print("-" * 80)
     print("=" * 80)
 
-    # Count incoming spikes
-    inc_spike_count = {k: np.zeros((all_neurons[k], no_timesteps + 1)) for k in all_neurons.keys()}
+    if analysis_args.worst_case_spikes:
+        # Count incoming spikes only if we care -- this takes a while
+        inc_spike_count = {k: np.zeros((all_neurons[k], no_timesteps + 1)) for k in all_neurons.keys()}
 
     # flag set if some connectivity exists
     conn_exists = False
@@ -329,18 +330,19 @@ def spike_analysis(results_file, fig_folder):
     else:
         print("No voltage information present.")
 
-    # The following is expensive time wise
-    for key, conn in conn_dict.items():
-        post_pop = CONNECTIVITY_MAP[key]["post"]
-        pre_pop = CONNECTIVITY_MAP[key]["pre"]
-        curr_spikes = all_spikes[pre_pop]
-        for nid, t in curr_spikes:
-            nid = int(nid)
-            times = int(t * time_to_bin_conversion)
-            targets = conn[conn[:, 0] == nid][:, 1].astype(int)
-            inc_spike_count[post_pop][targets, times] += 1
+    if analysis_args.worst_case_spikes:
+        # The following is expensive time wise
+        for key, conn in conn_dict.items():
+            post_pop = CONNECTIVITY_MAP[key]["post"]
+            pre_pop = CONNECTIVITY_MAP[key]["pre"]
+            curr_spikes = all_spikes[pre_pop]
+            for nid, t in curr_spikes:
+                nid = int(nid)
+                times = int(t * time_to_bin_conversion)
+                targets = conn[conn[:, 0] == nid][:, 1].astype(int)
+                inc_spike_count[post_pop][targets, times] += 1
 
-    if conn_exists:
+    if conn_exists and analysis_args.worst_case_spikes:
         print("=" * 80)
         print("Incoming spikes statistics")
         print("-" * 80)

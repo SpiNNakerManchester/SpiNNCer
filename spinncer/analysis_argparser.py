@@ -14,4 +14,10 @@ analysis_parser.add_argument('-i', '--input', type=str, nargs="*",
 analysis_parser.add_argument('--figures_dir', type=str,
                              help='directory into which to save figures',
                              default=DEFAULT_FIGURE_DIR)
+
+analysis_parser.add_argument('--worst_case_spikes', action="store_true",
+                             help='if this flag is present the expensive '
+                                  'process of counting number of afferent '
+                                  'spikes is performed.')
+
 analysis_args = analysis_parser.parse_args()
