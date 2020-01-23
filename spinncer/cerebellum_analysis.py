@@ -210,22 +210,36 @@ def spike_analysis(results_file, fig_folder):
             )
 
         excited_filteread_mean = np.mean(_x[_excited_map], axis=0)
+        excited_filteread_std = np.std(_x[_excited_map], axis=0)
         excited_before = excited_filteread_mean[0]
         excited_during = excited_filteread_mean[1]
         excited_after = excited_filteread_mean[2]
-        print("\t{:10} excited   ->[{:>8.2f}, {:>8.2f}, {:>8.2f}] Hz".format(
-            pop, excited_before, excited_during, excited_after),
+        excited_before_std = excited_filteread_std[0]
+        excited_during_std = excited_filteread_std[1]
+        excited_after_std = excited_filteread_std[2]
+        print("\t{:10} excited   ->[{:>8.2f}+-{:>4.1f}, {:>8.2f}+-{:>4.1f}, {:>8.2f}+-{:>4.1f}] Hz".format(
+            pop,
+            excited_before, excited_before_std,
+            excited_during, excited_during_std,
+            excited_after, excited_after_std),
             "per neuron")
         no_excited = np.count_nonzero(_excited_map)
         print("\t\t\t {:6d} excited neurons, i.e. {:7.2%} of cells".format(
             no_excited, no_excited / all_neurons[pop]))
 
         inhibited_filteread_mean = np.mean(_x[_inhibited_map], axis=0)
+        inhibited_filteread_std = np.std(_x[_inhibited_map], axis=0)
         inhibited_before = inhibited_filteread_mean[0]
         inhibited_during = inhibited_filteread_mean[1]
         inhibited_after = inhibited_filteread_mean[2]
-        print("\t{:10} inhibited ->[{:>8.2f}, {:>8.2f}, {:>8.2f}] Hz".format(
-            pop, inhibited_before, inhibited_during, inhibited_after),
+        inhibited_before_std = inhibited_filteread_std[0]
+        inhibited_during_std = inhibited_filteread_std[1]
+        inhibited_after_std = inhibited_filteread_std[2]
+        print("\t{:10} inhibited ->[{:>8.2f}+-{:>4.1f}, {:>8.2f}+-{:>4.1f}, {:>8.2f}+-{:>4.1f}] Hz".format(
+            pop,
+            inhibited_before, inhibited_before_std,
+            inhibited_during, inhibited_during_std,
+            inhibited_after, inhibited_after_std),
             "per neuron")
         no_inhibited = np.count_nonzero(_inhibited_map)
         print("\t\t\t {:6d} inhibited neurons, i.e. {:7.2%} of cells".format(
