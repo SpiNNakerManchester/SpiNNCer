@@ -188,7 +188,11 @@ def spike_analysis(results_file, fig_folder):
         # scaffold paper, i.e., cells that fire twice as much when stimulated as
         # compared to before stimulation
         _excited_map = np.greater(_x[:, 1], 2 * _x[:, 0])
-        _inhibited_map = np.less(_x[:, 1], 2 * _x[:, 0])
+        # See SC email from 23/01/2020
+        # baseline firing rate b
+        # stimulation firing rate s
+        # correct: b > 2 * s
+        _inhibited_map = np.greater(_x[:, 0], 2 * _x[:, 1])
 
         # filter out neurons that don't fire at all
         _neurons_that_fire = per_neuron_spike_count[pop][:, 1] > 0
