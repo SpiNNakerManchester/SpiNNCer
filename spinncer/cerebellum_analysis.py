@@ -33,13 +33,23 @@ mlib.rcParams.update({'errorbar.capsize': 5})
 mlib.rcParams.update({'figure.autolayout': True})
 viridis_cmap = mlib.cm.get_cmap('viridis')
 
+DELAY_IN_EXCITATION = {
+    'glomerulus': 0,
+    'granule': 4,
+    'dcn': 4,
+    'golgi': 4,
+    'purkinje': 6,
+    'stellate': 9,
+    'basket': 9
+}
+
 
 def color_for_index(index, size, cmap=viridis_cmap):
     return cmap(1 / (size - index + 1))
 
 
 def spike_analysis(results_file, fig_folder,
-                   worst_case=True, delay_sensitive=True):
+                   worst_case=True, delay_sensitive=False):
     # Retrieve results file
     try:
         data = np.load(results_file, allow_pickle=True)
@@ -164,17 +174,28 @@ def spike_analysis(results_file, fig_folder,
         per_neuron_spike_count[pop] = np.ones((all_neurons[pop],
                                                stimulus_periods)) * -10
         for period in range(stimulus_periods):
+
+            if delay_sensitive and period == 0:
+                time_filter_pre = time_filter[period]
+                time_filter_post = time_filter[period + 1] + DELAY_IN_EXCITATION[pop]
+            elif delay_sensitive and period == 1:
+                time_filter_pre = time_filter[period] + DELAY_IN_EXCITATION[pop]
+                time_filter_post = time_filter[period + 1]
+            else:
+                time_filter_pre = time_filter[period]
+                time_filter_post = time_filter[period + 1]
+
             _filtered_spike_times = np.logical_and(
-                _spike_times >= time_filter[period],
-                _spike_times < time_filter[period + 1])
+                _spike_times >= time_filter_pre,
+                _spike_times < time_filter_post)
             _filtered_spike_rates[period] = \
                 np.count_nonzero(_filtered_spike_times) / \
                 (stim_durations[period] * ms)
             for nid in range(all_neurons[pop]):
                 _spikes_for_nid = spikes[spikes[:, 0] == nid][:, 1]
                 _no_spike_for_nid = np.count_nonzero(np.logical_and(
-                    _spikes_for_nid >= time_filter[period],
-                    _spikes_for_nid < time_filter[period + 1]))
+                    _spikes_for_nid >= time_filter_pre,
+                    _spikes_for_nid < time_filter_post))
                 per_neuron_spike_count[pop][nid, period] = _no_spike_for_nid
                 per_neuron_firing[pop][nid, period] = \
                     _no_spike_for_nid / (stim_durations[period] * ms)
