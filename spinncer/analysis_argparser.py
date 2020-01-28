@@ -20,4 +20,9 @@ analysis_parser.add_argument('--worst_case_spikes', action="store_true",
                                   'process of counting number of afferent '
                                   'spikes is performed.')
 
+analysis_parser.add_argument('--consider_delays', action="store_true",
+                             help='if this flag is present delays in the '
+                                  'propagation of excitation are taken into '
+                                  'account when report firing rates.')
+
 analysis_args = analysis_parser.parse_args()

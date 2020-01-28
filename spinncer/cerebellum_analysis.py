@@ -34,6 +34,10 @@ mlib.rcParams.update({'figure.autolayout': True})
 viridis_cmap = mlib.cm.get_cmap('viridis')
 
 
+def color_for_index(index, size, cmap=viridis_cmap):
+    return cmap(1 / (size - index + 1))
+
+
 def spike_analysis(results_file, fig_folder):
     # Retrieve results file
     try:
@@ -60,7 +64,9 @@ def spike_analysis(results_file, fig_folder):
                   'purkinje', 'dcn']
     n_plots = float(len(plot_order))
     # Plotting results for ...
+    print("=" * 80)
     print("Plotting results for", results_file)
+    print("-" * 80)
 
     # Retrieve information from results file
     all_spikes = data['all_spikes'].ravel()[0]
@@ -95,6 +101,18 @@ def spike_analysis(results_file, fig_folder):
     print("-" * 80)
     print("Current time",
           plt.datetime.datetime.now().strftime("%H:%M:%S on %d.%m.%Y"))
+    print("This analysis includes:")
+    print("\tUNFILTERED mean firing rates per period (before, during, after "
+          "stimulation)")
+    print("\tFILTERED   mean firing rates per period (before, during, after "
+          "stimulation)")
+    print("\traster plots")
+    print("\t3ms-binned PSTH")
+    print("\ttimestep-binned PSTH")
+    if analysis_args.consider_delays:
+        print("\tfiring rates per period taking into account DELAYS")
+    if analysis_args.worst_case_spikes:
+        print("\tcounting WORST CASE number of afferent spikes per cell")
     # Report number of neurons
     print("=" * 80)
     print("Number of neurons in each population")
@@ -209,14 +227,14 @@ def spike_analysis(results_file, fig_folder):
                 _excited_map, per_neuron_spike_count[pop][:, 1] > 1
             )
 
-        excited_filteread_mean = np.mean(_x[_excited_map], axis=0)
-        excited_filteread_std = np.std(_x[_excited_map], axis=0)
-        excited_before = excited_filteread_mean[0]
-        excited_during = excited_filteread_mean[1]
-        excited_after = excited_filteread_mean[2]
-        excited_before_std = excited_filteread_std[0]
-        excited_during_std = excited_filteread_std[1]
-        excited_after_std = excited_filteread_std[2]
+        excited_filtered_mean = np.mean(_x[_excited_map], axis=0)
+        excited_filtered_std = np.std(_x[_excited_map], axis=0)
+        excited_before = excited_filtered_mean[0]
+        excited_during = excited_filtered_mean[1]
+        excited_after = excited_filtered_mean[2]
+        excited_before_std = excited_filtered_std[0]
+        excited_during_std = excited_filtered_std[1]
+        excited_after_std = excited_filtered_std[2]
         print("\t{:10} excited   ->[{:>8.2f}+-{:>4.1f}, {:>8.2f}+-{:>4.1f}, {:>8.2f}+-{:>4.1f}] Hz".format(
             pop,
             excited_before, excited_before_std,
@@ -227,14 +245,14 @@ def spike_analysis(results_file, fig_folder):
         print("\t\t\t {:6d} excited neurons, i.e. {:7.2%} of cells".format(
             no_excited, no_excited / all_neurons[pop]))
 
-        inhibited_filteread_mean = np.mean(_x[_inhibited_map], axis=0)
-        inhibited_filteread_std = np.std(_x[_inhibited_map], axis=0)
-        inhibited_before = inhibited_filteread_mean[0]
-        inhibited_during = inhibited_filteread_mean[1]
-        inhibited_after = inhibited_filteread_mean[2]
-        inhibited_before_std = inhibited_filteread_std[0]
-        inhibited_during_std = inhibited_filteread_std[1]
-        inhibited_after_std = inhibited_filteread_std[2]
+        inhibited_filtered_mean = np.mean(_x[_inhibited_map], axis=0)
+        inhibited_filtered_std = np.std(_x[_inhibited_map], axis=0)
+        inhibited_before = inhibited_filtered_mean[0]
+        inhibited_during = inhibited_filtered_mean[1]
+        inhibited_after = inhibited_filtered_mean[2]
+        inhibited_before_std = inhibited_filtered_std[0]
+        inhibited_during_std = inhibited_filtered_std[1]
+        inhibited_after_std = inhibited_filtered_std[2]
         print("\t{:10} inhibited ->[{:>8.2f}+-{:>4.1f}, {:>8.2f}+-{:>4.1f}, {:>8.2f}+-{:>4.1f}] Hz".format(
             pop,
             inhibited_before, inhibited_before_std,
@@ -323,9 +341,6 @@ def spike_analysis(results_file, fig_folder):
             if isinstance(curr_v, neo.Block):
                 try:
                     all_voltages[pop] = np.array(curr_v.segments[0].filter(name='v')[0]).T
-                    if pop == "dcn":
-                        # TODO plot voltage traces
-                        pass
                 except AttributeError as ae:
                     print("[WARNING]", pop, "has no voltage information.")
                     all_voltages[pop] = np.ones((1, no_timesteps)) * 3.14
@@ -374,6 +389,26 @@ def spike_analysis(results_file, fig_folder):
     print("=" * 80)
     print("Plotting figures...")
     print("-" * 80)
+
+    print("Plotting voltage traces for each population")
+    for index, pop in enumerate(plot_order):
+        # plot voltage traces
+        print("\t{:10}".format(pop), end=' ')
+        if pop == "glomerulus":
+            print("FAIL")
+            continue
+        try:
+            pop_vs = all_voltages[pop]
+            f = plt.figure(1, figsize=(14, 3), dpi=400)
+            for v_ind, v_trace in enumerate(pop_vs):
+                plt.plot(v_trace, color=color_for_index(v_ind, pop_vs.shape[0]))
+            plt.savefig(os.path.join(sim_fig_folder,
+                                     "{}_voltage.png".format(pop)))
+            plt.close(f)
+            print("SUCCESS")
+        except:
+            print("FAIL")
+
     # plot firing rate histogram per PSTH region
     print("Plotting firing rate histograms")
     f, axes = plt.subplots(len(plot_order), 3,
