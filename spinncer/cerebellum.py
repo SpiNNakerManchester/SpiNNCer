@@ -196,10 +196,16 @@ class Cerebellum(Circuit):
         f_peak = np.asarray(stimulus_information['f_peak'])
         periodic_stimulus = stimulus_information['periodic_stimulus']
 
+        print("=" * 80)
+        print("Stimulation periods: ", len(stim_times),
+              "lasting {} ms each".format(
+                  stim_times))
+
         # compute number of rate changes required
         number_of_slots = int(stim_times.size)
         # compute the time at which individual rates take effect
         stim_start = np.cumsum(np.append([0], stim_times))[:number_of_slots]
+        print("Thus, each period starts at ", stim_start, "ms")
         starts = np.ones((n_inputs, number_of_slots)) * stim_start
         # compute the duration (in ms) for which individual rates are active
         durations = np.ones((n_inputs, number_of_slots)) * stim_times
@@ -232,7 +238,7 @@ class Cerebellum(Circuit):
             # Set the firing rate of other gloms to baseline level
             rates[mask, 1] = f_base
             # Report numbers here
-            print("=" * 60)
+            print("=" * 80)
             print("Number of stimulated Gloms: ", len(target_gloms),
                   "i.e. {:6.2%} the total".format(
                       len(target_gloms) / float(n_inputs)))
