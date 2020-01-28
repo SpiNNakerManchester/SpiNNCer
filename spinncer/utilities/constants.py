@@ -194,7 +194,7 @@ CONNECTIVITY_MAP = {
     'pc_dcn': {
         'pre': 'purkinje',
         'post': 'dcn',
-        'weight': -0.0075e-03,  # uS
+        'weight': -0.03e-03,  # uS
         'delay': 4.0,  # ms
     },
     'pf_bc': {
