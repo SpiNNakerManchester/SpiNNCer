@@ -9,7 +9,7 @@ install_requires = [
     "h5py",
     "matplotlib",
     "argparse",
-    "elephant",
+    "elephant==0.6.2",
     "colorama"
 ]
 
