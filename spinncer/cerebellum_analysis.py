@@ -395,6 +395,48 @@ def spike_analysis(results_file, fig_folder,
     print("Plotting figures...")
     print("-" * 80)
 
+    wanted_times = np.arange(6) * 200
+    # plot .1 ms PSTH
+    print("Plotting PSTH for each timestep")
+    f, axes = plt.subplots(len(spikes_per_timestep.keys()), 1,
+                           figsize=(14, 20), sharex=True, dpi=700)
+    for index, pop in enumerate(plot_order):
+        axes[index].bar(np.arange(spikes_per_timestep[pop].size),
+                        spikes_per_timestep[pop],
+                        color=viridis_cmap(index / (n_plots + 1)))
+        axes[index].set_title(pop)
+    plt.xticks(wanted_times * time_to_bin_conversion, wanted_times)
+    plt.savefig(os.path.join(sim_fig_folder,
+                             "timestep_psth.png"))
+    plt.close(f)
+
+    # plot sorted .1 ms PSTH
+    print("Plotting sorted PSTH for each timestep")
+    f, axes = plt.subplots(len(plot_order), 1,
+                           figsize=(14, 20), sharex=True, dpi=700)
+    for index, pop in enumerate(spikes_per_timestep.keys()):
+        axes[index].bar(np.arange(spikes_per_timestep[pop].size),
+                        np.sort(spikes_per_timestep[pop]),
+                        color=viridis_cmap(index / (n_plots + 1)))
+        axes[index].set_title(pop)
+    plt.savefig(os.path.join(sim_fig_folder,
+                             "sorted_timestep_psth.png"))
+    plt.close(f)
+
+    # plot 3 ms PSTH
+    print("Plotting PSTH in bins of 3 ms")
+    f, axes = plt.subplots(len(spikes_per_3ms.keys()), 1,
+                           figsize=(14, 20), sharex=True, dpi=700)
+    for index, pop in enumerate(plot_order):
+        axes[index].bar(np.arange(spikes_per_3ms[pop].size), spikes_per_3ms[pop],
+                        color=viridis_cmap(index / (n_plots + 1)))
+        axes[index].set_title(pop)
+
+    plt.xticks(wanted_times * time_to_bin_conversion / bins_in_3ms, wanted_times)
+    plt.savefig(os.path.join(sim_fig_folder,
+                             "timestep_psth_3ms.png"))
+    plt.close(f)
+
     print("Plotting voltage traces for each population")
     for index, pop in enumerate(plot_order):
         # plot voltage traces
@@ -449,44 +491,6 @@ def spike_analysis(results_file, fig_folder,
     plt.xlabel("Time (ms)")
     plt.savefig(os.path.join(sim_fig_folder,
                              "raster_plots.png"))
-    plt.close(f)
-
-    # plot .1 ms PSTH
-    print("Plotting PSTH for each timestep")
-    f, axes = plt.subplots(len(spikes_per_timestep.keys()), 1,
-                           figsize=(14, 20), sharex=True, dpi=700)
-    for index, pop in enumerate(plot_order):
-        axes[index].bar(np.arange(spikes_per_timestep[pop].size),
-                        spikes_per_timestep[pop],
-                        color=viridis_cmap(index / (n_plots + 1)))
-        axes[index].set_title(pop)
-    plt.savefig(os.path.join(sim_fig_folder,
-                             "timestep_psth.png"))
-    plt.close(f)
-
-    # plot sorted .1 ms PSTH
-    print("Plotting sorted PSTH for each timestep")
-    f, axes = plt.subplots(len(plot_order), 1,
-                           figsize=(14, 20), sharex=True, dpi=700)
-    for index, pop in enumerate(spikes_per_timestep.keys()):
-        axes[index].bar(np.arange(spikes_per_timestep[pop].size),
-                        np.sort(spikes_per_timestep[pop]),
-                        color=viridis_cmap(index / (n_plots + 1)))
-        axes[index].set_title(pop)
-    plt.savefig(os.path.join(sim_fig_folder,
-                             "sorted_timestep_psth.png"))
-    plt.close(f)
-
-    # plot 3 ms PSTH
-    print("Plotting PSTH in bins of 3 ms")
-    f, axes = plt.subplots(len(spikes_per_3ms.keys()), 1,
-                           figsize=(14, 20), sharex=True, dpi=700)
-    for index, pop in enumerate(plot_order):
-        axes[index].bar(np.arange(spikes_per_3ms[pop].size), spikes_per_3ms[pop],
-                        color=viridis_cmap(index / (n_plots + 1)))
-        axes[index].set_title(pop)
-    plt.savefig(os.path.join(sim_fig_folder,
-                             "timestep_psth_3ms.png"))
     plt.close(f)
 
     # plot sorted 3 ms PSTH
