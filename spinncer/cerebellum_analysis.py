@@ -214,7 +214,8 @@ def spike_analysis(results_file, fig_folder,
         _inhibited_map = np.greater(_x[:, 0], 2 * _x[:, 1])
 
         # filter out neurons that don't fire at all
-        _neurons_that_fire = per_neuron_spike_count[pop][:, 1] > 0
+        _neurons_that_fire = np.sum(
+            per_neuron_spike_count[pop], axis=1) > 0
         _excited_map = np.logical_and(
             _excited_map, _neurons_that_fire
         )
@@ -227,6 +228,9 @@ def spike_analysis(results_file, fig_folder,
             _excited_map = np.logical_and(
                 _excited_map, per_neuron_spike_count[pop][:, 1] > 1
             )
+
+        # check that neurons are not both inhibited and excited
+        assert np.all(~(np.logical_and(_excited_map, _inhibited_map)))
 
         excited_filtered_mean = np.mean(_x[_excited_map], axis=0)
         excited_filtered_std = np.std(_x[_excited_map], axis=0)
