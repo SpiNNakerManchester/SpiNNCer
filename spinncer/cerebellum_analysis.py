@@ -38,7 +38,8 @@ def color_for_index(index, size, cmap=viridis_cmap):
     return cmap(1 / (size - index + 1))
 
 
-def spike_analysis(results_file, fig_folder):
+def spike_analysis(results_file, fig_folder,
+                   worst_case=True, delay_sensitive=True):
     # Retrieve results file
     try:
         data = np.load(results_file, allow_pickle=True)
@@ -109,9 +110,9 @@ def spike_analysis(results_file, fig_folder):
     print("\traster plots")
     print("\t3ms-binned PSTH")
     print("\ttimestep-binned PSTH")
-    if analysis_args.consider_delays:
+    if delay_sensitive:
         print("\tfiring rates per period taking into account DELAYS")
-    if analysis_args.worst_case_spikes:
+    if worst_case:
         print("\tcounting WORST CASE number of afferent spikes per cell")
     # Report number of neurons
     print("=" * 80)
@@ -267,7 +268,7 @@ def spike_analysis(results_file, fig_folder):
         print("-" * 80)
     print("=" * 80)
 
-    if analysis_args.worst_case_spikes:
+    if worst_case:
         # Count incoming spikes only if we care -- this takes a while
         inc_spike_count = {k: np.zeros((all_neurons[k], no_timesteps + 1)) for k in all_neurons.keys()}
 
@@ -363,7 +364,7 @@ def spike_analysis(results_file, fig_folder):
     else:
         print("No voltage information present.")
 
-    if analysis_args.worst_case_spikes:
+    if worst_case:
         # The following is expensive time wise
         for key, conn in conn_dict.items():
             post_pop = CONNECTIVITY_MAP[key]["post"]
@@ -375,7 +376,7 @@ def spike_analysis(results_file, fig_folder):
                 targets = conn[conn[:, 0] == nid][:, 1].astype(int)
                 inc_spike_count[post_pop][targets, times] += 1
 
-    if conn_exists and analysis_args.worst_case_spikes:
+    if conn_exists and worst_case:
         print("=" * 80)
         print("Incoming spikes statistics")
         print("-" * 80)
@@ -523,7 +524,9 @@ if __name__ == "__main__":
 
     if analysis_args.input and len(analysis_args.input) > 0:
         for in_file in analysis_args.input:
-            spike_analysis(in_file, analysis_args.figures_dir)
+            spike_analysis(in_file, analysis_args.figures_dir,
+                           worst_case=analysis_args.worst_case_spikes,
+                           delay_sensitive=analysis_args.consider_delays)
     else:
         # Constants
         fig_folder = "figures"
