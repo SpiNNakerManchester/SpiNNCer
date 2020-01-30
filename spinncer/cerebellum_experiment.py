@@ -21,6 +21,8 @@ from spinncer.cerebellum import Cerebellum
 from spinncer.utilities.provenance import retrieve_git_commit
 # analysis functions
 from spinncer.cerebellum_analysis import *
+# saving some constants for easier access during analysis and for debugging
+from spinncer.utilities.constants import CONNECTIVITY_MAP
 import pylab as plt
 import os
 import traceback
@@ -119,6 +121,7 @@ if not os.path.isdir(args.result_dir) and not os.path.exists(args.result_dir):
 # Retrieve simulation parameters for provenance tracking and debugging purposes
 sim_params = {
     "cell_params": cerebellum_circuit.retrieve_cell_params(),
+    "conn_params": CONNECTIVITY_MAP,
     "argparser": vars(args),
     "git_hash": retrieve_git_commit(),
     "run_end_time": end_time.strftime("%H:%M:%S_%d/%m/%Y"),
