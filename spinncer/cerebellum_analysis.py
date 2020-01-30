@@ -33,13 +33,23 @@ mlib.rcParams.update({'errorbar.capsize': 5})
 mlib.rcParams.update({'figure.autolayout': True})
 viridis_cmap = mlib.cm.get_cmap('viridis')
 
+DELAY_IN_EXCITATION = {
+    'glomerulus': 0,
+    'granule': 4,
+    'dcn': 4,
+    'golgi': 4,
+    'purkinje': 6,
+    'stellate': 9,
+    'basket': 9
+}
+
 
 def color_for_index(index, size, cmap=viridis_cmap):
     return cmap(1 / (size - index + 1))
 
 
 def spike_analysis(results_file, fig_folder,
-                   worst_case=True, delay_sensitive=True):
+                   worst_case=True, delay_sensitive=False):
     # Retrieve results file
     try:
         data = np.load(results_file, allow_pickle=True)
@@ -164,17 +174,28 @@ def spike_analysis(results_file, fig_folder,
         per_neuron_spike_count[pop] = np.ones((all_neurons[pop],
                                                stimulus_periods)) * -10
         for period in range(stimulus_periods):
+
+            if delay_sensitive and period == 0:
+                time_filter_pre = time_filter[period]
+                time_filter_post = time_filter[period + 1] + DELAY_IN_EXCITATION[pop]
+            elif delay_sensitive and period == 1:
+                time_filter_pre = time_filter[period] + DELAY_IN_EXCITATION[pop]
+                time_filter_post = time_filter[period + 1]
+            else:
+                time_filter_pre = time_filter[period]
+                time_filter_post = time_filter[period + 1]
+
             _filtered_spike_times = np.logical_and(
-                _spike_times >= time_filter[period],
-                _spike_times < time_filter[period + 1])
+                _spike_times >= time_filter_pre,
+                _spike_times < time_filter_post)
             _filtered_spike_rates[period] = \
                 np.count_nonzero(_filtered_spike_times) / \
                 (stim_durations[period] * ms)
             for nid in range(all_neurons[pop]):
                 _spikes_for_nid = spikes[spikes[:, 0] == nid][:, 1]
                 _no_spike_for_nid = np.count_nonzero(np.logical_and(
-                    _spikes_for_nid >= time_filter[period],
-                    _spikes_for_nid < time_filter[period + 1]))
+                    _spikes_for_nid >= time_filter_pre,
+                    _spikes_for_nid < time_filter_post))
                 per_neuron_spike_count[pop][nid, period] = _no_spike_for_nid
                 per_neuron_firing[pop][nid, period] = \
                     _no_spike_for_nid / (stim_durations[period] * ms)
@@ -395,6 +416,48 @@ def spike_analysis(results_file, fig_folder,
     print("Plotting figures...")
     print("-" * 80)
 
+    wanted_times = np.arange(6) * 200
+    # plot .1 ms PSTH
+    print("Plotting PSTH for each timestep")
+    f, axes = plt.subplots(len(spikes_per_timestep.keys()), 1,
+                           figsize=(14, 20), sharex=True, dpi=700)
+    for index, pop in enumerate(plot_order):
+        axes[index].bar(np.arange(spikes_per_timestep[pop].size),
+                        spikes_per_timestep[pop],
+                        color=viridis_cmap(index / (n_plots + 1)))
+        axes[index].set_title(pop)
+    plt.xticks(wanted_times * time_to_bin_conversion, wanted_times)
+    plt.savefig(os.path.join(sim_fig_folder,
+                             "timestep_psth.png"))
+    plt.close(f)
+
+    # plot sorted .1 ms PSTH
+    print("Plotting sorted PSTH for each timestep")
+    f, axes = plt.subplots(len(plot_order), 1,
+                           figsize=(14, 20), sharex=True, dpi=700)
+    for index, pop in enumerate(spikes_per_timestep.keys()):
+        axes[index].bar(np.arange(spikes_per_timestep[pop].size),
+                        np.sort(spikes_per_timestep[pop]),
+                        color=viridis_cmap(index / (n_plots + 1)))
+        axes[index].set_title(pop)
+    plt.savefig(os.path.join(sim_fig_folder,
+                             "sorted_timestep_psth.png"))
+    plt.close(f)
+
+    # plot 3 ms PSTH
+    print("Plotting PSTH in bins of 3 ms")
+    f, axes = plt.subplots(len(spikes_per_3ms.keys()), 1,
+                           figsize=(14, 20), sharex=True, dpi=700)
+    for index, pop in enumerate(plot_order):
+        axes[index].bar(np.arange(spikes_per_3ms[pop].size), spikes_per_3ms[pop],
+                        color=viridis_cmap(index / (n_plots + 1)))
+        axes[index].set_title(pop)
+
+    plt.xticks(wanted_times * time_to_bin_conversion / bins_in_3ms, wanted_times)
+    plt.savefig(os.path.join(sim_fig_folder,
+                             "timestep_psth_3ms.png"))
+    plt.close(f)
+
     print("Plotting voltage traces for each population")
     for index, pop in enumerate(plot_order):
         # plot voltage traces
@@ -449,44 +512,6 @@ def spike_analysis(results_file, fig_folder,
     plt.xlabel("Time (ms)")
     plt.savefig(os.path.join(sim_fig_folder,
                              "raster_plots.png"))
-    plt.close(f)
-
-    # plot .1 ms PSTH
-    print("Plotting PSTH for each timestep")
-    f, axes = plt.subplots(len(spikes_per_timestep.keys()), 1,
-                           figsize=(14, 20), sharex=True, dpi=700)
-    for index, pop in enumerate(plot_order):
-        axes[index].bar(np.arange(spikes_per_timestep[pop].size),
-                        spikes_per_timestep[pop],
-                        color=viridis_cmap(index / (n_plots + 1)))
-        axes[index].set_title(pop)
-    plt.savefig(os.path.join(sim_fig_folder,
-                             "timestep_psth.png"))
-    plt.close(f)
-
-    # plot sorted .1 ms PSTH
-    print("Plotting sorted PSTH for each timestep")
-    f, axes = plt.subplots(len(plot_order), 1,
-                           figsize=(14, 20), sharex=True, dpi=700)
-    for index, pop in enumerate(spikes_per_timestep.keys()):
-        axes[index].bar(np.arange(spikes_per_timestep[pop].size),
-                        np.sort(spikes_per_timestep[pop]),
-                        color=viridis_cmap(index / (n_plots + 1)))
-        axes[index].set_title(pop)
-    plt.savefig(os.path.join(sim_fig_folder,
-                             "sorted_timestep_psth.png"))
-    plt.close(f)
-
-    # plot 3 ms PSTH
-    print("Plotting PSTH in bins of 3 ms")
-    f, axes = plt.subplots(len(spikes_per_3ms.keys()), 1,
-                           figsize=(14, 20), sharex=True, dpi=700)
-    for index, pop in enumerate(plot_order):
-        axes[index].bar(np.arange(spikes_per_3ms[pop].size), spikes_per_3ms[pop],
-                        color=viridis_cmap(index / (n_plots + 1)))
-        axes[index].set_title(pop)
-    plt.savefig(os.path.join(sim_fig_folder,
-                             "timestep_psth_3ms.png"))
     plt.close(f)
 
     # plot sorted 3 ms PSTH
