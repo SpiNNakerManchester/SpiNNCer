@@ -18,6 +18,7 @@ DEFAULT_WEIGHT_SCALING = 1.
 
 # Default dataset file
 DEFAULT_DATASET = 'scaffold_detailed__158.0x158.0_v3.hdf5'
+DEFAULT_PARAMETER_JSON = None
 
 # Radius of volume of excited gloms -- Paper misreports this number,
 # it's actually 70 micrometers for the 400x400 um2 model
@@ -82,6 +83,11 @@ parser.add_argument('-i', '--input', type=str,
                     help="name of the dataset storing "
                          "initial connectivity for the simulation",
                     dest='dataset')
+
+parser.add_argument('--param_json', type=str,
+                    help="name of the json storing "
+                         "cell and connection parameters"
+                         "-- default {}".format(DEFAULT_PARAMETER_JSON))
 
 parser.add_argument('-o', '--output', type=str,
                     help="name of the numpy archive (.npz) "

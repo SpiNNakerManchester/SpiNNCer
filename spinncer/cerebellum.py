@@ -27,10 +27,21 @@ import sys
 class Cerebellum(Circuit):
 
     def __init__(self, sim, connectivity, stimulus_information, reporting=True,
-                 skip_projections=False, weight_scaling=None,
-                 save_conversion_file=False):
+                 params=None, skip_projections=False,
+                 weight_scaling=None, save_conversion_file=False):
         self.sim = sim
         self.reporting = reporting
+        # Attempt to use passed in cell and connectivity params. If none,
+        # use defaults specified in constants but report DECISION
+        if params:
+            # Figure out how to convert the dictionary resulting from reading
+            # in a json to a usable format
+            pass
+        else:
+            print("Cell params not specified. Using defaults...")
+            self.cell_params = CELL_PARAMS
+            print("Connection params not specified. Using defaults...")
+            self.conn_params = CONNECTIVITY_MAP
 
         self.populations = {k: None for k in POPULATION_ID.keys()}
         self.number_of_neurons = {k: None for k in POPULATION_ID.keys()}

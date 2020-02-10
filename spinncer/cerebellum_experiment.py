@@ -1,4 +1,6 @@
 # argparser for easily running experiment from cli
+import json
+
 from spinncer.spinncer_argparser import *
 
 # import sPyNNaker
@@ -19,7 +21,7 @@ else:
 from spinncer.cerebellum import Cerebellum
 # provenance utility
 from spinncer.utilities.provenance import retrieve_git_commit
-# analysis functions
+# analysis functionsc
 from spinncer.cerebellum_analysis import *
 # saving some constants for easier access during analysis and for debugging
 from spinncer.utilities.constants import CONNECTIVITY_MAP
@@ -54,10 +56,19 @@ stimulus_information = {
     'periodic_stimulus': args.periodic_stimulus,
 }
 
+# Compile json data if it exists
+# Load the data from disk
+if args.param_json:
+    with open(args.param_json, "r") as read_file:
+        json_data = json.load(read_file)
+else:
+    json_data = None
+
 # Instantiate a Cerebellum
 cerebellum_circuit = Cerebellum(sim, connectivity_filename,
                                 stimulus_information=stimulus_information,
                                 reporting=args.no_reports,
+                                params=json_data,
                                 skip_projections=args.skip_projections,
                                 weight_scaling=args.weight_scaling,
                                 save_conversion_file=args.generate_conversion_constants)
