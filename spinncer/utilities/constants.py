@@ -230,7 +230,7 @@ PYNEST_TO_PYNN_CONVERSION = {
     "V_m": (None, 0),  # mV
     "E_L": ("v_rest", 1),  # mV
     "C_m": ("cm", 1e-3),  # conversion from pF (pyNest) to nF (PyNN)
-    "t_ref": ("tau_refract", 1),  # ms
+    "t_ref": ("tau_refrac", 1),  # ms
     "V_th": ("v_thresh", 1),  # mV
     "V_reset": ("v_reset", 1),  # mV
     "E_ex": ("e_rev_E", 1),  # mV

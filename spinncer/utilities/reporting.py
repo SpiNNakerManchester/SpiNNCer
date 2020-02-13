@@ -6,7 +6,7 @@ from spinncer.utilities.constants import (CELL_NAME_FOR_ID,
 import numpy as np
 
 
-def population_reporting(positions):
+def population_reporting(positions, number_of_neurons):
     """
     Helper function reporting on various aspects of the Populations
     :param positions: X Y Z positions of individual cells
@@ -17,33 +17,44 @@ def population_reporting(positions):
     color_init(strip=False)
     unique_ids = np.unique(positions[:, 1]).astype(int)
     total_number_of_neurons = 0
-    print("=" * 60)
-    print("The file contains information about",
-          Fore.GREEN, unique_ids.size, Style.RESET_ALL, "populations")
-    print("=" * 60)
-    print("Mapping of IDs:")
-    print("-" * 60)
-    for ui in unique_ids:
-        _cell_name = CELL_NAME_FOR_ID[ui]
-        _status = CELL_IO_STATUS[_cell_name]
-        if _status == IO_Status.INPUT:
-            _color = Fore.GREEN
-        elif _status == IO_Status.OUTPUT:
-            _color = Fore.RED
-        else:
-            _color = ''
-        print("\t{:2d} -> {:10} ".format(ui, _cell_name),
-              _color, "[{:16}]".format(_status), Style.RESET_ALL)
-    print("=" * 60)
-    print("Number of neurons in each population")
-    print("-" * 60)
-    for ui in unique_ids:
-        _cell_name = CELL_NAME_FOR_ID[ui]
-        _no_cells = positions[positions[:, 1] == ui, :].shape[0]
-        total_number_of_neurons += _no_cells
-        print("\t{:10} -> {:10} neurons".format(_cell_name, _no_cells))
-    print(Fore.GREEN, "\t{:10} -> {:10} neurons".format(
-        "TOTAL", total_number_of_neurons), Style.RESET_ALL)
+    if unique_ids.size == len(CELL_NAME_FOR_ID.keys()):
+        print("=" * 80)
+        print("The file contains information about",
+              Fore.GREEN, unique_ids.size, Style.RESET_ALL, "populations")
+        print("=" * 80)
+        print("Mapping of IDs:")
+        print("-" * 80)
+        for ui in unique_ids:
+            _cell_name = CELL_NAME_FOR_ID[ui]
+            _status = CELL_IO_STATUS[_cell_name]
+            if _status == IO_Status.INPUT:
+                _color = Fore.GREEN
+            elif _status == IO_Status.OUTPUT:
+                _color = Fore.RED
+            else:
+                _color = ''
+            print("\t{:2d} -> {:10} ".format(ui, _cell_name),
+                  _color, "[{:16}]".format(_status), Style.RESET_ALL)
+        print("=" * 80)
+        print("Number of neurons in each population")
+        print("-" * 80)
+        for ui in unique_ids:
+            _cell_name = CELL_NAME_FOR_ID[ui]
+            _no_cells = positions[positions[:, 1] == ui, :].shape[0]
+            total_number_of_neurons += _no_cells
+            print("\t{:15} -> {:10} neurons".format(_cell_name, _no_cells))
+        print(Fore.GREEN, "\t{:10} -> {:10} neurons".format(
+            "TOTAL", total_number_of_neurons), Style.RESET_ALL)
+    else:
+        print("=" * 80)
+        print("Number of neurons in each population")
+        print("-" * 80)
+        for _cell_name, _no_cells in number_of_neurons.items():
+            total_number_of_neurons += _no_cells
+            print("\t{:15} -> {:10} neurons".format(_cell_name, _no_cells))
+        print(Fore.GREEN, "\t{:10} -> {:10} neurons".format(
+            "TOTAL", total_number_of_neurons), Style.RESET_ALL)
+        print("=" * 80)
 
 
 def projection_reporting(connections, number_of_neurons):
@@ -58,12 +69,12 @@ def projection_reporting(connections, number_of_neurons):
     connection_keys = connections.keys()
     number_of_afferents = {k: 0 for k in CELL_IO_STATUS.keys()}
     total_number_of_synapses = 0
-    print("=" * 60)
+    print("=" * 80)
     print("The file contains information about",
           Fore.GREEN, len(connection_keys), Style.RESET_ALL, "projections")
-    print("=" * 60)
+    print("=" * 80)
     print("Number of synapses per projection:")
-    print("-" * 60)
+    print("-" * 80)
     for key in connection_keys:
         # report number of synapses
         conns = np.asarray(connections[key])
@@ -81,15 +92,15 @@ def projection_reporting(connections, number_of_neurons):
         number_of_afferents[CONNECTIVITY_MAP[key]['post']] += number_of_syn
     print(Fore.GREEN, "\t{:10} -> {:10} synapses".format(
         "TOTAL", total_number_of_synapses), Style.RESET_ALL)
-    print("=" * 60)
+    print("=" * 80)
     print("Number of incoming connections per population:")
-    print("-" * 60)
+    print("-" * 80)
     for pop, fan_in in number_of_afferents.items():
         print("\t{:10} -> {:10} incoming synapses".format(pop, fan_in))
-    print("=" * 60)
+    print("=" * 80)
     print("Normalised number of incoming connections per population:")
-    print("-" * 60)
+    print("-" * 80)
     for pop, fan_in in number_of_afferents.items():
         print("\t{:10} -> {:>8.2f} incoming synapses".format(
-            pop, fan_in/number_of_neurons[pop]))
-    print("=" * 60)
+            pop, fan_in / number_of_neurons[pop]))
+    print("=" * 80)

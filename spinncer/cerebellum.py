@@ -34,6 +34,7 @@ class Cerebellum(Circuit):
         self.reporting = reporting
         # Attempt to use passed in cell and connectivity params. If none,
         # use defaults specified in constants but report DECISION
+        print("=" * 80)
         if params:
             # Convert from pyNest to PyNN
             # https://nest-test.readthedocs.io/en/pynest_mock/models/neurons.html#_CPPv4N4nest14iaf_cond_alphaE
@@ -64,12 +65,9 @@ class Cerebellum(Circuit):
                         cp['tau_m'] = param_dict['C_m'] / v
 
             print("Connection params extracted and converted from Json.")
-            # TODO populate offsets here too based on ['cells']['type_maps']
-
-            # TODO populate number of neurons here too based on ['cells']['type_maps']
-
-            # TODO Combine hdf5['cells']['connection_types'] with json connection_models
-            # TODO transform ['cells']['connection_types'] to match CONNECTIVITY_MAP
+            # Combine hdf5['cells']['connection_types'] with json connection_models
+            # transform ['cells']['connection_types'] to match CONNECTIVITY_MAP
+            # TODO Figure out what the placement ids are -- I don't need them, do I?
             self.conn_params = {}
             for conn_name, param_sets in sim_params['connection_models'].items():
                 # Adjust
@@ -78,17 +76,46 @@ class Cerebellum(Circuit):
                 self.conn_params[conn_name]['weight'] = param_sets['connection']['weight'] * adjust_for_units
                 self.conn_params[conn_name]['delay'] = param_sets['connection']['delay']
 
-                # some 
-                self.conn_params[conn_name]['pre'] = \
-                    params['connection_types'][conn_name]['from_cell_types']['0']['type']
-                self.conn_params[conn_name]['post'] = \
-                    params['connection_types'][conn_name]['to_cell_types']['0']['type']
+                # some connections are double. Need to retrieve tags for others
+                try:
+                    self.conn_params[conn_name]['pre'] = \
+                        params['connection_types'][conn_name]['from_cell_types'][0]['type']
+                    self.conn_params[conn_name]['post'] = \
+                        params['connection_types'][conn_name]['to_cell_types'][0]['type']
+                    print("[{:8}]: retrieved pre and post for {:15}".format(
+                        "INFO", conn_name))
+                except KeyError:  # this would mean that this conn name is part of the tags
+                    # just hard code this... I can't be bothered to invert
+                    # dictionaries and pattern match key names.
+                    # TODO adjust this in future
+                    anomalies = {'ascending_axon_to_golgi':
+                                     {'pre': 'granule_cell',
+                                      'post': 'golgi_cell'},
+                                 'parallel_fiber_to_golgi':
+                                     {'pre': 'granule_cell',
+                                      'post': 'golgi_cell'},
+                                 'stellate_to_purkinje':
+                                     {'pre': 'stellate_cell',
+                                      'post': 'purkinje_cell'},
+                                 'basket_to_purkinje':
+                                     {'pre': 'basket_cell',
+                                      'post': 'purkinje_cell'},
+                                 }
+
+                    self.conn_params[conn_name]['pre'] = \
+                        anomalies[conn_name]['pre']
+                    self.conn_params[conn_name]['post'] = \
+                        anomalies[conn_name]['post']
+                    print("[{:10}]: json connections for {:15} not parsed "
+                          "succesfully. Reverting to "
+                          "constants!".format("WARNING", conn_name))
         else:
             print("Cell params not specified. Using defaults...")
             self.cell_params = CELL_PARAMS
             print("Connection params not specified. Using defaults...")
             self.conn_params = CONNECTIVITY_MAP
 
+        print("=" * 80)
         self.populations = {k: None for k in self.cell_params.keys()}
         self.number_of_neurons = {k: None for k in self.cell_params.keys()}
         self.nid_offset = {k: None for k in self.cell_params.keys()}
@@ -107,9 +134,27 @@ class Cerebellum(Circuit):
         try:
             self.cell_positions = np.asarray(connectivity_data['positions'])
             self.connections = connectivity_data['connections']
+            print("[{:10}]: successfully retrieved connectivity for OLD style"
+                  "of scaffold!".format("INFO"))
         except KeyError:
             self.cell_positions = np.asarray(connectivity_data['cells']['positions'])
             self.connections = connectivity_data['cells']['connections']
+            # Try to read in nid_offsets too
+            # populate offsets here too based on ['cells']['type_maps']
+            # populate number of neurons here too based on ['cells']['type_maps']
+            for k, v in self.nid_offset.items():
+                # get the minimum GID to use as an offset
+                assert (v is None), "nid_offset key:{} value:{}".format(k, v)
+                self.nid_offset[k] = \
+                    np.min(connectivity_data['cells']['type_maps'][k + "_map"])
+                # get the number of neurons
+                assert (self.number_of_neurons[k] is None), \
+                    "number_of_neurons key:{} value:{}".format(
+                        k, self.number_of_neurons[k])
+                self.number_of_neurons[k] = \
+                    np.asarray(connectivity_data['cells']['type_maps'][k + "_map"]).size
+            print("[{:10}]: successfully retrieved connectivity for NEW style"
+                  "of scaffold!".format("INFO"))
 
         # Construct PyNN neural Populations
         self.build_populations(self.cell_positions)
@@ -136,39 +181,49 @@ class Cerebellum(Circuit):
         """
         if self.reporting:
             # Report statistics about the populations to be built
-            population_reporting(positions)
+            population_reporting(positions, self.number_of_neurons)
         # Unique populations ids
+
+        # TODO compute number of neurons here if not done previously
         unique_ids = np.unique(positions[:, 1]).astype(int)
-        for ui in unique_ids:
-            # Get cell name based on the population id
-            _cell_name = CELL_NAME_FOR_ID[ui]
-            _no_cells = positions[positions[:, 1] == ui, :].shape[0]
-            # Store number of neurons for later
-            self.number_of_neurons[_cell_name] = _no_cells
-            # save global neuron ID offset
-            # NOTE: np.min(unique_ids) == 1
-            if ui == 1:
-                self.nid_offset[_cell_name] = 0
-            else:
-                self.nid_offset[_cell_name] = \
-                    self.nid_offset[CELL_NAME_FOR_ID[ui - 1]] + \
-                    self.number_of_neurons[CELL_NAME_FOR_ID[ui - 1]]
+        if unique_ids.size == len(CELL_NAME_FOR_ID.keys()):
+            for ui in unique_ids:
+                # Get cell name based on the population id
+                cell_name = CELL_NAME_FOR_ID[ui]
+                no_cells = positions[positions[:, 1] == ui, :].shape[0]
+                # Store number of neurons for later
+                self.number_of_neurons[cell_name] = no_cells
+                # save global neuron ID offset
+                # NOTE: np.min(unique_ids) == 1
+                if ui == 1:
+                    self.nid_offset[cell_name] = 0
+                else:
+                    self.nid_offset[cell_name] = \
+                        self.nid_offset[CELL_NAME_FOR_ID[ui - 1]] + \
+                        self.number_of_neurons[CELL_NAME_FOR_ID[ui - 1]]
+        # TODO deprecate the use of ids, there should be enough information
+        # in all of the previous dictionaries to build the network
+
+        for cell_name, cell_param in self.cell_params.items():
             # Retrieve correct cell parameters for the current cell
-            cell_model = CELL_TYPES[_cell_name]
-            if _cell_name == "glomerulus":
+            if cell_name not in CELL_TYPES.keys():
+                cell_model = "IF_cond_exp"
+            else:
+                cell_model = CELL_TYPES[cell_name]
+            no_cells = self.number_of_neurons[cell_name]
+            if cell_name == "glomerulus":
                 cell_param = self.__compute_stimulus(
-                    self.stimulus_information, _no_cells)
+                    self.stimulus_information, no_cells)
                 additional_params = {'seed': 31415926}
                 if self.periodic_stimulus:
                     cell_model = self.sim.SpikeSourceArray
-                    CELL_TYPES[_cell_name] = cell_model
+                    CELL_TYPES[cell_name] = cell_model
                     additional_params = {}
                 else:
                     cell_model = self.sim.extra_models.SpikeSourcePoissonVariable
                 self.stimulus = cell_param
-
             else:
-                cell_param = CELL_PARAMS[_cell_name]
+                # else for all other cells
                 additional_params = {}
                 # add E_rev_I to all cells
                 if cell_model == "IF_cond_exp":
@@ -178,21 +233,22 @@ class Cerebellum(Circuit):
                     cell_model = self.sim.IF_curr_exp
                 elif cell_model == "IF_curr_alpha":
                     cell_model = self.sim.IF_curr_alpha
+                elif cell_model == "IF_cond_alpha":
+                    cell_model = self.sim.IF_cond_alpha
             # Adding the population to the network
             try:
-                self.populations[_cell_name] = self.sim.Population(
-                    _no_cells,
+                self.populations[cell_name] = self.sim.Population(
+                    no_cells,
                     cellclass=cell_model,
                     cellparams=cell_param,
-                    label=_cell_name + " cells",
+                    label=cell_name + " cells",
                     additional_parameters=additional_params)
             except TypeError as te:
-                self.populations[_cell_name] = self.sim.Population(
-                    _no_cells,
+                self.populations[cell_name] = self.sim.Population(
+                    no_cells,
                     cellclass=cell_model,
                     cellparams=cell_param,
-                    label=_cell_name + " cells")
-
+                    label=cell_name + " cells")
 
     def build_projections(self, connections):
         """
