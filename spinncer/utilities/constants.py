@@ -179,12 +179,6 @@ CONNECTIVITY_MAP = {
         'weight': 9.0e-03,  # uS
         'delay': 4.0,  # ms
     },
-    'goc_glom': {
-        'pre': 'golgi',
-        'post': 'glomerulus',
-        'weight': -5.0e-03,  # uS
-        'delay': 2.0,  # ms
-    },
     'goc_grc': {
         'pre': 'golgi',
         'post': 'granule',
@@ -227,4 +221,22 @@ CONNECTIVITY_MAP = {
         'weight': -8.5e-03,  # uS
         'delay': 5.0,  # ms
     },
+}
+
+# create a map from pyNest param names to PyNN param names + unit conversions
+# https://nest-test.readthedocs.io/en/pynest_mock/models/neurons.html#_CPPv4N4nest14iaf_cond_alphaE
+# http://neuralensemble.org/docs/PyNN/standardmodels.html?highlight=if_cond_alpha
+PYNEST_TO_PYNN_CONVERSION = {
+    "V_m": (None, 0),  # mV
+    "E_L": ("v_rest", 1),  # mV
+    "C_m": ("cm", 1e-3),  # conversion from pF (pyNest) to nF (PyNN)
+    "t_ref": ("tau_refract", 1),  # ms
+    "V_th": ("v_thresh", 1),  # mV
+    "V_reset": ("v_reset", 1),  # mV
+    "E_ex": ("e_rev_E", 1),  # mV
+    "E_in": ("e_rev_I", 1),  # mV
+    "g_L": (None, 1e-3),  # conversion from nS (pyNest) to uS (PyNN)
+    "tau_syn_ex": ("tau_syn_E", 1),  # ms
+    "tau_syn_in": ("tau_syn_I", 1),  # ms
+    "I_e": ("i_offset", 1e-3),  # conversion from pA (pyNest) to nA (PyNN)
 }

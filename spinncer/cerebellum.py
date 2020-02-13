@@ -17,6 +17,7 @@ import numpy as np
 import h5py
 from spinncer.circuit import Circuit
 from spinncer.utilities.constants import *
+from spinncer.utilities.utils import flatten_dict
 from spinncer.utilities.reporting import (population_reporting,
                                           projection_reporting)
 from elephant.spike_train_generation import homogeneous_poisson_process
@@ -34,35 +35,88 @@ class Cerebellum(Circuit):
         # Attempt to use passed in cell and connectivity params. If none,
         # use defaults specified in constants but report DECISION
         if params:
-            # Figure out how to convert the dictionary resulting from reading
-            # in a json to a usable format
-            pass
+            # Convert from pyNest to PyNN
+            # https://nest-test.readthedocs.io/en/pynest_mock/models/neurons.html#_CPPv4N4nest14iaf_cond_alphaE
+            # use conversion map from pyNest param names to PyNN param names + units
+            # ignore V_m in pyNest
+            print("Cell params extracted and converted from Json. ")
+            self.cell_params = {}
+            sim_params = params['simulations']['FCN_2019']
+            for cell_name, param_sets in sim_params['cell_models'].items():
+                self.cell_params[cell_name] = {}
+                # WARNING this assumes that the different models included in
+                # the nested dictionary do NOT have parameter names in common
+                # otherwise, "the last one" is the one used here
+                param_dict = flatten_dict(param_sets)
+                cp = self.cell_params[cell_name]
+                if ('neuron_model' in param_dict.keys() and
+                        param_dict['neuron_model'] == "parrot_neuron"):
+                    # Mark the current population as input in a distinctive
+                    # fashion
+                    self.cell_params[cell_name] = None
+                    continue
+                for p, v in param_dict.items():
+                    if (p in PYNEST_TO_PYNN_CONVERSION.keys() and
+                            PYNEST_TO_PYNN_CONVERSION[p][0] is not None):
+                        cp[PYNEST_TO_PYNN_CONVERSION[p][0]] = v * PYNEST_TO_PYNN_CONVERSION[p][1]
+                    if p == "g_L":
+                        # convert g_L to tau_m using the equation tau_m = R * C
+                        cp['tau_m'] = param_dict['C_m'] / v
+
+            print("Connection params extracted and converted from Json.")
+            # TODO populate offsets here too based on ['cells']['type_maps']
+
+            # TODO populate number of neurons here too based on ['cells']['type_maps']
+
+            # TODO Combine hdf5['cells']['connection_types'] with json connection_models
+            # TODO transform ['cells']['connection_types'] to match CONNECTIVITY_MAP
+            self.conn_params = {}
+            for conn_name, param_sets in sim_params['connection_models'].items():
+                # Adjust
+                self.conn_params[conn_name] = {}
+                adjust_for_units = 1e-3 if sim_params['simulator'] == "nest" else 1
+                self.conn_params[conn_name]['weight'] = param_sets['connection']['weight'] * adjust_for_units
+                self.conn_params[conn_name]['delay'] = param_sets['connection']['delay']
+
+                # some 
+                self.conn_params[conn_name]['pre'] = \
+                    params['connection_types'][conn_name]['from_cell_types']['0']['type']
+                self.conn_params[conn_name]['post'] = \
+                    params['connection_types'][conn_name]['to_cell_types']['0']['type']
         else:
             print("Cell params not specified. Using defaults...")
             self.cell_params = CELL_PARAMS
             print("Connection params not specified. Using defaults...")
             self.conn_params = CONNECTIVITY_MAP
 
-        self.populations = {k: None for k in POPULATION_ID.keys()}
-        self.number_of_neurons = {k: None for k in POPULATION_ID.keys()}
-        self.nid_offset = {k: None for k in POPULATION_ID.keys()}
-        self.projections = {k: None for k in CONNECTIVITY_MAP.keys()}
-        self.connections = {k: None for k in CONNECTIVITY_MAP.keys()}
+        self.populations = {k: None for k in self.cell_params.keys()}
+        self.number_of_neurons = {k: None for k in self.cell_params.keys()}
+        self.nid_offset = {k: None for k in self.cell_params.keys()}
+
+        self.projections = {k: None for k in self.conn_params.keys()}
+        self.connections = {k: None for k in self.conn_params.keys()}
+
         self.stimulus_information = stimulus_information
 
         self.periodic_stimulus = stimulus_information['periodic_stimulus']
         self.stimulus = None
         self.weight_scaling = weight_scaling or 1.0
 
-        __connectivity = self.__extract_connectivity(connectivity)
-        self.cell_positions = np.asarray(__connectivity['positions'])
+        connectivity_data = self.__extract_connectivity(connectivity)
+        self.connections = None
+        try:
+            self.cell_positions = np.asarray(connectivity_data['positions'])
+            self.connections = connectivity_data['connections']
+        except KeyError:
+            self.cell_positions = np.asarray(connectivity_data['cells']['positions'])
+            self.connections = connectivity_data['cells']['connections']
 
         # Construct PyNN neural Populations
         self.build_populations(self.cell_positions)
 
         # Construct PyNN Projections
         if not skip_projections:
-            self.build_projections(__connectivity['connections'])
+            self.build_projections(connectivity_data['connections'])
 
         if save_conversion_file:
             np.savez_compressed("conversion_constants",
@@ -158,10 +212,10 @@ class Cerebellum(Circuit):
             # 3. 3D distance between somas
             conns = np.asarray(connections[conn_label])[:, :2].astype(int)
             no_synapses = conns.shape[0]
-            pre_pop = CONNECTIVITY_MAP[conn_label]['pre']
-            post_pop = CONNECTIVITY_MAP[conn_label]['post']
-            weight = CONNECTIVITY_MAP[conn_label]['weight']
-            delay = CONNECTIVITY_MAP[conn_label]['delay']
+            pre_pop = self.conn_params[conn_label]['pre']
+            post_pop = self.conn_params[conn_label]['post']
+            weight = self.conn_params[conn_label]['weight']
+            delay = self.conn_params[conn_label]['delay']
             print("Creating projection from {:10}".format(pre_pop),
                   "to {:10}".format(post_pop),
                   "with a weight of {: 2.6f}".format(weight),
