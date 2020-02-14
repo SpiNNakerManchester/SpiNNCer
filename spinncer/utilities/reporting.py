@@ -57,7 +57,7 @@ def population_reporting(positions, number_of_neurons):
         print("=" * 80)
 
 
-def projection_reporting(connections, number_of_neurons):
+def projection_reporting(connections, number_of_neurons, conn_params):
     """
     Helper function reporting on various aspects of the Projections
     :param connections: pre-id, post-id, xxxx
@@ -66,8 +66,8 @@ def projection_reporting(connections, number_of_neurons):
     :rtype: None
     """
     color_init(strip=False)
-    connection_keys = connections.keys()
-    number_of_afferents = {k: 0 for k in CELL_IO_STATUS.keys()}
+    connection_keys = conn_params.keys()
+    number_of_afferents = {k: 0 for k in number_of_neurons.keys()}
     total_number_of_synapses = 0
     print("=" * 80)
     print("The file contains information about",
@@ -78,29 +78,29 @@ def projection_reporting(connections, number_of_neurons):
     for key in connection_keys:
         # report number of synapses
         conns = np.asarray(connections[key])
-        weight = CONNECTIVITY_MAP[key]['weight']
+        weight = conn_params[key]['weight']
         if weight >= 0:
             coloured_syn_type = Fore.GREEN + "[exc]" + Style.RESET_ALL
         else:
             coloured_syn_type = Fore.RED + "[inh]" + Style.RESET_ALL
         number_of_syn = conns.shape[0]
         total_number_of_synapses += number_of_syn
-        print("\t{:10} -> {:10} synapses {:5}".format(key,
+        print("\t{:20} -> {:10} synapses {:5}".format(key,
                                                       number_of_syn,
                                                       coloured_syn_type))
         # compute fan in of post population
-        number_of_afferents[CONNECTIVITY_MAP[key]['post']] += number_of_syn
+        number_of_afferents[conn_params[key]['post']] += number_of_syn
     print(Fore.GREEN, "\t{:10} -> {:10} synapses".format(
         "TOTAL", total_number_of_synapses), Style.RESET_ALL)
     print("=" * 80)
     print("Number of incoming connections per population:")
     print("-" * 80)
     for pop, fan_in in number_of_afferents.items():
-        print("\t{:10} -> {:10} incoming synapses".format(pop, fan_in))
+        print("\t{:15} -> {:10} incoming synapses".format(pop, fan_in))
     print("=" * 80)
     print("Normalised number of incoming connections per population:")
     print("-" * 80)
     for pop, fan_in in number_of_afferents.items():
-        print("\t{:10} -> {:>8.2f} incoming synapses".format(
+        print("\t{:15} -> {:>8.2f} incoming synapses".format(
             pop, fan_in / number_of_neurons[pop]))
     print("=" * 80)

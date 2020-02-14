@@ -75,11 +75,6 @@ cerebellum_circuit = Cerebellum(sim, connectivity_filename,
 
 # Test various exposed methods
 populations = cerebellum_circuit.get_all_populations()
-assert (len(populations) == 7)
-input_populations = cerebellum_circuit.get_circuit_inputs()
-assert (len(input_populations) == 1)
-output_populations = cerebellum_circuit.get_circuit_outputs()
-assert (len(output_populations) == 1)
 
 # Set up recordings
 cerebellum_circuit.record_all_spikes()

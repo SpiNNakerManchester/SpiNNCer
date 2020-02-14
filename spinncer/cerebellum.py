@@ -130,15 +130,14 @@ class Cerebellum(Circuit):
         self.weight_scaling = weight_scaling or 1.0
 
         connectivity_data = self.__extract_connectivity(connectivity)
-        self.connections = None
         try:
             self.cell_positions = np.asarray(connectivity_data['positions'])
-            self.connections = connectivity_data['connections']
+            connections = connectivity_data['connections']
             print("[{:10}]: successfully retrieved connectivity for OLD style"
                   "of scaffold!".format("INFO"))
         except KeyError:
             self.cell_positions = np.asarray(connectivity_data['cells']['positions'])
-            self.connections = connectivity_data['cells']['connections']
+            connections = connectivity_data['cells']['connections']
             # Try to read in nid_offsets too
             # populate offsets here too based on ['cells']['type_maps']
             # populate number of neurons here too based on ['cells']['type_maps']
@@ -146,7 +145,7 @@ class Cerebellum(Circuit):
                 # get the minimum GID to use as an offset
                 assert (v is None), "nid_offset key:{} value:{}".format(k, v)
                 self.nid_offset[k] = \
-                    np.min(connectivity_data['cells']['type_maps'][k + "_map"])
+                    np.min(connectivity_data['cells']['type_maps'][k + "_map"]).astype(int)
                 # get the number of neurons
                 assert (self.number_of_neurons[k] is None), \
                     "number_of_neurons key:{} value:{}".format(
@@ -161,7 +160,10 @@ class Cerebellum(Circuit):
 
         # Construct PyNN Projections
         if not skip_projections:
-            self.build_projections(connectivity_data['connections'])
+            if 'connections' in connectivity_data.keys():
+                self.build_projections(connectivity_data['connections'])
+            else:
+                self.build_projections(connectivity_data['cells']['connections'])
 
         if save_conversion_file:
             np.savez_compressed("conversion_constants",
@@ -256,30 +258,44 @@ class Cerebellum(Circuit):
         """
         if self.reporting:
             # Report statistics about the populations to be built
-            projection_reporting(connections, self.number_of_neurons)
+            projection_reporting(connections, self.number_of_neurons,
+                                 self.conn_params)
         # Retrieve the Projection labels
         labels = connections.keys()
         # Loop over each connection in `connections`
         for conn_label in labels:
             # Retrieve saved connectivity and cast to np.ndarray
             # [:, :2] -- the columns are
-            # 1. Unique NID for pre-synaptic neuron
-            # 2. Unique NID for post-synaptic neuron
+            # 1. Unique G(lobal)ID (!) for pre-synaptic neuron
+            # 2. Unique G(lobal)ID (!) for post-synaptic neuron
             # 3. 3D distance between somas
+            if conn_label not in self.conn_params.keys():
+                print("[{:10}]: CONNECTION UNREGONISED -> "
+                      "{:20}".format("ERROR", conn_label))
+                continue
             conns = np.asarray(connections[conn_label])[:, :2].astype(int)
             no_synapses = conns.shape[0]
             pre_pop = self.conn_params[conn_label]['pre']
             post_pop = self.conn_params[conn_label]['post']
             weight = self.conn_params[conn_label]['weight']
             delay = self.conn_params[conn_label]['delay']
-            print("Creating projection from {:10}".format(pre_pop),
-                  "to {:10}".format(post_pop),
-                  "with a weight of {: 2.6f}".format(weight),
-                  "uS and a delay of", delay, "ms")
             if (post_pop == "glomerulus"):
                 # Can't send projections to a spike source
-                print("Ignoring connection terminating at", post_pop, "...")
+                print("Ignoring connection {:15} "
+                      "terminating at".format(conn_label), post_pop, "...")
                 continue
+            elif (pre_pop == "mossy_fibers"):
+                # This is a conceptual population. Does not exist in PyNN
+                print("Ignoring connection {:15} "
+                      "originating at".format(conn_label), pre_pop, "...")
+                continue
+            else:
+                print("Creating projection {:20} "
+                      "from {:10}".format(conn_label, pre_pop),
+                      "to {:10}".format(post_pop),
+                      "with a weight of {: 2.6f}".format(weight),
+                      "uS and a delay of", delay, "ms")
+
 
             # Normalise the source and target neuron IDs
             # Neurons IDs used here are np.arange(0, TOTAL_NUMBER_OF_NEURONS)
@@ -295,10 +311,10 @@ class Cerebellum(Circuit):
             self.connections[conn_label] = np.concatenate(
                 [conns, stacked_weights, stacked_delays], axis=1)
 
-            assert (np.max(conns[:, 0]) < self.number_of_neurons[pre_pop]), \
-                np.max(conns[:, 0])
-            assert (np.max(conns[:, 1]) < self.number_of_neurons[post_pop]), \
-                np.max(conns[:, 1])
+            # assert (np.max(conns[:, 0]) < self.number_of_neurons[pre_pop]), \
+            #     "{} vs. {} for {}".format(np.max(conns[:, 0]), self.number_of_neurons[pre_pop], pre_pop)
+            # assert (np.max(conns[:, 1]) < self.number_of_neurons[post_pop]), \
+            #     "{} vs. {} for {}".format(np.max(conns[:, 0]), self.number_of_neurons[post_pop], post_pop)
             # Adding the projection to the network
             receptor_type = "inhibitory" if weight < 0 else "excitatory"
             self.projections[conn_label] = self.sim.Projection(
@@ -334,9 +350,27 @@ class Cerebellum(Circuit):
         rates = np.ones((n_inputs, number_of_slots)) * \
                 np.asarray([f_base, f_base + f_peak, f_base])
         if with_positions:
+            # identify ID for glomerulus population
+            no_gloms = self.number_of_neurons['glomerulus']
+            first_glom = self.nid_offset['glomerulus']
+            # extract individual gloms for the position matrix based on their
+            # GID
+            gloms_pos = np.empty((no_gloms, 5))
+            for i in range(no_gloms):
+                gloms_pos[i] = self.cell_positions[
+                               self.cell_positions[:, 0] == i + first_glom, :]
+
+            # count number of placements per id
+            unique_ids = np.unique(self.cell_positions[:, 1]).astype(int)
+            reverse_id_mapping = {}
+            for ui in unique_ids:
+                reverse_id_mapping[
+                    np.count_nonzero(self.cell_positions[:, 1] == ui)] = ui
+            glom_place_id = reverse_id_mapping[no_gloms]
+            print("Probable placement ID for glomerulus: ", glom_place_id)
             radius = self.stimulus_information['stim_radius']
-            gloms_pos = self.cell_positions[
-                        self.cell_positions[:, 1] == POPULATION_ID['glomerulus'], :]
+            # gloms_pos = self.cell_positions[
+            #             self.cell_positions[:, 1] == glom_place_id, :]
             # find center of 'glomerular sphere'
             x_c, y_c, z_c = (np.median(gloms_pos[:, 2]),
                              np.median(gloms_pos[:, 3]),
