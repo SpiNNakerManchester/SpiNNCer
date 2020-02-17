@@ -17,7 +17,7 @@ import neo
 from datetime import datetime
 import warnings
 import ntpath
-from spinncer.utilities.constants import CONNECTIVITY_MAP
+from spinncer.utilities.constants import CONNECTIVITY_MAP,CELL_PARAMS
 from spinncer.utilities.neo_converter import convert_spikes
 from colorama import Fore, Style, init as color_init
 
@@ -35,12 +35,21 @@ viridis_cmap = mlib.cm.get_cmap('viridis')
 
 DELAY_IN_EXCITATION = {
     'glomerulus': 0,
+    'mossy_fibers': 0,
     'granule': 4,
+    'granule_cell': 4,
     'dcn': 4,
+    'dcn_cell': 4,
+    'dcn_interneuron': 4,
     'golgi': 4,
+    'golgi_cell': 4,
     'purkinje': 6,
+    'purkinje_cell': 6,
     'stellate': 9,
-    'basket': 9
+    'stellate_cell': 9,
+    'basket': 9,
+    'basket_cell': 9,
+    'io_cell': 0,
 }
 
 
@@ -69,11 +78,11 @@ def spike_analysis(results_file, fig_folder,
     # Set up colours
     color_init(strip=False)
     # plot order
-    plot_order = ['glomerulus',
-                  'granule', 'golgi',
-                  'stellate', 'basket',
-                  'purkinje', 'dcn']
-    n_plots = float(len(plot_order))
+    preferred_order = ['glomerulus',
+                       'granule', 'golgi',
+                       'stellate', 'basket',
+                       'purkinje', 'dcn']
+
     # Plotting results for ...
     print("=" * 80)
     print("Plotting results for", results_file)
@@ -93,7 +102,24 @@ def spike_analysis(results_file, fig_folder,
     stim_durations = sim_params['argparser']['stim_times']
     stimulus_periods = len(stim_durations)
     average_firing_rates = {}
-    filtered_firing_rates = {}
+
+    conn_params = data['conn_params'].ravel()[0] if 'conn_params' in data.files else CONNECTIVITY_MAP
+    cell_params = data['cell_params'].ravel()[0] if 'cell_params' in data.files else CELL_PARAMS
+    # Compute plot order
+    plot_order = []
+    key_duplicate = list(all_neurons.keys())
+    key_duplicate.sort()
+    for pref in preferred_order:
+        for i, key in enumerate(key_duplicate):
+            if pref in key:
+                plot_order.append(key)
+                key_duplicate.pop(i)
+
+    # add remaining keys to the end of plot order
+    plot_order += key_duplicate
+
+    n_plots = float(len(plot_order))
+
     # Check if using neo blocks
     neo_all_spikes = {}
     for pop, potential_neo_block in all_spikes.items():
@@ -106,6 +132,8 @@ def spike_analysis(results_file, fig_folder,
     print("Simulation parameters")
     print("-" * 80)
     pp(sim_params)
+    pp(cell_params)
+    pp(conn_params)
     # Report useful parameters
     print("=" * 80)
     print("Analysis report")
@@ -129,7 +157,7 @@ def spike_analysis(results_file, fig_folder,
     print("Number of neurons in each population")
     print("-" * 80)
     for pop in plot_order:
-        print("\t{:10} -> {:10} neurons".format(pop, all_neurons[pop]))
+        print("\t{:20} -> {:10} neurons".format(pop, all_neurons[pop]))
     # Pre-compute conversions
     time_to_bin_conversion = 1. / (timestep / ms)
     bins_in_3ms = int(3 * time_to_bin_conversion)
@@ -151,7 +179,7 @@ def spike_analysis(results_file, fig_folder,
             np.bincount((spikes[:, 1] * time_to_bin_conversion).astype(int),
                         minlength=no_timesteps)
         max_spikes = np.max(spikes_per_timestep[pop])
-        print("\t{:10}->{:6} = {:1.4f}".format(pop, max_spikes,
+        print("\t{:20}->{:6} = {:1.4f}".format(pop, max_spikes,
                                                max_spikes / all_neurons[pop]),
               "per neuron")
         padded_bincount = np.pad(
@@ -210,7 +238,7 @@ def spike_analysis(results_file, fig_folder,
         before = _x[0]
         during = _x[1]
         after = _x[2]
-        print("\t{:10}->[{:>8.2f}, {:>8.2f}, {:>8.2f}] Hz".format(
+        print("\t{:20}->[{:>8.2f}, {:>8.2f}, {:>8.2f}] Hz".format(
             pop, before, during, after), "per neuron")
     print("=" * 80)
 
@@ -261,7 +289,7 @@ def spike_analysis(results_file, fig_folder,
         excited_before_std = excited_filtered_std[0]
         excited_during_std = excited_filtered_std[1]
         excited_after_std = excited_filtered_std[2]
-        print("\t{:10} excited   ->[{:>8.2f}+-{:>4.1f}, {:>8.2f}+-{:>4.1f}, {:>8.2f}+-{:>4.1f}] Hz".format(
+        print("\t{:20} excited   ->[{:>8.2f}+-{:>4.1f}, {:>8.2f}+-{:>4.1f}, {:>8.2f}+-{:>4.1f}] Hz".format(
             pop,
             excited_before, excited_before_std,
             excited_during, excited_during_std,
@@ -279,7 +307,7 @@ def spike_analysis(results_file, fig_folder,
         inhibited_before_std = inhibited_filtered_std[0]
         inhibited_during_std = inhibited_filtered_std[1]
         inhibited_after_std = inhibited_filtered_std[2]
-        print("\t{:10} inhibited ->[{:>8.2f}+-{:>4.1f}, {:>8.2f}+-{:>4.1f}, {:>8.2f}+-{:>4.1f}] Hz".format(
+        print("\t{:20} inhibited ->[{:>8.2f}+-{:>4.1f}, {:>8.2f}+-{:>4.1f}, {:>8.2f}+-{:>4.1f}] Hz".format(
             pop,
             inhibited_before, inhibited_before_std,
             inhibited_during, inhibited_during_std,
@@ -329,7 +357,7 @@ def spike_analysis(results_file, fig_folder,
         conn_dict[key] = conn
         mean = np.mean(conn[:, 2])
         # replace with percentage of difference
-        original_conn = np.abs(CONNECTIVITY_MAP[key]["weight"])
+        original_conn = np.abs(conn_params[key]["weight"])
         if mean < original_conn:
             proportion = mean / original_conn
         else:
@@ -338,10 +366,10 @@ def spike_analysis(results_file, fig_folder,
         is_close = proportion >= .95
         _c = Fore.GREEN if is_close else Fore.RED
 
-        print("{:10} -> {}{:4.8f}{} uS".format(
+        print("{:27} -> {}{:4.8f}{} uS".format(
             key, _c, mean, Style.RESET_ALL),
             "c.f. {: 4.8f} uS ({:>7.2%})".format(
-                CONNECTIVITY_MAP[key]["weight"], proportion))
+                conn_params[key]["weight"], proportion))
 
     # Check voltage information
 
@@ -383,7 +411,7 @@ def spike_analysis(results_file, fig_folder,
         # Report statistics here
         for key, v in all_voltages.items():
             nid, timestep = np.unravel_index(np.argmax(v, axis=None), v.shape)
-            print("{:10}-> neuron {:>8d} received {:>6d}".format(
+            print("{:20}-> neuron {:>8d} received {:>6d}".format(
                 key, int(nid), int(np.max(v))),
                 "nA in timestep #{:8d}".format(int(timestep)))
     else:
@@ -392,8 +420,8 @@ def spike_analysis(results_file, fig_folder,
     if worst_case:
         # The following is expensive time wise
         for key, conn in conn_dict.items():
-            post_pop = CONNECTIVITY_MAP[key]["post"]
-            pre_pop = CONNECTIVITY_MAP[key]["pre"]
+            post_pop = conn_params[key]["post"]
+            pre_pop = conn_params[key]["pre"]
             curr_spikes = all_spikes[pre_pop]
             for nid, t in curr_spikes:
                 nid = int(nid)
@@ -407,7 +435,7 @@ def spike_analysis(results_file, fig_folder,
         print("-" * 80)
         for pop, counts in inc_spike_count.items():
             nid, timestep = np.unravel_index(np.argmax(counts, axis=None), counts.shape)
-            print("{:10}-> neuron {:>8d} saw {:>6d}".format(
+            print("{:20}-> neuron {:>8d} saw {:>6d}".format(
                 pop, int(nid), int(np.max(counts))),
                 "spikes in timestep #{:8d}".format(int(timestep)))
             # Break down spikes in that timestep
@@ -461,7 +489,7 @@ def spike_analysis(results_file, fig_folder,
     print("Plotting voltage traces for each population")
     for index, pop in enumerate(plot_order):
         # plot voltage traces
-        print("\t{:10}".format(pop), end=' ')
+        print("\t{:20}".format(pop), end=' ')
         if pop == "glomerulus":
             print("FAIL")
             continue

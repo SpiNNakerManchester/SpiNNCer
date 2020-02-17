@@ -13,6 +13,9 @@ DEFAULT_BURST_RATE = 150.  # Hz
 # Simulator
 DEFAULT_SIMULATOR = "spinnaker"
 
+# Neuron model
+DEFAULT_NEURON_MODEL = "IF_cond_exp"
+
 # Scale weights from the default
 DEFAULT_WEIGHT_SCALING = 1.
 
@@ -33,6 +36,11 @@ parser.add_argument('--simtime', type=float,
                     help="simulation time (in ms) "
                          "-- default {} ms".format(DEFAULT_SIMTIME),
                     default=DEFAULT_SIMTIME)
+
+parser.add_argument('-n', '--neuron_model', type=str,
+                    help="point neuron model to use in the simulation "
+                         "-- default {}".format(DEFAULT_NEURON_MODEL),
+                    default=DEFAULT_NEURON_MODEL)
 
 parser.add_argument('--weight_scaling', type=float,
                     help="scale the weights before passing them to sPyNNaker "

@@ -1,6 +1,10 @@
-# argparser for easily running experiment from cli
+"""
+Simulation involving a PyNN script running on either SpiNNaker (through
+sPyNNaker) or NEST. The network can either be reduced or full scale, depending
+on the connectivity input to it.
+"""
 import json
-
+# argparser for easily running experiment from cli
 from spinncer.spinncer_argparser import *
 
 # import sPyNNaker
@@ -65,13 +69,16 @@ else:
     json_data = None
 
 # Instantiate a Cerebellum
-cerebellum_circuit = Cerebellum(sim, connectivity_filename,
-                                stimulus_information=stimulus_information,
-                                reporting=args.no_reports,
-                                params=json_data,
-                                skip_projections=args.skip_projections,
-                                weight_scaling=args.weight_scaling,
-                                save_conversion_file=args.generate_conversion_constants)
+cerebellum_circuit = Cerebellum(
+    sim, connectivity_filename,
+    stimulus_information=stimulus_information,
+    reporting=args.no_reports,
+    params=json_data,
+    skip_projections=args.skip_projections,
+    weight_scaling=args.weight_scaling,
+    save_conversion_file=args.generate_conversion_constants,
+    neuron_model=args.neuron_model
+)
 
 # Test various exposed methods
 populations = cerebellum_circuit.get_all_populations()
@@ -126,8 +133,6 @@ if not os.path.isdir(args.result_dir) and not os.path.exists(args.result_dir):
 
 # Retrieve simulation parameters for provenance tracking and debugging purposes
 sim_params = {
-    "cell_params": cerebellum_circuit.retrieve_cell_params(),
-    "conn_params": CONNECTIVITY_MAP,
     "argparser": vars(args),
     "git_hash": retrieve_git_commit(),
     "run_end_time": end_time.strftime("%H:%M:%S_%d/%m/%Y"),
@@ -147,7 +152,11 @@ np.savez_compressed(results_file,
                     final_connectivity=final_connectivity,
                     initial_connectivity=initial_connectivity,
                     stimulus_params=stimulus_information,
-                    simtime=args.simtime)
+                    simtime=args.simtime,
+                    json_data=json_data,
+                    conn_params=cerebellum_circuit.retrieve_conn_params(),
+                    cell_params=cerebellum_circuit.retrieve_cell_params(),
+                    )
 
 # Appropriately end the simulation
 sim.end()

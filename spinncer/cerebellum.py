@@ -29,8 +29,11 @@ class Cerebellum(Circuit):
 
     def __init__(self, sim, connectivity, stimulus_information, reporting=True,
                  params=None, skip_projections=False,
-                 weight_scaling=None, save_conversion_file=False):
+                 weight_scaling=None, save_conversion_file=False,
+                 neuron_model="IF_cond_exp"):
         self.sim = sim
+        # Flag that controls whether reports are printed as the  network is
+        # being generated
         self.reporting = reporting
         # Attempt to use passed in cell and connectivity params. If none,
         # use defaults specified in constants but report DECISION
@@ -65,9 +68,6 @@ class Cerebellum(Circuit):
                         cp['tau_m'] = param_dict['C_m'] / v
 
             print("Connection params extracted and converted from Json.")
-            # Combine hdf5['cells']['connection_types'] with json connection_models
-            # transform ['cells']['connection_types'] to match CONNECTIVITY_MAP
-            # TODO Figure out what the placement ids are -- I don't need them, do I?
             self.conn_params = {}
             for conn_name, param_sets in sim_params['connection_models'].items():
                 # Adjust
@@ -109,6 +109,8 @@ class Cerebellum(Circuit):
                     print("[{:10}]: json connections for {:15} not parsed "
                           "succesfully. Reverting to "
                           "constants!".format("WARNING", conn_name))
+                if self.conn_params[conn_name]['pre'] == "mossy_fibers":
+                    self.cell_params["mossy_fibers"] = None
         else:
             print("Cell params not specified. Using defaults...")
             self.cell_params = CELL_PARAMS
@@ -119,6 +121,17 @@ class Cerebellum(Circuit):
         self.populations = {k: None for k in self.cell_params.keys()}
         self.number_of_neurons = {k: None for k in self.cell_params.keys()}
         self.nid_offset = {k: None for k in self.cell_params.keys()}
+        # Save the neuron model to be used by spiking neurons in the network
+        self.neuron_models = {k: str.lower(neuron_model) for k in self.cell_params.keys()}
+        # Hard-code glomerulus
+        # TODO do better
+        if 'glomerulus' in self.neuron_models.keys():
+            self.neuron_models['glomerulus'] = "spikesourcearray"
+        # Hard-code mossy fibers
+        # TODO do better
+        if 'mossy_fibers' in self.neuron_models.keys():
+            self.neuron_models['mossy_fibers'] = "spikesourcearray"
+            # self.number_of_neurons['mossy_fibers'] = 1
 
         self.projections = {k: None for k in self.conn_params.keys()}
         self.connections = {k: None for k in self.conn_params.keys()}
@@ -130,12 +143,12 @@ class Cerebellum(Circuit):
         self.weight_scaling = weight_scaling or 1.0
 
         connectivity_data = self.__extract_connectivity(connectivity)
-        try:
+        if 'connections' in connectivity_data.keys():
             self.cell_positions = np.asarray(connectivity_data['positions'])
             connections = connectivity_data['connections']
             print("[{:10}]: successfully retrieved connectivity for OLD style"
                   "of scaffold!".format("INFO"))
-        except KeyError:
+        else:
             self.cell_positions = np.asarray(connectivity_data['cells']['positions'])
             connections = connectivity_data['cells']['connections']
             # Try to read in nid_offsets too
@@ -144,9 +157,14 @@ class Cerebellum(Circuit):
             for k, v in self.nid_offset.items():
                 # get the minimum GID to use as an offset
                 assert (v is None), "nid_offset key:{} value:{}".format(k, v)
-                self.nid_offset[k] = \
-                    np.min(connectivity_data['cells']['type_maps'][k + "_map"]).astype(int)
+                tm = connectivity_data['cells']['type_maps'][k + "_map"]
+                if tm.size > 0:
+                    self.nid_offset[k] = \
+                        np.min(tm).astype(int)
+                else:
+                    self.nid_offset[k] = 0
                 # get the number of neurons
+                # if k != "mossy_fibers":
                 assert (self.number_of_neurons[k] is None), \
                     "number_of_neurons key:{} value:{}".format(
                         k, self.number_of_neurons[k])
@@ -160,10 +178,7 @@ class Cerebellum(Circuit):
 
         # Construct PyNN Projections
         if not skip_projections:
-            if 'connections' in connectivity_data.keys():
-                self.build_projections(connectivity_data['connections'])
-            else:
-                self.build_projections(connectivity_data['cells']['connections'])
+            self.build_projections(connections)
 
         if save_conversion_file:
             np.savez_compressed("conversion_constants",
@@ -208,10 +223,7 @@ class Cerebellum(Circuit):
 
         for cell_name, cell_param in self.cell_params.items():
             # Retrieve correct cell parameters for the current cell
-            if cell_name not in CELL_TYPES.keys():
-                cell_model = "IF_cond_exp"
-            else:
-                cell_model = CELL_TYPES[cell_name]
+            cell_model = self.neuron_models[cell_name]
             no_cells = self.number_of_neurons[cell_name]
             if cell_name == "glomerulus":
                 cell_param = self.__compute_stimulus(
@@ -224,18 +236,21 @@ class Cerebellum(Circuit):
                 else:
                     cell_model = self.sim.extra_models.SpikeSourcePoissonVariable
                 self.stimulus = cell_param
+            elif cell_name == "mossy_fibers":
+                cell_model = self.sim.SpikeSourceArray
+                additional_params = {}
             else:
                 # else for all other cells
                 additional_params = {}
                 # add E_rev_I to all cells
-                if cell_model == "IF_cond_exp":
+                if cell_model == "if_cond_exp":
                     cell_model = self.sim.IF_cond_exp
                     cell_param['e_rev_I'] = cell_param['v_reset'] - 5.
-                elif cell_model == "IF_curr_exp":
+                elif cell_model == "if_curr_exp":
                     cell_model = self.sim.IF_curr_exp
-                elif cell_model == "IF_curr_alpha":
+                elif cell_model == "if_curr_alpha":
                     cell_model = self.sim.IF_curr_alpha
-                elif cell_model == "IF_cond_alpha":
+                elif cell_model == "if_cond_alpha":
                     cell_model = self.sim.IF_cond_alpha
             # Adding the population to the network
             try:
@@ -271,7 +286,7 @@ class Cerebellum(Circuit):
             # 3. 3D distance between somas
             if conn_label not in self.conn_params.keys():
                 print("[{:10}]: CONNECTION UNREGONISED -> "
-                      "{:20}".format("ERROR", conn_label))
+                      "{:25}".format("ERROR", conn_label))
                 continue
             conns = np.asarray(connections[conn_label])[:, :2].astype(int)
             no_synapses = conns.shape[0]
@@ -281,21 +296,15 @@ class Cerebellum(Circuit):
             delay = self.conn_params[conn_label]['delay']
             if (post_pop == "glomerulus"):
                 # Can't send projections to a spike source
-                print("Ignoring connection {:15} "
+                print("Ignoring connection {:25} "
                       "terminating at".format(conn_label), post_pop, "...")
                 continue
-            elif (pre_pop == "mossy_fibers"):
-                # This is a conceptual population. Does not exist in PyNN
-                print("Ignoring connection {:15} "
-                      "originating at".format(conn_label), pre_pop, "...")
-                continue
             else:
-                print("Creating projection {:20} "
+                print("Creating projection {:25} "
                       "from {:10}".format(conn_label, pre_pop),
                       "to {:10}".format(post_pop),
                       "with a weight of {: 2.6f}".format(weight),
                       "uS and a delay of", delay, "ms")
-
 
             # Normalise the source and target neuron IDs
             # Neurons IDs used here are np.arange(0, TOTAL_NUMBER_OF_NEURONS)
@@ -308,13 +317,23 @@ class Cerebellum(Circuit):
             stacked_weights = np.asarray([[np.abs(weight)]] * no_synapses) * \
                               self.weight_scaling
             stacked_delays = np.asarray([[delay]] * no_synapses)
+
+            # TODO remove this. do better.
+            if "io_to" in conn_label:
+                conns[conns < 0] = 2 ** 32 - 1
+            else:
+                assert (np.max(conns[:, 0]) < self.number_of_neurons[pre_pop]), \
+                    "{} vs. {} for {}".format(np.max(conns[:, 0]), self.number_of_neurons[pre_pop], conn_label)
+                assert (np.min(conns[:, 0]).astype(int) >= 0), \
+                    "{} vs. {} for {}".format(np.min(conns[:, 0]), 0, conn_label)
+                assert (np.max(conns[:, 1]) < self.number_of_neurons[post_pop]), \
+                    "{} vs. {} for {}".format(np.max(conns[:, 0]), self.number_of_neurons[post_pop], conn_label)
+                assert (np.min(conns[:, 1]).astype(int) >= 0), \
+                    "{} vs. {} for {}".format(np.min(conns[:, 1]), 0, conn_label)
+
             self.connections[conn_label] = np.concatenate(
                 [conns, stacked_weights, stacked_delays], axis=1)
 
-            # assert (np.max(conns[:, 0]) < self.number_of_neurons[pre_pop]), \
-            #     "{} vs. {} for {}".format(np.max(conns[:, 0]), self.number_of_neurons[pre_pop], pre_pop)
-            # assert (np.max(conns[:, 1]) < self.number_of_neurons[post_pop]), \
-            #     "{} vs. {} for {}".format(np.max(conns[:, 0]), self.number_of_neurons[post_pop], post_pop)
             # Adding the projection to the network
             receptor_type = "inhibitory" if weight < 0 else "excitatory"
             self.projections[conn_label] = self.sim.Projection(
@@ -483,10 +502,10 @@ class Cerebellum(Circuit):
 
     def record_all_spikes(self):
         for label, pop in self.populations.items():
-            if CELL_TYPES[label] == "SpikeSourceArray":
-                print("NOT enabling recordings for ", label,
-                      "(it's a Spike Source Array)")
-                continue
+            # if self.neuron_models[label] == "spikesourcearray":
+            #     print("NOT enabling recordings for ", label,
+            #           "(it's a Spike Source Array)")
+            #     continue
             print("Enabling recordings for ", label, "...")
             pop.record(['spikes'])
 
@@ -499,15 +518,15 @@ class Cerebellum(Circuit):
         all_spikes = {}
         for label, pop in self.populations.items():
             print("Retrieving recordings for ", label, "...")
-            if CELL_TYPES[label] == "SpikeSourceArray":
-                _spikes = []
-                for i, _times in enumerate(self.stimulus['spike_times']):
-                    for t in _times:
-                        _spikes.append(np.asarray([i, t]))
-                _spikes = np.asarray(_spikes)
-                all_spikes[label] = _spikes
-            else:
-                all_spikes[label] = pop.get_data(['spikes'])
+            # if self.neuron_models[label] == "spikesourcearray":
+            #     _spikes = []
+            #     for i, _times in enumerate(self.stimulus['spike_times']):
+            #         for t in _times:
+            #             _spikes.append(np.asarray([i, t]))
+            #     _spikes = np.asarray(_spikes)
+            #     all_spikes[label] = _spikes
+            # else:
+            all_spikes[label] = pop.get_data(['spikes'])
         return all_spikes
 
     def retrieve_selective_recordings(self):
@@ -518,7 +537,7 @@ class Cerebellum(Circuit):
         """
         gsyn_rec = {}
         for label, pop in self.populations.items():
-            if label == "glomerulus":
+            if label in ["glomerulus", "mossy_fibers"]:
                 print("Skipping selective recording for", label, "...")
                 continue
             print("Retrieving recordings for ", label, "...")
@@ -534,7 +553,7 @@ class Cerebellum(Circuit):
                              "to record from xor a linspace of neurons "
                              "(every nth).")
         for label, pop in self.populations.items():
-            if label == "glomerulus":
+            if label in ["glomerulus", "mossy_fibers"]:
                 print("Skipping selective recording for", label, "...")
             else:
                 print("Selectively recording gsyn and v for ", label)
@@ -557,16 +576,24 @@ class Cerebellum(Circuit):
                 all_connections[label] = \
                     np.array(p.get(('weight', 'delay'),
                                    format="list")._get_data_items())
-            except Exception as e:
+            except AttributeError as ae:
                 print("Careful! Something happened when retrieving the "
-                      "connectivity:", e, "\nRetrying...")
+                      "connectivity:", ae,
+                      "\nRetrying using standard PyNN syntax...")
                 all_connections[label] = \
                     np.array(p.get(('weight', 'delay'), format="list"))
+            except TypeError as te:
+                print("Connectivity is None (", te,
+                      ") for connection", label)
+                print("Connectivity as empty array.")
+                all_connections[label] = np.array([])
         return all_connections
 
     def retrieve_population_names(self):
         return list(self.populations.keys())
 
-    @staticmethod
-    def retrieve_cell_params():
-        return CELL_PARAMS
+    def retrieve_cell_params(self):
+        return self.cell_params
+
+    def retrieve_conn_params(self):
+        return self.conn_params

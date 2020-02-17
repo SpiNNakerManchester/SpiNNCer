@@ -85,7 +85,7 @@ def projection_reporting(connections, number_of_neurons, conn_params):
             coloured_syn_type = Fore.RED + "[inh]" + Style.RESET_ALL
         number_of_syn = conns.shape[0]
         total_number_of_synapses += number_of_syn
-        print("\t{:20} -> {:10} synapses {:5}".format(key,
+        print("\t{:27} -> {:10} synapses {:5}".format(key,
                                                       number_of_syn,
                                                       coloured_syn_type))
         # compute fan in of post population
