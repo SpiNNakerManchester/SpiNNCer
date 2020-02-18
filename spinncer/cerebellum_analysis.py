@@ -17,7 +17,7 @@ import neo
 from datetime import datetime
 import warnings
 import ntpath
-from spinncer.utilities.constants import CONNECTIVITY_MAP,CELL_PARAMS
+from spinncer.utilities.constants import CONNECTIVITY_MAP, CELL_PARAMS
 from spinncer.utilities.neo_converter import convert_spikes
 from colorama import Fore, Style, init as color_init
 
@@ -445,11 +445,12 @@ def spike_analysis(results_file, fig_folder,
     print("Plotting figures...")
     print("-" * 80)
 
-    wanted_times = np.arange(6) * 200
+    # wanted_times = np.arange(6) * ((simtime/ms)//6)
+    wanted_times = np.linspace(0, (simtime / ms), 6).astype(int)
     # plot .1 ms PSTH
     print("Plotting PSTH for each timestep")
     f, axes = plt.subplots(len(spikes_per_timestep.keys()), 1,
-                           figsize=(14, 20), sharex=True, dpi=700)
+                           figsize=(14, 20), sharex=True, dpi=400)
     for index, pop in enumerate(plot_order):
         axes[index].bar(np.arange(spikes_per_timestep[pop].size),
                         spikes_per_timestep[pop],
@@ -463,7 +464,7 @@ def spike_analysis(results_file, fig_folder,
     # plot sorted .1 ms PSTH
     print("Plotting sorted PSTH for each timestep")
     f, axes = plt.subplots(len(plot_order), 1,
-                           figsize=(14, 20), sharex=True, dpi=700)
+                           figsize=(14, 20), sharex=True, dpi=400)
     for index, pop in enumerate(spikes_per_timestep.keys()):
         axes[index].bar(np.arange(spikes_per_timestep[pop].size),
                         np.sort(spikes_per_timestep[pop]),
@@ -476,7 +477,7 @@ def spike_analysis(results_file, fig_folder,
     # plot 3 ms PSTH
     print("Plotting PSTH in bins of 3 ms")
     f, axes = plt.subplots(len(spikes_per_3ms.keys()), 1,
-                           figsize=(14, 20), sharex=True, dpi=700)
+                           figsize=(14, 20), sharex=True, dpi=400)
     for index, pop in enumerate(plot_order):
         axes[index].bar(np.arange(spikes_per_3ms[pop].size), spikes_per_3ms[pop],
                         color=viridis_cmap(index / (n_plots + 1)))
@@ -492,24 +493,29 @@ def spike_analysis(results_file, fig_folder,
         # plot voltage traces
         print("\t{:20}".format(pop), end=' ')
         if pop == "glomerulus":
-            print("FAIL")
+            print("FAIL -- spike source")
+            f = plt.figure(1, figsize=(9, 9), dpi=400)
+            plt.close(f)
             continue
         try:
             pop_vs = all_voltages[pop]
-            f = plt.figure(1, figsize=(14, 3), dpi=400)
+            f = plt.figure(1, figsize=(9, 9), dpi=400)
             for v_ind, v_trace in enumerate(pop_vs):
                 plt.plot(v_trace, color=color_for_index(v_ind, pop_vs.shape[0]))
+            plt.xticks(wanted_times * time_to_bin_conversion, wanted_times)
+            plt.xlabel("Time (ms)")
+            plt.ylabel("Membrane potential (mV)")
             plt.savefig(os.path.join(sim_fig_folder,
                                      "{}_voltage.png".format(pop)))
             plt.close(f)
             print("SUCCESS")
         except:
-            print("FAIL")
+            print("FAIL -- no voltage info")
 
     # plot firing rate histogram per PSTH region
     print("Plotting firing rate histograms")
     f, axes = plt.subplots(len(plot_order), 3,
-                           figsize=(14, 20), sharex=True, dpi=700)
+                           figsize=(14, 20), sharex=True, dpi=400)
     for index, pop in enumerate(plot_order):
         for period in range(stimulus_periods):
             curr_ax = axes[index, period]
@@ -530,7 +536,7 @@ def spike_analysis(results_file, fig_folder,
     # raster plot
     print("Plotting spiking raster plot for each population")
     f, axes = plt.subplots(len(all_spikes.keys()), 1,
-                           figsize=(14, 20), sharex=True, dpi=700)
+                           figsize=(14, 20), sharex=True, dpi=400)
     for index, pop in enumerate(plot_order):
         axes[index].scatter(all_spikes[pop][:, 1],
                             all_spikes[pop][:, 0],
@@ -546,7 +552,7 @@ def spike_analysis(results_file, fig_folder,
     # plot sorted 3 ms PSTH
     print("Plotting sorted PSTH in bins of 3 ms")
     f, axes = plt.subplots(len(spikes_per_3ms.keys()), 1,
-                           figsize=(14, 20), sharex=True, dpi=700)
+                           figsize=(14, 20), sharex=True, dpi=400)
     for index, pop in enumerate(plot_order):
         axes[index].bar(np.arange(spikes_per_3ms[pop].size),
                         np.sort(spikes_per_3ms[pop]),
@@ -565,7 +571,7 @@ def spike_analysis(results_file, fig_folder,
     n_bins = int(round(simtime / ms / 20))
     print("Plotting to gold standard")
     f, axes = plt.subplots(len(spikes_per_3ms.keys()), 1,
-                           figsize=(14, 20), sharex=True, dpi=700)
+                           figsize=(14, 20), sharex=True, dpi=400)
     for index, pop in enumerate(plot_order):
         axes[index].hist(all_spikes[pop][:, 1], n_bins,
                          color=viridis_cmap(index / (n_plots + 1)))
