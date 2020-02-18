@@ -107,7 +107,8 @@ def spike_analysis(results_file, fig_folder,
     cell_params = data['cell_params'].ravel()[0] if 'cell_params' in data.files else CELL_PARAMS
     # Compute plot order
     plot_order = []
-    key_duplicate = list(all_neurons.keys())
+    # only focus on keys for pops that have spikes
+    key_duplicate = list(all_spikes.keys())
     key_duplicate.sort()
     for pref in preferred_order:
         for i, key in enumerate(key_duplicate):

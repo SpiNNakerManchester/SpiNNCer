@@ -1,7 +1,9 @@
 """
 Simulation involving a PyNN script running on either SpiNNaker (through
-sPyNNaker) or NEST. The network can either be reduced or full scale, depending
-on the connectivity input to it.
+sPyNNaker) or NEST. The network consists only of populations with single
+neurons and no connections. This script is meant for testing the behaviour
+of single cells using paramters to be used in the full-scale
+cerebellum_experiment.py
 """
 import json
 # argparser for easily running experiment from cli
@@ -42,8 +44,8 @@ connectivity_filename = os.path.join(
 sim.setup(timestep=args.timestep, min_delay=args.timestep, max_delay=6.4)
 
 # Add constraints here
-n_neurons_per_core = 64
-ss_neurons_per_core = 64
+n_neurons_per_core = 1
+ss_neurons_per_core = 1
 if spinnaker_sim:
     sim.set_number_of_neurons_per_core(sim.IF_cond_exp, n_neurons_per_core)
     sim.set_number_of_neurons_per_core(sim.IF_curr_exp, n_neurons_per_core)
@@ -66,24 +68,50 @@ if args.param_json:
 else:
     json_data = None
 
-# Instantiate a Cerebellum
+# Instantiate a Cerebellum with *1 neuron per population without projections.*
+# We add those outside here.
 cerebellum_circuit = Cerebellum(
     sim, connectivity_filename,
     stimulus_information=stimulus_information,
     reporting=args.no_reports,
     params=json_data,
-    skip_projections=args.skip_projections,
+    force_number_of_neurons=1,
     weight_scaling=args.weight_scaling,
     save_conversion_file=args.generate_conversion_constants,
     neuron_model=args.neuron_model
 )
+# Assemble the stimulus
+# Copy-paste from cell.pptz
+stim_array = [100., 110., 120., 130., 140., 150., 160., 170., 180., 190., 200.]
+# Create the stimulus spike source array
+stimulus_pop = sim.Population(
+    1,
+    cellclass=sim.SpikeSourceArray,
+    cellparams={'spike_times': stim_array},
+    label="Single cell stimulus")
 
-# Test various exposed methods
+# Retrieve all of the populations in the cerebellum
 populations = cerebellum_circuit.get_all_populations()
+
+# Form 1:1 connections to each of them
+# The following values for weight and delay are provided by BM 18.02.2020
+WEIGHT = 0.01
+DELAY = 1.0
+stim_to_pop_proj = []
+for pop_name, pop in populations.items():
+    if pop:
+        stim_to_pop_proj.append(sim.Projection(
+            stimulus_pop, pop, sim.OneToOneConnector(),
+            sim.StaticSynapse(weight=WEIGHT, delay=DELAY),
+            receptor_type="excitatory",
+            label="conn_from_stimulus_to_" + pop_name)
+        )
 
 # Set up recordings
 cerebellum_circuit.record_all_spikes()
 cerebellum_circuit.selectively_record_all(every=n_neurons_per_core)
+# Record spikes from the SpikeSourceArray
+stimulus_pop.record(['spikes'])
 recorded_spikes = {}
 other_recordings = {}
 
@@ -105,6 +133,7 @@ sim_total_time = end_time - sim_start_time
 
 # Retrieve recordings
 recorded_spikes = cerebellum_circuit.retrieve_all_recorded_spikes()
+recorded_spikes['glomerulus'] = stimulus_pop.get_data(['spikes'])
 other_recordings = cerebellum_circuit.retrieve_selective_recordings()
 
 # Retrieve final network connectivity

@@ -30,7 +30,12 @@ class Cerebellum(Circuit):
     def __init__(self, sim, connectivity, stimulus_information, reporting=True,
                  params=None, skip_projections=False,
                  weight_scaling=None, save_conversion_file=False,
-                 neuron_model="IF_cond_exp"):
+                 neuron_model="IF_cond_exp", force_number_of_neurons=None):
+        """
+        Cerebellum Circuit
+        """
+        # Reference to the PyNN simulation that this object (Cerebellum) is
+        # building itself into
         self.sim = sim
         # Flag that controls whether reports are printed as the  network is
         # being generated
@@ -118,6 +123,7 @@ class Cerebellum(Circuit):
             self.conn_params = CONNECTIVITY_MAP
 
         print("=" * 80)
+
         self.populations = {k: None for k in self.cell_params.keys()}
         self.number_of_neurons = {k: None for k in self.cell_params.keys()}
         self.nid_offset = {k: None for k in self.cell_params.keys()}
@@ -132,6 +138,15 @@ class Cerebellum(Circuit):
         if 'mossy_fibers' in self.neuron_models.keys():
             self.neuron_models['mossy_fibers'] = "spikesourcearray"
             # self.number_of_neurons['mossy_fibers'] = 1
+
+        # Force number of neurons
+        self.force_number_of_neurons = force_number_of_neurons
+        if isinstance(force_number_of_neurons, dict):
+            for k, v in force_number_of_neurons.items():
+                self.number_of_neurons[k] = v
+        elif force_number_of_neurons is not None:
+            for k, _ in self.number_of_neurons.items():
+                self.number_of_neurons[k] = force_number_of_neurons
 
         self.projections = {k: None for k in self.conn_params.keys()}
         self.connections = {k: None for k in self.conn_params.keys()}
@@ -165,11 +180,12 @@ class Cerebellum(Circuit):
                     self.nid_offset[k] = 0
                 # get the number of neurons
                 # if k != "mossy_fibers":
-                assert (self.number_of_neurons[k] is None), \
-                    "number_of_neurons key:{} value:{}".format(
-                        k, self.number_of_neurons[k])
-                self.number_of_neurons[k] = \
-                    np.asarray(connectivity_data['cells']['type_maps'][k + "_map"]).size
+                if not force_number_of_neurons:
+                    assert (self.number_of_neurons[k] is None), \
+                        "number_of_neurons key:{} value:{}".format(
+                            k, self.number_of_neurons[k])
+                    self.number_of_neurons[k] = \
+                        np.asarray(connectivity_data['cells']['type_maps'][k + "_map"]).size
             print("[{:10}]: successfully retrieved connectivity for NEW style"
                   "of scaffold!".format("INFO"))
 
@@ -177,8 +193,12 @@ class Cerebellum(Circuit):
         self.build_populations(self.cell_positions)
 
         # Construct PyNN Projections
-        if not skip_projections:
+        if not skip_projections and force_number_of_neurons is None:
             self.build_projections(connections)
+        else:
+            print("NOT GENERATING ANY CONNECTIVITY FOR THIS MODEL")
+            print("skip_projections", skip_projections)
+            print("force_number_of_neurons", force_number_of_neurons)
 
         if save_conversion_file:
             np.savez_compressed("conversion_constants",
@@ -225,6 +245,12 @@ class Cerebellum(Circuit):
             # Retrieve correct cell parameters for the current cell
             cell_model = self.neuron_models[cell_name]
             no_cells = self.number_of_neurons[cell_name]
+            # skip the creation of glom or mossy fibers
+            ins = ["glomerulus", "mossy_fibers"]
+            if cell_name in ins and self.force_number_of_neurons:
+                print("SKIPPING THE CREATION OF", cell_name,
+                      "BECAUSE FORCING # OF NEURONS")
+                continue
             if cell_name == "glomerulus":
                 cell_param = self.__compute_stimulus(
                     self.stimulus_information, no_cells)
@@ -506,8 +532,9 @@ class Cerebellum(Circuit):
             #     print("NOT enabling recordings for ", label,
             #           "(it's a Spike Source Array)")
             #     continue
-            print("Enabling recordings for ", label, "...")
-            pop.record(['spikes'])
+            if pop:
+                print("Enabling recordings for ", label, "...")
+                pop.record(['spikes'])
 
     def retrieve_all_recorded_spikes(self):
         """
@@ -526,7 +553,8 @@ class Cerebellum(Circuit):
             #     _spikes = np.asarray(_spikes)
             #     all_spikes[label] = _spikes
             # else:
-            all_spikes[label] = pop.get_data(['spikes'])
+            if pop:
+                all_spikes[label] = pop.get_data(['spikes'])
         return all_spikes
 
     def retrieve_selective_recordings(self):
@@ -537,6 +565,8 @@ class Cerebellum(Circuit):
         """
         gsyn_rec = {}
         for label, pop in self.populations.items():
+            if not pop:
+                continue
             if label in ["glomerulus", "mossy_fibers"]:
                 print("Skipping selective recording for", label, "...")
                 continue
