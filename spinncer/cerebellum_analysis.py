@@ -461,19 +461,6 @@ def spike_analysis(results_file, fig_folder,
                              "timestep_psth.png"))
     plt.close(f)
 
-    # plot sorted .1 ms PSTH
-    print("Plotting sorted PSTH for each timestep")
-    f, axes = plt.subplots(len(plot_order), 1,
-                           figsize=(14, 20), sharex=True, dpi=400)
-    for index, pop in enumerate(spikes_per_timestep.keys()):
-        axes[index].bar(np.arange(spikes_per_timestep[pop].size),
-                        np.sort(spikes_per_timestep[pop]),
-                        color=viridis_cmap(index / (n_plots + 1)))
-        axes[index].set_title(pop)
-    plt.savefig(os.path.join(sim_fig_folder,
-                             "sorted_timestep_psth.png"))
-    plt.close(f)
-
     # plot 3 ms PSTH
     print("Plotting PSTH in bins of 3 ms")
     f, axes = plt.subplots(len(spikes_per_3ms.keys()), 1,
@@ -549,37 +536,10 @@ def spike_analysis(results_file, fig_folder,
                              "raster_plots.png"))
     plt.close(f)
 
-    # plot sorted 3 ms PSTH
-    print("Plotting sorted PSTH in bins of 3 ms")
-    f, axes = plt.subplots(len(spikes_per_3ms.keys()), 1,
-                           figsize=(14, 20), sharex=True, dpi=400)
-    for index, pop in enumerate(plot_order):
-        axes[index].bar(np.arange(spikes_per_3ms[pop].size),
-                        np.sort(spikes_per_3ms[pop]),
-                        color=viridis_cmap(index / (n_plots + 1)))
-        axes[index].set_title(pop)
-    plt.savefig(os.path.join(sim_fig_folder,
-                             "sorted_timestep_psth_3ms.png"))
-    plt.close(f)
 
     # TODO plot weight histogram
 
     # TODO plot centred connectivity
-
-    # plot as gold standard
-    # Select bin size
-    n_bins = int(round(simtime / ms / 20))
-    print("Plotting to gold standard")
-    f, axes = plt.subplots(len(spikes_per_3ms.keys()), 1,
-                           figsize=(14, 20), sharex=True, dpi=400)
-    for index, pop in enumerate(plot_order):
-        axes[index].hist(all_spikes[pop][:, 1], n_bins,
-                         color=viridis_cmap(index / (n_plots + 1)))
-        axes[index].set_title(pop)
-    plt.savefig(os.path.join(sim_fig_folder,
-                             "gold_standard_psth_3ms.png"))
-    plt.close(f)
-
     print("=" * 80)
 
 
