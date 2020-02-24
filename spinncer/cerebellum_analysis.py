@@ -411,10 +411,10 @@ def spike_analysis(results_file, fig_folder,
                       "for analysis currently")
         # Report statistics here
         for key, v in all_voltages.items():
-            nid, timestep = np.unravel_index(np.argmax(v, axis=None), v.shape)
+            nid, tstep = np.unravel_index(np.argmax(v, axis=None), v.shape)
             print("{:20}-> neuron {:>8d} received {:>6d}".format(
                 key, int(nid), int(np.max(v))),
-                "nA in timestep #{:8d}".format(int(timestep)))
+                "nA in timestep #{:8d}".format(int(tstep)))
     else:
         print("No voltage information present.")
 
@@ -435,10 +435,10 @@ def spike_analysis(results_file, fig_folder,
         print("Incoming spikes statistics")
         print("-" * 80)
         for pop, counts in inc_spike_count.items():
-            nid, timestep = np.unravel_index(np.argmax(counts, axis=None), counts.shape)
+            nid, tstep = np.unravel_index(np.argmax(counts, axis=None), counts.shape)
             print("{:20}-> neuron {:>8d} saw {:>6d}".format(
                 pop, int(nid), int(np.max(counts))),
-                "spikes in timestep #{:8d}".format(int(timestep)))
+                "spikes in timestep #{:8d}".format(int(tstep)))
             # Break down spikes in that timestep
 
     print("=" * 80)
@@ -447,6 +447,80 @@ def spike_analysis(results_file, fig_folder,
 
     # wanted_times = np.arange(6) * ((simtime/ms)//6)
     wanted_times = np.linspace(0, (simtime / ms), 6).astype(int)
+
+    # raster + PSTH for each population
+    print("Plotting spiking raster plot + PSTH for each population")
+    for index, pop in enumerate(plot_order):
+        # plot voltage traces
+        print("\t{:20}".format(pop), end=' ')
+        if pop in ["glomerulus", "mossy_fibers"]:
+            print("FAIL -- spike source")
+            f = plt.figure(1, figsize=(9, 9), dpi=400)
+            plt.close(f)
+            continue
+        f, (ax_0, ax_1) = plt.subplots(2, 1, figsize=(9, 9),
+                                       sharex=True, dpi=400)
+
+        # spike raster
+        ax_0.scatter(all_spikes[pop][:, 1],
+                     all_spikes[pop][:, 0],
+                     color=viridis_cmap(index / (n_plots + 1)),
+                     s=.5)
+        ax_0.set_ylabel("NID")
+        # PSTH
+        ax_1.bar(np.arange(spikes_per_timestep[pop].size) * timestep / ms,
+                 spikes_per_timestep[pop],
+                 color=viridis_cmap(index / (n_plots + 1)))
+        # plt.xticks(wanted_times * time_to_bin_conversion, wanted_times)
+        ax_1.set_ylabel("Count")
+        # plt.xticks(wanted_times * time_to_bin_conversion, wanted_times)
+        plt.xlabel("Time (ms)")
+        # plt.ylabel("NID")
+        plt.savefig(os.path.join(sim_fig_folder,
+                                 "{}_raster_and_psth.png".format(pop)))
+        plt.close(f)
+        print("SUCCESS")
+
+    # raster + PSTH for each population
+    print("Plotting spiking raster plot + PSTH + voltage for each population")
+    for index, pop in enumerate(plot_order):
+        # plot voltage traces
+        print("\t{:20}".format(pop), end=' ')
+        if pop in ["glomerulus", "mossy_fibers"]:
+            print("FAIL -- spike source")
+            f = plt.figure(1, figsize=(9, 9), dpi=400)
+            plt.close(f)
+            continue
+        f, (ax_0, ax_1, ax_2) = plt.subplots(3, 1, figsize=(9, 12),
+                                             sharex=True, dpi=400)
+
+        try:
+            # spike raster
+            ax_0.scatter(all_spikes[pop][:, 1],
+                         all_spikes[pop][:, 0],
+                         color=viridis_cmap(index / (n_plots + 1)),
+                         s=.5)
+            ax_0.set_ylabel("NID")
+            # PSTH
+            ax_1.bar(np.arange(spikes_per_timestep[pop].size) * timestep / ms,
+                     spikes_per_timestep[pop],
+                     color=viridis_cmap(index / (n_plots + 1)))
+            ax_1.set_ylabel("Count")
+
+            # voltage
+            pop_vs = all_voltages[pop]
+            for v_ind, v_trace in enumerate(pop_vs):
+                ax_2.plot(np.arange(v_trace.size) * timestep / ms, v_trace,
+                          color=color_for_index(v_ind, pop_vs.shape[0]))
+
+            ax_2.set_ylabel("Membrane potential (mV)")
+            plt.xlabel("Time (ms)")
+            plt.savefig(os.path.join(sim_fig_folder,
+                                     "{}_raster_psth_and_voltage.png".format(pop)))
+            plt.close(f)
+            print("SUCCESS")
+        except:
+            print("FAIL")
     # plot .1 ms PSTH
     print("Plotting PSTH for each timestep")
     f, axes = plt.subplots(len(spikes_per_timestep.keys()), 1,
@@ -535,7 +609,6 @@ def spike_analysis(results_file, fig_folder,
     plt.savefig(os.path.join(sim_fig_folder,
                              "raster_plots.png"))
     plt.close(f)
-
 
     # TODO plot weight histogram
 
