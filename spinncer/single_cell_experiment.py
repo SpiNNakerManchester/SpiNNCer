@@ -52,6 +52,12 @@ if spinnaker_sim:
     sim.set_number_of_neurons_per_core(sim.SpikeSourceArray, ss_neurons_per_core)
 
 # Compile stimulus information
+
+# Modify data here because of the restricted meaning of the experiment
+args.stim_times = [100.0, 100.0, 300.0]
+args.simtime = 500
+args.skip_projections = True
+
 stimulus_information = {
     'f_base': args.f_base,
     'f_peak': args.f_peak,
