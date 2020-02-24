@@ -56,6 +56,8 @@ class Cerebellum(Circuit):
                 # WARNING this assumes that the different models included in
                 # the nested dictionary do NOT have parameter names in common
                 # otherwise, "the last one" is the one used here
+                if "eglif_cond_alpha_multisyn" in param_sets.keys():
+                    del param_sets["eglif_cond_alpha_multisyn"]
                 param_dict = flatten_dict(param_sets)
                 cp = self.cell_params[cell_name]
                 if ('neuron_model' in param_dict.keys() and
