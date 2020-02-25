@@ -511,7 +511,7 @@ def spike_analysis(results_file, fig_folder,
             pop_vs = all_voltages[pop]
             for v_ind, v_trace in enumerate(pop_vs):
                 ax_2.plot(np.arange(v_trace.size) * timestep / ms, v_trace,
-                          color=color_for_index(v_ind, pop_vs.shape[0]))
+                          color=viridis_cmap(index / (n_plots + 1)))
 
             ax_2.set_ylabel("Membrane potential (mV)")
             plt.xlabel("Time (ms)")
