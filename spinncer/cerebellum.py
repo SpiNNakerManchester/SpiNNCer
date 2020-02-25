@@ -273,13 +273,18 @@ class Cerebellum(Circuit):
                 # add E_rev_I to all cells
                 if cell_model == "if_cond_exp":
                     cell_model = self.sim.IF_cond_exp
-                    cell_param['e_rev_I'] = cell_param['v_reset'] - 5.
+                    # Defined in Geminiani2019
+                    cell_param['e_rev_I'] = -80.  # mV
+                    cell_param['e_rev_E'] = 0.  # mV
                 elif cell_model == "if_curr_exp":
                     cell_model = self.sim.IF_curr_exp
                 elif cell_model == "if_curr_alpha":
                     cell_model = self.sim.IF_curr_alpha
                 elif cell_model == "if_cond_alpha":
                     cell_model = self.sim.IF_cond_alpha
+                    # Defined in Geminiani2019
+                    cell_param['e_rev_I'] = -80.  # mV
+                    cell_param['e_rev_E'] = 0.  # mV
             # Adding the population to the network
             try:
                 self.populations[cell_name] = self.sim.Population(
