@@ -174,11 +174,17 @@ class Cerebellum(Circuit):
             for k, v in self.nid_offset.items():
                 # get the minimum GID to use as an offset
                 assert (v is None), "nid_offset key:{} value:{}".format(k, v)
-                tm = connectivity_data['cells']['type_maps'][k + "_map"]
-                if tm.size > 0:
-                    self.nid_offset[k] = \
-                        np.min(tm).astype(int)
+                # Check if cell_name (k) is an entity
+                if k in connectivity_data['entities'].keys():
+                    actual_ids = np.asarray(connectivity_data['entities'][k])
                 else:
+                    tm = np.asarray(connectivity_data['cells']['type_maps'][k + "_map"])
+                    actual_ids = self.cell_positions[tm][:, 0]
+                if actual_ids.size > 0:
+                    self.nid_offset[k] = \
+                        np.min(actual_ids).astype(int)
+                else:
+                    # Check if this entity is in the entitites dataset thing
                     self.nid_offset[k] = 0
                 # get the number of neurons
                 # if k != "mossy_fibers":
@@ -187,7 +193,7 @@ class Cerebellum(Circuit):
                         "number_of_neurons key:{} value:{}".format(
                             k, self.number_of_neurons[k])
                     self.number_of_neurons[k] = \
-                        np.asarray(connectivity_data['cells']['type_maps'][k + "_map"]).size
+                        actual_ids.size
             print("[{:10}]: successfully retrieved connectivity for NEW style"
                   "of scaffold!".format("INFO"))
 
@@ -356,13 +362,13 @@ class Cerebellum(Circuit):
                 conns[conns < 0] = 2 ** 32 - 1
             else:
                 assert (np.max(conns[:, 0]) < self.number_of_neurons[pre_pop]), \
-                    "{} vs. {} for {}".format(np.max(conns[:, 0]), self.number_of_neurons[pre_pop], conn_label)
+                    "pre id max: {} vs. {} for {}".format(np.max(conns[:, 0]), self.number_of_neurons[pre_pop], conn_label)
                 assert (np.min(conns[:, 0]).astype(int) >= 0), \
-                    "{} vs. {} for {}".format(np.min(conns[:, 0]), 0, conn_label)
+                    "pre id min: {} vs. {} for {}".format(np.min(conns[:, 0]), 0, conn_label)
                 assert (np.max(conns[:, 1]) < self.number_of_neurons[post_pop]), \
-                    "{} vs. {} for {}".format(np.max(conns[:, 0]), self.number_of_neurons[post_pop], conn_label)
+                    "post id max: {} vs. {} for {}".format(np.max(conns[:, 0]), self.number_of_neurons[post_pop], conn_label)
                 assert (np.min(conns[:, 1]).astype(int) >= 0), \
-                    "{} vs. {} for {}".format(np.min(conns[:, 1]), 0, conn_label)
+                    "post id min: {} vs. {} for {}".format(np.min(conns[:, 1]), 0, conn_label)
 
             self.connections[conn_label] = np.concatenate(
                 [conns, stacked_weights, stacked_delays], axis=1)
