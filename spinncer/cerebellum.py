@@ -40,9 +40,25 @@ class Cerebellum(Circuit):
         # Flag that controls whether reports are printed as the  network is
         # being generated
         self.reporting = reporting
+
+        # flag to be used when building the connectivity from hdf5 files
+        self.new_scaffold = False
         # Attempt to use passed in cell and connectivity params. If none,
         # use defaults specified in constants but report DECISION
         print("=" * 80)
+
+        connectivity_data = self.__extract_connectivity(connectivity)
+        if 'connections' in connectivity_data.keys():
+            self.cell_positions = np.asarray(connectivity_data['positions'])
+            connections = connectivity_data['connections']
+            self.new_scaffold = False
+            print("[{:10}]: successfully retrieved connectivity for OLD style"
+                  "of scaffold!".format("INFO"))
+        else:
+            self.cell_positions = np.asarray(connectivity_data['cells']['positions'])
+            connections = connectivity_data['cells']['connections']
+            self.new_scaffold = True
+
         if params:
             # Convert from pyNest to PyNN
             # https://nest-test.readthedocs.io/en/pynest_mock/models/neurons.html#_CPPv4N4nest14iaf_cond_alphaE
@@ -83,39 +99,20 @@ class Cerebellum(Circuit):
                 self.conn_params[conn_name]['weight'] = param_sets['connection']['weight'] * adjust_for_units
                 self.conn_params[conn_name]['delay'] = param_sets['connection']['delay']
 
-                # some connections are double. Need to retrieve tags for others
-                try:
-                    self.conn_params[conn_name]['pre'] = \
-                        params['connection_types'][conn_name]['from_cell_types'][0]['type']
+                # Read connectivity from hdf5 files first rather than from the
+                # JSON
+                for conn_type in connections[conn_name].attrs['connection_types']:
+                    if "from_cell_types" in connections[conn_name].attrs:
+                        self.conn_params[conn_name]['pre'] = \
+                            connections[conn_name].attrs["from_cell_types"][0]
+                    else:
+                        self.conn_params[conn_name]['pre'] = \
+                                    params['connection_types'][conn_type]['from_cell_types'][0]['type']
+
                     self.conn_params[conn_name]['post'] = \
-                        params['connection_types'][conn_name]['to_cell_types'][0]['type']
+                        params['connection_types'][conn_type]['to_cell_types'][0]['type']
                     print("[{:8}]: retrieved pre and post for {:15}".format(
                         "INFO", conn_name))
-                except KeyError:  # this would mean that this conn name is part of the tags
-                    # just hard code this... I can't be bothered to invert
-                    # dictionaries and pattern match key names.
-                    # TODO adjust this in future
-                    anomalies = {'ascending_axon_to_golgi':
-                                     {'pre': 'granule_cell',
-                                      'post': 'golgi_cell'},
-                                 'parallel_fiber_to_golgi':
-                                     {'pre': 'granule_cell',
-                                      'post': 'golgi_cell'},
-                                 'stellate_to_purkinje':
-                                     {'pre': 'stellate_cell',
-                                      'post': 'purkinje_cell'},
-                                 'basket_to_purkinje':
-                                     {'pre': 'basket_cell',
-                                      'post': 'purkinje_cell'},
-                                 }
-
-                    self.conn_params[conn_name]['pre'] = \
-                        anomalies[conn_name]['pre']
-                    self.conn_params[conn_name]['post'] = \
-                        anomalies[conn_name]['post']
-                    print("[{:10}]: json connections for {:15} not parsed "
-                          "succesfully. Reverting to "
-                          "constants!".format("WARNING", conn_name))
                 if self.conn_params[conn_name]['pre'] == "mossy_fibers":
                     self.cell_params["mossy_fibers"] = None
         else:
@@ -158,16 +155,7 @@ class Cerebellum(Circuit):
         self.periodic_stimulus = stimulus_information['periodic_stimulus']
         self.stimulus = None
         self.weight_scaling = weight_scaling or 1.0
-
-        connectivity_data = self.__extract_connectivity(connectivity)
-        if 'connections' in connectivity_data.keys():
-            self.cell_positions = np.asarray(connectivity_data['positions'])
-            connections = connectivity_data['connections']
-            print("[{:10}]: successfully retrieved connectivity for OLD style"
-                  "of scaffold!".format("INFO"))
-        else:
-            self.cell_positions = np.asarray(connectivity_data['cells']['positions'])
-            connections = connectivity_data['cells']['connections']
+        if self.new_scaffold:
             # Try to read in nid_offsets too
             # populate offsets here too based on ['cells']['type_maps']
             # populate number of neurons here too based on ['cells']['type_maps']
