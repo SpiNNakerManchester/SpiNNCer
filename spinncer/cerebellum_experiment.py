@@ -39,7 +39,7 @@ connectivity_filename = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
     'datasets', connectivity_filename)
 # Set up the simulation
-sim.setup(timestep=args.timestep, min_delay=args.timestep, max_delay=6.4)
+sim.setup(timestep=args.timestep, min_delay=args.timestep, max_delay=80)
 
 # Add constraints here
 n_neurons_per_core = 64

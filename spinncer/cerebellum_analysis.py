@@ -78,7 +78,8 @@ def spike_analysis(results_file, fig_folder,
     # Set up colours
     color_init(strip=False)
     # plot order
-    preferred_order = ['glomerulus',
+    preferred_order = ['mossy_fibers',
+                       'glomerulus',
                        'granule', 'golgi',
                        'stellate', 'basket',
                        'purkinje', 'dcn']

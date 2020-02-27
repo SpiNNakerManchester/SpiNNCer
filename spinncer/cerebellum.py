@@ -189,14 +189,15 @@ class Cerebellum(Circuit):
             self.__compute_number_of_neurons()
 
         self._raw_connectivity_info = connections
-        self.__normalise_connections()
+        if not skip_projections and force_number_of_neurons is None:
+            self.__normalise_connections()
 
-        if input_spikes:
-            # use passed in spikes
-            self.stimulus = input_spikes
-        else:
-            # generate necessary spikes
-            self.stimulus = self.__compute_stimulus()
+            if input_spikes:
+                # use passed in spikes
+                self.stimulus = input_spikes
+            else:
+                # generate necessary spikes
+                self.stimulus = self.__compute_stimulus()
 
         # Construct PyNN neural Populations
         self.build_populations(self.cell_positions)
