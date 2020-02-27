@@ -27,6 +27,8 @@ DEFAULT_PARAMETER_JSON = None
 # it's actually 70 micrometers for the 400x400 um2 model
 STIMULATED_GLOMERULUS_RADIUS = 140  # micrometers
 
+DEFAULT_PERCENTAGE_ACTIVE_FIBERS = .8
+
 parser = argparse.ArgumentParser(
     description='Run a cerebellar simulation written in PyNN '
                 'using sPyNNaker on SpiNNaker or using NEST on (H)PC.',
@@ -46,6 +48,11 @@ parser.add_argument('--weight_scaling', type=float,
                     help="scale the weights before passing them to sPyNNaker "
                          "-- default {}".format(DEFAULT_WEIGHT_SCALING),
                     default=DEFAULT_WEIGHT_SCALING)
+
+parser.add_argument('--percentage_active_fibers', type=float,
+                    help="percentage of active fibers during stimulation "
+                         "-- default {}".format(DEFAULT_PERCENTAGE_ACTIVE_FIBERS),
+                    default=DEFAULT_PERCENTAGE_ACTIVE_FIBERS)
 
 parser.add_argument('--simulator', type=str,
                     help="which simulator to use "

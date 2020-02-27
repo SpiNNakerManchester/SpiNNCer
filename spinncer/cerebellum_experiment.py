@@ -56,6 +56,7 @@ stimulus_information = {
     'stim_times': args.stim_times,
     'stim_radius': args.stim_radius,
     'periodic_stimulus': args.periodic_stimulus,
+    'percentage_active_fibers': args.percentage_active_fibers,
 }
 
 # Compile json data if it exists

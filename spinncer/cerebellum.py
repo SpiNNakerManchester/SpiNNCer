@@ -17,7 +17,7 @@ import numpy as np
 import h5py
 from spinncer.circuit import Circuit
 from spinncer.utilities.constants import *
-from spinncer.utilities.utils import flatten_dict
+from spinncer.utilities.utils import flatten_dict, create_poisson_spikes
 from spinncer.utilities.reporting import (population_reporting,
                                           projection_reporting)
 from elephant.spike_train_generation import homogeneous_poisson_process
@@ -30,7 +30,8 @@ class Cerebellum(Circuit):
     def __init__(self, sim, connectivity, stimulus_information, reporting=True,
                  params=None, skip_projections=False,
                  weight_scaling=None, save_conversion_file=False,
-                 neuron_model="IF_cond_exp", force_number_of_neurons=None):
+                 neuron_model="IF_cond_exp", force_number_of_neurons=None,
+                 input_spikes=None):
         """
         Cerebellum Circuit
         """
@@ -107,7 +108,7 @@ class Cerebellum(Circuit):
                             connections[conn_name].attrs["from_cell_types"][0]
                     else:
                         self.conn_params[conn_name]['pre'] = \
-                                    params['connection_types'][conn_type]['from_cell_types'][0]['type']
+                            params['connection_types'][conn_type]['from_cell_types'][0]['type']
 
                     self.conn_params[conn_name]['post'] = \
                         params['connection_types'][conn_type]['to_cell_types'][0]['type']
@@ -153,7 +154,6 @@ class Cerebellum(Circuit):
         self.stimulus_information = stimulus_information
 
         self.periodic_stimulus = stimulus_information['periodic_stimulus']
-        self.stimulus = None
         self.weight_scaling = weight_scaling or 1.0
         if self.new_scaffold:
             # Try to read in nid_offsets too
@@ -184,13 +184,25 @@ class Cerebellum(Circuit):
                         actual_ids.size
             print("[{:10}]: successfully retrieved connectivity for NEW style"
                   "of scaffold!".format("INFO"))
+        else:  # old scaffold
+            # Compute the number of neurons in each population
+            self.__compute_number_of_neurons()
+
+        self._raw_connectivity_info = connections
+        self.__normalise_connections()
+
+        if input_spikes:
+            # use passed in spikes
+            self.stimulus = input_spikes
+        else:
+            # generate necessary spikes
+            self.stimulus = self.__compute_stimulus()
 
         # Construct PyNN neural Populations
         self.build_populations(self.cell_positions)
-
         # Construct PyNN Projections
         if not skip_projections and force_number_of_neurons is None:
-            self.build_projections(connections)
+            self.build_projections()
         else:
             print("NOT GENERATING ANY CONNECTIVITY FOR THIS MODEL")
             print("skip_projections", skip_projections)
@@ -208,22 +220,14 @@ class Cerebellum(Circuit):
         for pop_name, pop_obj in self.populations.items():
             self.__setattr__(pop_name, pop_obj)
 
-    def build_populations(self, positions):
-        """
-        Construct PyNN Projections between Populations
-        """
-        if self.reporting:
-            # Report statistics about the populations to be built
-            population_reporting(positions, self.number_of_neurons)
-        # Unique populations ids
-
-        # TODO compute number of neurons here if not done previously
-        unique_ids = np.unique(positions[:, 1]).astype(int)
+    def __compute_number_of_neurons(self):
+        # compute number of neurons here if not done previously
+        unique_ids = np.unique(self.cell_positions[:, 1]).astype(int)
         if unique_ids.size == len(CELL_NAME_FOR_ID.keys()):
             for ui in unique_ids:
                 # Get cell name based on the population id
                 cell_name = CELL_NAME_FOR_ID[ui]
-                no_cells = positions[positions[:, 1] == ui, :].shape[0]
+                no_cells = self.cell_positions[self.cell_positions[:, 1] == ui, :].shape[0]
                 # Store number of neurons for later
                 self.number_of_neurons[cell_name] = no_cells
                 # save global neuron ID offset
@@ -234,8 +238,14 @@ class Cerebellum(Circuit):
                     self.nid_offset[cell_name] = \
                         self.nid_offset[CELL_NAME_FOR_ID[ui - 1]] + \
                         self.number_of_neurons[CELL_NAME_FOR_ID[ui - 1]]
-        # TODO deprecate the use of ids, there should be enough information
-        # in all of the previous dictionaries to build the network
+
+    def build_populations(self, positions):
+        """
+        Construct PyNN Projections between Populations
+        """
+        if self.reporting:
+            # Report statistics about the populations to be built
+            population_reporting(positions, self.number_of_neurons)
 
         for cell_name, cell_param in self.cell_params.items():
             # Retrieve correct cell parameters for the current cell
@@ -247,19 +257,10 @@ class Cerebellum(Circuit):
                 print("SKIPPING THE CREATION OF", cell_name,
                       "BECAUSE FORCING # OF NEURONS")
                 continue
-            if cell_name == "glomerulus":
-                cell_param = self.__compute_stimulus(
-                    self.stimulus_information, no_cells)
-                additional_params = {'seed': 31415926}
-                if self.periodic_stimulus:
-                    cell_model = self.sim.SpikeSourceArray
-                    CELL_TYPES[cell_name] = cell_model
-                    additional_params = {}
-                else:
-                    cell_model = self.sim.extra_models.SpikeSourcePoissonVariable
-                self.stimulus = cell_param
-            elif cell_name == "mossy_fibers":
+            if cell_name in ["glomerulus", "mossy_fibers"]:
+                cell_param = self.stimulus[cell_name]
                 cell_model = self.sim.SpikeSourceArray
+                CELL_TYPES[cell_name] = cell_model
                 additional_params = {}
             else:
                 # else for all other cells
@@ -294,23 +295,12 @@ class Cerebellum(Circuit):
                     cellparams=cell_param,
                     label=cell_name + " cells")
 
-    def build_projections(self, connections):
-        """
-        Construct PyNN Projections between Populations
-        """
-        if self.reporting:
-            # Report statistics about the populations to be built
-            projection_reporting(connections, self.number_of_neurons,
-                                 self.conn_params)
+    def __normalise_connections(self):
+        connections = self._raw_connectivity_info
         # Retrieve the Projection labels
         labels = connections.keys()
         # Loop over each connection in `connections`
         for conn_label in labels:
-            # Retrieve saved connectivity and cast to np.ndarray
-            # [:, :2] -- the columns are
-            # 1. Unique G(lobal)ID (!) for pre-synaptic neuron
-            # 2. Unique G(lobal)ID (!) for post-synaptic neuron
-            # 3. 3D distance between somas
             if conn_label not in self.conn_params.keys():
                 print("[{:10}]: CONNECTION UNREGONISED -> "
                       "{:25}".format("ERROR", conn_label))
@@ -321,7 +311,7 @@ class Cerebellum(Circuit):
             post_pop = self.conn_params[conn_label]['post']
             weight = self.conn_params[conn_label]['weight']
             delay = self.conn_params[conn_label]['delay']
-            if (post_pop == "glomerulus"):
+            if (post_pop == "glomerulus" and pre_pop != "mossy_fibers"):
                 # Can't send projections to a spike source
                 print("Ignoring connection {:25} "
                       "terminating at".format(conn_label), post_pop, "...")
@@ -357,9 +347,36 @@ class Cerebellum(Circuit):
                     "post id max: {} vs. {} for {}".format(np.max(conns[:, 0]), self.number_of_neurons[post_pop], conn_label)
                 assert (np.min(conns[:, 1]).astype(int) >= 0), \
                     "post id min: {} vs. {} for {}".format(np.min(conns[:, 1]), 0, conn_label)
-
             self.connections[conn_label] = np.concatenate(
                 [conns, stacked_weights, stacked_delays], axis=1)
+
+    def build_projections(self):
+        """
+        Construct PyNN Projections between Populations
+        """
+        if self.reporting:
+            # Report statistics about the populations to be built
+            projection_reporting(self._raw_connectivity_info,
+                                 self.number_of_neurons,
+                                 self.conn_params)
+        # Retrieve the Projection labels
+        labels = self.connections.keys()
+        # Loop over each connection in `connections`
+        for conn_label in labels:
+            # Retrieve saved connectivity and cast to np.ndarray
+            # [:, :2] -- the columns are
+            # 1. Unique G(lobal)ID (!) for pre-synaptic neuron
+            # 2. Unique G(lobal)ID (!) for post-synaptic neuron
+            # 3. 3D distance between somas
+
+            pre_pop = self.conn_params[conn_label]['pre']
+            post_pop = self.conn_params[conn_label]['post']
+            weight = self.conn_params[conn_label]['weight']
+
+            if post_pop in ["glomerulus", "mossy_fibers"]:
+                print("Ignoring connection {:25} "
+                      "terminating at".format(conn_label), post_pop, "...")
+                continue
 
             # Adding the projection to the network
             receptor_type = "inhibitory" if weight < 0 else "excitatory"
@@ -371,33 +388,79 @@ class Cerebellum(Circuit):
                 receptor_type=receptor_type,  # inh or exc
                 label=conn_label)  # label for connection
 
-    def __compute_stimulus(self, stimulus_information, n_inputs,
-                           with_positions=True):
+    def __compute_stimulus(self):
         # convert stimulation times to numpy array
-        stim_times = np.asarray(stimulus_information['stim_times'])
-        f_base = np.asarray(stimulus_information['f_base'])
-        f_peak = np.asarray(stimulus_information['f_peak'])
-        periodic_stimulus = stimulus_information['periodic_stimulus']
+        stim_times = np.asarray(self.stimulus_information['stim_times'])
+        f_base = np.asarray(self.stimulus_information['f_base'])
+        f_peak = np.asarray(self.stimulus_information['f_peak'])
+        periodic_stimulus = self.stimulus_information['periodic_stimulus']
+        percent_active = self.stimulus_information["percentage_active_fibers"] \
+            if "percentage_active_fibers" in self.stimulus_information.keys() \
+            else None
+
+        no_gloms = self.number_of_neurons['glomerulus']
 
         print("=" * 80)
         print("Stimulation periods: ", len(stim_times),
               "lasting {} ms each".format(
                   stim_times))
-
         # compute number of rate changes required
         number_of_slots = int(stim_times.size)
         # compute the time at which individual rates take effect
         stim_start = np.cumsum(np.append([0], stim_times))[:number_of_slots]
         print("Thus, each period starts at ", stim_start, "ms")
-        starts = np.ones((n_inputs, number_of_slots)) * stim_start
-        # compute the duration (in ms) for which individual rates are active
-        durations = np.ones((n_inputs, number_of_slots)) * stim_times
-        # compute the individual rates (in Hz) for each slot
-        rates = np.ones((n_inputs, number_of_slots)) * \
-                np.asarray([f_base, f_base + f_peak, f_base])
-        if with_positions:
+
+        # check whether this is new style of scaffold
+        # if new style --> generate activity for mf and glom
+        if self.new_scaffold:
+            no_mf = self.number_of_neurons['mossy_fibers']
+            starts = np.ones((no_mf, number_of_slots)) * stim_start
+            # compute the duration (in ms) for which individual rates are active
+            durations = np.ones((no_mf, number_of_slots)) * stim_times
+            # Select MFs which will fire at f_peak during stimulation
+            if percent_active:
+                active_mfs = np.zeros(no_mf).astype(int)
+                active_mfs[
+                    np.random.choice(
+                        np.arange(no_mf),
+                        size=int(percent_active * no_mf),
+                        replace=False)] = 1
+            else:
+                # all mfs will fire during stimulation
+                active_mfs = np.ones(no_mf).astype(int)
+            mf_rates = np.ones((no_mf, number_of_slots)) * f_base
+            mf_rates[active_mfs, 1] = f_peak
+            # generate spikes for mf
+            mf_spikes = create_poisson_spikes(no_mf, mf_rates,
+                                              starts, durations)
+            # load connectivity from mf to glom
+            mf_to_glom = self.connections["mossy_to_glomerulus"]
+            glom_spikes = [[] for _ in range(no_gloms)]
+            # compute spikes for glom
+            for nid, spikes in enumerate(mf_spikes):
+                # select connections corresponding to this nid as a pre neuron
+                active_connections = mf_to_glom[mf_to_glom[:, 0] == nid]
+                no_targets = active_connections.shape[0]
+                # for each row of spikes
+                for spike in spikes:
+                    # for each individual spike time, post neuron and delay
+                    for s, t, d in zip([spike] * no_targets,
+                                       active_connections[:, 1].astype(int),
+                                       active_connections[:, 3]):
+                        # copy that spike with the applied delay
+                        glom_spikes[t].append(s + d)
+
+            return {'glomerulus': {'spike_times': glom_spikes},
+                    'mossy_fibers': {'spike_times': mf_spikes}}
+        else:  # old scaffold
             # identify ID for glomerulus population
             no_gloms = self.number_of_neurons['glomerulus']
+            starts = np.ones((no_gloms, number_of_slots)) * stim_start
+            # compute the duration (in ms) for which individual rates are active
+            durations = np.ones((no_gloms, number_of_slots)) * stim_times
+            # compute the individual rates (in Hz) for each slot
+            rates = np.ones((no_gloms, number_of_slots)) * \
+                    np.asarray([f_base, f_base + f_peak, f_base])
             first_glom = self.nid_offset['glomerulus']
             # extract individual gloms for the position matrix based on their
             # GID
@@ -434,7 +497,7 @@ class Cerebellum(Circuit):
             # to fire at f_base Hz
             # Thanks to
             # https://stackoverflow.com/questions/25330959/how-to-select-inverse-of-indexes-of-a-numpy-array
-            mask = np.ones(n_inputs, np.bool)
+            mask = np.ones(no_gloms, np.bool)
             mask[target_gloms] = 0
             # Set the firing rate of other gloms to baseline level
             rates[mask, 1] = f_base
@@ -442,41 +505,32 @@ class Cerebellum(Circuit):
             print("=" * 80)
             print("Number of stimulated Gloms: ", len(target_gloms),
                   "i.e. {:6.2%} the total".format(
-                      len(target_gloms) / float(n_inputs)))
+                      len(target_gloms) / float(no_gloms)))
 
-        if not periodic_stimulus:
-            # VARIABLE RATE POISSON SPIKE SOURCE + INDEPENDENT SPIKE TRAINS
-            # if we should only "stimulate" certain cells which I do by setting
-            # the rates during stimulation to the base level (f_base)
-
-            # Add a variable-rate poisson spike source to the network
-            stimulus_params = {
-                'rates': rates,
-                'starts': starts,
-                'durations': durations,
-            }
-            return stimulus_params
-        else:
-            # SPIKE SOURCE ARRAY + PERIODIC STIMULUS
-            # prepare spike times for all n_inputs neurons
-            spike_times = [[] for _ in range(n_inputs)]
-            for i, rate, start, duration in zip(range(n_inputs), rates, starts, durations):
-                curr_spikes = []
-                for r, s, d in zip(rate, start, duration):
-                    if r == f_base:
-                        curr_spikes.append(homogeneous_poisson_process(
-                            rate=r * pq.Hz,
-                            t_start=s * pq.ms,
-                            t_stop=(s + d) * pq.ms,
-                            as_array=True))
-                    else:
-                        spike_nums = np.int(np.round((r * d) / 1000.))
-                        curr_spikes.append(
-                            np.round(np.linspace(s, s + d, spike_nums)))
-                spike_times[i] = np.concatenate(curr_spikes)
-            return {
+            if not periodic_stimulus:
+                spike_times = create_poisson_spikes(no_gloms, rates,
+                                                    starts, durations)
+            else:
+                # SPIKE SOURCE ARRAY + PERIODIC STIMULUS
+                # prepare spike times for all n_inputs neurons
+                spike_times = [[] for _ in range(no_gloms)]
+                for i, rate, start, duration in zip(range(no_gloms), rates, starts, durations):
+                    curr_spikes = []
+                    for r, s, d in zip(rate, start, duration):
+                        if r == f_base:
+                            curr_spikes.append(homogeneous_poisson_process(
+                                rate=r * pq.Hz,
+                                t_start=s * pq.ms,
+                                t_stop=(s + d) * pq.ms,
+                                as_array=True))
+                        else:
+                            spike_nums = np.int(np.round((r * d) / 1000.))
+                            curr_spikes.append(
+                                np.round(np.linspace(s, s + d, spike_nums)))
+                    spike_times[i] = np.concatenate(curr_spikes)
+            return {'glomerulus': {
                 'spike_times': spike_times
-            }
+            }}
 
     def get_circuit_inputs(self):
         """
@@ -546,14 +600,6 @@ class Cerebellum(Circuit):
         all_spikes = {}
         for label, pop in self.populations.items():
             print("Retrieving recordings for ", label, "...")
-            # if self.neuron_models[label] == "spikesourcearray":
-            #     _spikes = []
-            #     for i, _times in enumerate(self.stimulus['spike_times']):
-            #         for t in _times:
-            #             _spikes.append(np.asarray([i, t]))
-            #     _spikes = np.asarray(_spikes)
-            #     all_spikes[label] = _spikes
-            # else:
             if pop:
                 all_spikes[label] = pop.get_data(['spikes'])
         return all_spikes

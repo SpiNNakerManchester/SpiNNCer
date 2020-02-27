@@ -453,11 +453,11 @@ def spike_analysis(results_file, fig_folder,
     for index, pop in enumerate(plot_order):
         # plot voltage traces
         print("\t{:20}".format(pop), end=' ')
-        if pop in ["glomerulus", "mossy_fibers"]:
-            print("FAIL -- spike source")
-            f = plt.figure(1, figsize=(9, 9), dpi=400)
-            plt.close(f)
-            continue
+        # if pop in ["glomerulus", "mossy_fibers"]:
+        #     print("FAIL -- spike source")
+        #     f = plt.figure(1, figsize=(9, 9), dpi=400)
+        #     plt.close(f)
+        #     continue
         f, (ax_0, ax_1) = plt.subplots(2, 1, figsize=(9, 9),
                                        sharex=True, dpi=400)
 
