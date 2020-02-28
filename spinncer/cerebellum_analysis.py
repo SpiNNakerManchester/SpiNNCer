@@ -91,7 +91,11 @@ def spike_analysis(results_file, fig_folder,
 
     # Retrieve information from results file
     all_spikes = data['all_spikes'].ravel()[0]
-    final_connectivity = data['final_connectivity'].ravel()[0]
+    try:
+        final_connectivity = data['final_connectivity'].ravel()[0]
+    except:
+        final_connectivity = []
+        traceback.print_exc()
     all_neurons = data['all_neurons'].ravel()[0]
     sim_params = data['simulation_parameters'].ravel()[0]
     other_recordings = data['other_recordings'].ravel()[0]

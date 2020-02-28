@@ -114,6 +114,7 @@ try:
 except:
     # This simulator might not support the way this is done
     final_connectivity = []
+    traceback.print_exc()
 initial_connectivity = cerebellum_circuit.connections
 
 # Save results
