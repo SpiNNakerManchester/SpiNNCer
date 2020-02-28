@@ -192,12 +192,12 @@ class Cerebellum(Circuit):
         if not skip_projections and force_number_of_neurons is None:
             self.__normalise_connections()
 
-            if input_spikes:
-                # use passed in spikes
-                self.stimulus = input_spikes
-            else:
-                # generate necessary spikes
-                self.stimulus = self.__compute_stimulus()
+        if input_spikes:
+            # use passed in spikes
+            self.stimulus = input_spikes
+        else:
+            # generate necessary spikes
+            self.stimulus = self.__compute_stimulus()
 
         # Construct PyNN neural Populations
         self.build_populations(self.cell_positions)
@@ -420,7 +420,7 @@ class Cerebellum(Circuit):
             durations = np.ones((no_mf, number_of_slots)) * stim_times
             # Select MFs which will fire at f_peak during stimulation
             if percent_active:
-                active_mfs = np.zeros(no_mf).astype(int)
+                active_mfs = np.zeros(no_mf).astype(bool)
                 active_mfs[
                     np.random.choice(
                         np.arange(no_mf),
@@ -428,7 +428,7 @@ class Cerebellum(Circuit):
                         replace=False)] = 1
             else:
                 # all mfs will fire during stimulation
-                active_mfs = np.ones(no_mf).astype(int)
+                active_mfs = np.ones(no_mf).astype(bool)
             mf_rates = np.ones((no_mf, number_of_slots)) * f_base
             mf_rates[active_mfs, 1] = f_peak
             # generate spikes for mf
@@ -437,19 +437,20 @@ class Cerebellum(Circuit):
             # load connectivity from mf to glom
             mf_to_glom = self.connections["mossy_to_glomerulus"]
             glom_spikes = [[] for _ in range(no_gloms)]
-            # compute spikes for glom
-            for nid, spikes in enumerate(mf_spikes):
-                # select connections corresponding to this nid as a pre neuron
-                active_connections = mf_to_glom[mf_to_glom[:, 0] == nid]
-                no_targets = active_connections.shape[0]
-                # for each row of spikes
-                for spike in spikes:
-                    # for each individual spike time, post neuron and delay
-                    for s, t, d in zip([spike] * no_targets,
-                                       active_connections[:, 1].astype(int),
-                                       active_connections[:, 3]):
-                        # copy that spike with the applied delay
-                        glom_spikes[t].append(s + d)
+            if mf_to_glom is not None:
+                # compute spikes for glom
+                for nid, spikes in enumerate(mf_spikes):
+                    # select connections corresponding to this nid as a pre neuron
+                    active_connections = mf_to_glom[mf_to_glom[:, 0] == nid]
+                    no_targets = active_connections.shape[0]
+                    # for each row of spikes
+                    for spike in spikes:
+                        # for each individual spike time, post neuron and delay
+                        for s, t, d in zip([spike] * no_targets,
+                                           active_connections[:, 1].astype(int),
+                                           active_connections[:, 3]):
+                            # copy that spike with the applied delay
+                            glom_spikes[t].append(s + d)
 
             return {'glomerulus': {'spike_times': glom_spikes},
                     'mossy_fibers': {'spike_times': mf_spikes}}
