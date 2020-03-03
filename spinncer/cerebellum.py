@@ -267,10 +267,11 @@ class Cerebellum(Circuit):
                 # else for all other cells
                 additional_params = {}
                 # add E_rev_I to all cells
+                capp_rev = -90. if "granule" in cell_name else -80.
                 if cell_model == "if_cond_exp":
                     cell_model = self.sim.IF_cond_exp
                     # Defined in Geminiani2019
-                    cell_param['e_rev_I'] = -80.  # mV
+                    cell_param['e_rev_I'] = capp_rev  # mV
                     cell_param['e_rev_E'] = 0.  # mV
                 elif cell_model == "if_curr_exp":
                     cell_model = self.sim.IF_curr_exp
@@ -279,7 +280,7 @@ class Cerebellum(Circuit):
                 elif cell_model == "if_cond_alpha":
                     cell_model = self.sim.IF_cond_alpha
                     # Defined in Geminiani2019
-                    cell_param['e_rev_I'] = -80.  # mV
+                    cell_param['e_rev_I'] = capp_rev  # mV
                     cell_param['e_rev_E'] = 0.  # mV
             # Adding the population to the network
             try:
