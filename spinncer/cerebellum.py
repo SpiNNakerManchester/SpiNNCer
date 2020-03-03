@@ -337,7 +337,7 @@ class Cerebellum(Circuit):
             stacked_delays = np.asarray([[delay]] * no_synapses)
 
             # TODO remove this. do better.
-            if "io_to" in conn_label:
+            if "io_to_basket" in conn_label:
                 conns[conns < 0] = 2 ** 32 - 1
             else:
                 assert (np.max(conns[:, 0]) < self.number_of_neurons[pre_pop]), \

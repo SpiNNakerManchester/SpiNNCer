@@ -82,6 +82,44 @@ cerebellum_circuit = Cerebellum(
 # Test various exposed methods
 populations = cerebellum_circuit.get_all_populations()
 
+# Set up IO stimulation
+stim_to_pop_proj = None
+if "io_cell" in populations.keys():
+    io_cell = populations["io_cell"]
+    no_io = io_cell.size
+    # According to Geminiani2019 -- IO cells are stimulated with 500 Hz of
+    # "Burst" activity
+    # Generate these spikes FROM AG:
+    # US not as Poisson to avoid that some IO do not fire:
+    freq_scaling = 3 if args.simulator == "spinnaker" else 1.
+    US_FREQ = 500 * 3  # the effective weight
+    US_END = 1260
+    US_START = 1250
+    spike_nums = np.int(np.round((US_FREQ * (US_END - US_START)) / 1000.))
+    US_array = np.linspace(US_START, US_END, spike_nums)
+    print("=" * 80)
+    print("IO Stimulation at: ", US_FREQ, "Hz")
+    print(US_array)
+    # US = nest.Create("spike_generator", io_num/2,
+    #                  params = {'spike_times': US_array})
+    # Create IO_STIM population (referred to as US previously)
+    io_stim = sim.Population(
+        no_io,
+        cellclass=sim.SpikeSourceArray,
+        cellparams={'spike_times': [US_array] * no_io},
+        label="IO Stimulus")
+
+    # Create projection from IO_STIM_POP to IO_CELL
+    # syn_param = {"model": "static_synapse", "weight":55.0, "delay": 0.1,"receptor_type":1}
+    # nest.Connect(US,neuron_models['io'][:io_num/2],{'rule':'one_to_one'},syn_param)
+    WEIGHT = 55.0e-03  # uS
+    DELAY = 0.1  # ms
+    stim_to_pop_proj = sim.Projection(
+        io_stim, io_cell, sim.OneToOneConnector(),
+        sim.StaticSynapse(weight=WEIGHT, delay=DELAY),
+        receptor_type="excitatory",
+        label="conn_stimulus_to_io")
+
 # Set up recordings
 cerebellum_circuit.record_all_spikes()
 cerebellum_circuit.selectively_record_all(every=n_neurons_per_core)
