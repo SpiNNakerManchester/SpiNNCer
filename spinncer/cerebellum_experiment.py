@@ -76,7 +76,8 @@ cerebellum_circuit = Cerebellum(
     skip_projections=args.skip_projections,
     weight_scaling=args.weight_scaling,
     save_conversion_file=args.generate_conversion_constants,
-    neuron_model=args.neuron_model
+    neuron_model=args.neuron_model,
+    rb_left_shifts=args.rb_left_shifts
 )
 
 # Test various exposed methods
@@ -200,7 +201,8 @@ np.savez_compressed(results_file,
 sim.end()
 
 # Analysis time!
-spike_analysis(results_file=results_file, fig_folder=args.figures_dir)
+spike_analysis(results_file=results_file, fig_folder=args.figures_dir,
+               worst_case=False, delay_sensitive=False)
 
 # Report time taken
 print("Results stored in  -- " + filename)

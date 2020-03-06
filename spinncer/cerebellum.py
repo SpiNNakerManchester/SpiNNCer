@@ -31,7 +31,7 @@ class Cerebellum(Circuit):
                  params=None, skip_projections=False,
                  weight_scaling=None, save_conversion_file=False,
                  neuron_model="IF_cond_exp", force_number_of_neurons=None,
-                 input_spikes=None):
+                 input_spikes=None, rb_left_shifts=None):
         """
         Cerebellum Circuit
         """
@@ -127,6 +127,9 @@ class Cerebellum(Circuit):
         self.populations = {k: None for k in self.cell_params.keys()}
         self.number_of_neurons = {k: None for k in self.cell_params.keys()}
         self.nid_offset = {k: None for k in self.cell_params.keys()}
+        self.rb_shifts = {k: None for k in self.cell_params.keys()}
+        for k in self.rb_shifts.keys():
+            self.rb_shifts[k] = rb_left_shifts
         # Save the neuron model to be used by spiking neurons in the network
         self.neuron_models = {k: str.lower(neuron_model) for k in self.cell_params.keys()}
         # Hard-code glomerulus
@@ -265,12 +268,12 @@ class Cerebellum(Circuit):
                 additional_params = {}
             else:
                 # else for all other cells
-                additional_params = {}
+                additional_params = {"rb_left_shifts":
+                                     self.rb_shifts[cell_name]}
                 # add E_rev_I to all cells
                 capp_rev = -90.
                 if cell_model == "if_cond_exp":
                     cell_model = self.sim.IF_cond_exp
-                    # Defined in Geminiani2019
                     cell_param['e_rev_I'] = capp_rev  # mV
                     cell_param['e_rev_E'] = 0.  # mV
                 elif cell_model == "if_curr_exp":
@@ -279,7 +282,6 @@ class Cerebellum(Circuit):
                     cell_model = self.sim.IF_curr_alpha
                 elif cell_model == "if_cond_alpha":
                     cell_model = self.sim.IF_cond_alpha
-                    # Defined in Geminiani2019
                     cell_param['e_rev_I'] = capp_rev  # mV
                     cell_param['e_rev_E'] = 0.  # mV
             # Adding the population to the network

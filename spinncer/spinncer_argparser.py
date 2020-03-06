@@ -29,6 +29,8 @@ STIMULATED_GLOMERULUS_RADIUS = 140  # micrometers
 
 DEFAULT_PERCENTAGE_ACTIVE_FIBERS = .8
 
+DEFAULT_RB_LEFT_SHIFTS = None
+
 parser = argparse.ArgumentParser(
     description='Run a cerebellar simulation written in PyNN '
                 'using sPyNNaker on SpiNNaker or using NEST on (H)PC.',
@@ -124,5 +126,10 @@ parser.add_argument('--figures_dir', type=str,
 parser.add_argument('--result_dir', type=str,
                     help='directory into which to save simulation results',
                     default=DEFAULT_RESULT_DIR)
+
+parser.add_argument('--rb_left_shifts', type=float, nargs="+",
+                    help="left shifts for ring buffer values "
+                         "-- default {}ms".format(DEFAULT_RB_LEFT_SHIFTS),
+                    default=DEFAULT_RB_LEFT_SHIFTS)
 
 args = parser.parse_args()
