@@ -53,6 +53,11 @@ DELAY_IN_EXCITATION = {
 }
 
 
+# def plotfig(name, suffix, fig_folder, extensions=("png", "pdf")):
+#     for ext in extensions:
+#         plt.savefig(os.path.join(fig_folder,
+#                                  "{}_raster_and_psth.png".format(pop)))
+
 def color_for_index(index, size, cmap=viridis_cmap):
     return cmap(1 / (size - index + 1))
 
@@ -483,6 +488,8 @@ def spike_analysis(results_file, fig_folder,
         # plt.ylabel("NID")
         plt.savefig(os.path.join(sim_fig_folder,
                                  "{}_raster_and_psth.png".format(pop)))
+        plt.savefig(os.path.join(sim_fig_folder,
+                                 "{}_raster_and_psth.pdf".format(pop)))
         plt.close(f)
         print("SUCCESS")
 
@@ -522,6 +529,8 @@ def spike_analysis(results_file, fig_folder,
             plt.xlabel("Time (ms)")
             plt.savefig(os.path.join(sim_fig_folder,
                                      "{}_raster_psth_and_voltage.png".format(pop)))
+            plt.savefig(os.path.join(sim_fig_folder,
+                                     "{}_raster_psth_and_voltage.pdf".format(pop)))
             plt.close(f)
             print("SUCCESS")
         except:
@@ -538,6 +547,8 @@ def spike_analysis(results_file, fig_folder,
     plt.xticks(wanted_times * time_to_bin_conversion, wanted_times)
     plt.savefig(os.path.join(sim_fig_folder,
                              "timestep_psth.png"))
+    plt.savefig(os.path.join(sim_fig_folder,
+                             "timestep_psth.pdf"))
     plt.close(f)
 
     # plot 3 ms PSTH
@@ -552,6 +563,8 @@ def spike_analysis(results_file, fig_folder,
     plt.xticks(wanted_times * time_to_bin_conversion / bins_in_3ms, wanted_times)
     plt.savefig(os.path.join(sim_fig_folder,
                              "timestep_psth_3ms.png"))
+    plt.savefig(os.path.join(sim_fig_folder,
+                             "timestep_psth_3ms.pdf"))
     plt.close(f)
 
     print("Plotting voltage traces for each population")
@@ -573,6 +586,8 @@ def spike_analysis(results_file, fig_folder,
             plt.ylabel("Membrane potential (mV)")
             plt.savefig(os.path.join(sim_fig_folder,
                                      "{}_voltage.png".format(pop)))
+            plt.savefig(os.path.join(sim_fig_folder,
+                                     "{}_voltage.pdf".format(pop)))
             plt.close(f)
             print("SUCCESS")
         except:
@@ -597,6 +612,8 @@ def spike_analysis(results_file, fig_folder,
 
     plt.savefig(os.path.join(sim_fig_folder,
                              "neuron_firing_rate_hist.png"))
+    plt.savefig(os.path.join(sim_fig_folder,
+                             "neuron_firing_rate_hist.pdf"))
     plt.close(f)
 
     # raster plot
@@ -613,6 +630,8 @@ def spike_analysis(results_file, fig_folder,
     plt.xlabel("Time (ms)")
     plt.savefig(os.path.join(sim_fig_folder,
                              "raster_plots.png"))
+    plt.savefig(os.path.join(sim_fig_folder,
+                             "raster_plots.pdf"))
     plt.close(f)
 
     # TODO plot weight histogram
