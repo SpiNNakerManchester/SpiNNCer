@@ -267,7 +267,7 @@ class Cerebellum(Circuit):
                 # else for all other cells
                 additional_params = {}
                 # add E_rev_I to all cells
-                capp_rev = -90. if "granule" in cell_name else -80.
+                capp_rev = -90.
                 if cell_model == "if_cond_exp":
                     cell_model = self.sim.IF_cond_exp
                     # Defined in Geminiani2019
