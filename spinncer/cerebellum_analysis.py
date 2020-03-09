@@ -475,7 +475,7 @@ def spike_analysis(results_file, fig_folder,
         ax_0.scatter(all_spikes[pop][:, 1],
                      all_spikes[pop][:, 0],
                      color=viridis_cmap(index / (n_plots + 1)),
-                     s=.5)
+                     s=.5, rasterized=True)
         ax_0.set_ylabel("NID")
         # PSTH
         ax_1.bar(np.arange(spikes_per_timestep[pop].size) * timestep / ms,
@@ -511,7 +511,7 @@ def spike_analysis(results_file, fig_folder,
             ax_0.scatter(all_spikes[pop][:, 1],
                          all_spikes[pop][:, 0],
                          color=viridis_cmap(index / (n_plots + 1)),
-                         s=.5)
+                         s=.5, rasterized=True)
             ax_0.set_ylabel("NID")
             # PSTH
             ax_1.bar(np.arange(spikes_per_timestep[pop].size) * timestep / ms,
@@ -542,7 +542,8 @@ def spike_analysis(results_file, fig_folder,
     for index, pop in enumerate(plot_order):
         axes[index].bar(np.arange(spikes_per_timestep[pop].size),
                         spikes_per_timestep[pop],
-                        color=viridis_cmap(index / (n_plots + 1)))
+                        color=viridis_cmap(index / (n_plots + 1)),
+                        rasterized=True)
         axes[index].set_title(pop)
     plt.xticks(wanted_times * time_to_bin_conversion, wanted_times)
     plt.savefig(os.path.join(sim_fig_folder,
@@ -557,7 +558,8 @@ def spike_analysis(results_file, fig_folder,
                            figsize=(14, 20), sharex=True, dpi=400)
     for index, pop in enumerate(plot_order):
         axes[index].bar(np.arange(spikes_per_3ms[pop].size), spikes_per_3ms[pop],
-                        color=viridis_cmap(index / (n_plots + 1)))
+                        color=viridis_cmap(index / (n_plots + 1)),
+                        rasterized=True)
         axes[index].set_title(pop)
 
     plt.xticks(wanted_times * time_to_bin_conversion / bins_in_3ms, wanted_times)
@@ -580,7 +582,8 @@ def spike_analysis(results_file, fig_folder,
             pop_vs = all_voltages[pop]
             f = plt.figure(1, figsize=(9, 9), dpi=400)
             for v_ind, v_trace in enumerate(pop_vs):
-                plt.plot(v_trace, color=color_for_index(v_ind, pop_vs.shape[0]))
+                plt.plot(v_trace, color=color_for_index(v_ind, pop_vs.shape[0]),
+                         rasterized=True)
             plt.xticks(wanted_times * time_to_bin_conversion, wanted_times)
             plt.xlabel("Time (ms)")
             plt.ylabel("Membrane potential (mV)")
@@ -602,7 +605,7 @@ def spike_analysis(results_file, fig_folder,
             curr_ax = axes[index, period]
             curr_ax.hist(per_neuron_firing[pop][:, period],
                          color=viridis_cmap(index / (n_plots + 1)),
-                         bins=20)
+                         bins=20, rasterized=True)
             if period == 1:
                 curr_ax.set_title(pop)
             curr_ax.set_xlabel("Hz")
@@ -624,7 +627,7 @@ def spike_analysis(results_file, fig_folder,
         axes[index].scatter(all_spikes[pop][:, 1],
                             all_spikes[pop][:, 0],
                             color=viridis_cmap(index / (n_plots + 1)),
-                            s=.5)
+                            s=.5, rasterized=True)
         axes[index].set_title(pop)
         # axes[index].set_ylim([0, all_neurons[pop]])
     plt.xlabel("Time (ms)")
