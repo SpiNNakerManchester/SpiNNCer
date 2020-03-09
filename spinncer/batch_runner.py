@@ -97,12 +97,12 @@ for phase in PHASES:
         if concurrently_active_processes % MAX_CONCURRENT_PROCESSES == 0 \
                 or concurrently_active_processes == total_runs:
             # Blocking
-            with open("results.etxt","wb") as out, open("results.otxt","wb") as err:
+            with open("results.out", "wb") as out, open("results.err", "wb") as err:
                 subprocess.call(call, stdout=out, stderr=err)
             print("{} sims done".format(concurrently_active_processes))
         else:
             # Non-blocking
-            with open("results.etxt","wb") as out, open("results.otxt","wb") as err:
+            with open("results.out", "wb") as out, open("results.err", "wb") as err:
                 subprocess.Popen(call, stdout=out, stderr=err)
         os.chdir("..")
         print("=" * 80)
