@@ -129,7 +129,10 @@ class Cerebellum(Circuit):
         self.nid_offset = {k: None for k in self.cell_params.keys()}
         self.rb_shifts = {k: None for k in self.cell_params.keys()}
         for k in self.rb_shifts.keys():
-            self.rb_shifts[k] = np.asarray(rb_left_shifts).astype(int)
+            if rb_left_shifts is not None:
+                self.rb_shifts[k] = np.asarray(rb_left_shifts).astype(int)
+            else:
+                self.rb_shifts[k] = None
         # Save the neuron model to be used by spiking neurons in the network
         self.neuron_models = {k: str.lower(neuron_model) for k in self.cell_params.keys()}
         # Hard-code glomerulus
