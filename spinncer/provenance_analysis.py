@@ -2,48 +2,66 @@ from spinncer.analysis_common import *
 from os.path import join as join
 
 
+def extract_per_pop_info(df, type_of_prov, pops, report=False):
+    pop_results = {k: None for k in pops}
+    pop_results['global_mean'] = np.nan
+    pop_results['global_max'] = np.nan
+    pop_results['global_min'] = np.nan
+
+    prov_filter = df['prov_name'] == type_of_prov
+    filtered_prov = df[prov_filter]
+    if report:
+        print("{:40} for populations:".format(type_of_prov))
+
+    _means = []
+    _maxs = []
+    _mins = []
+    for pop in pops:
+        curr_pop_values = filtered_prov[filtered_prov['pop'] == pop].prov_value
+        _mean = curr_pop_values.mean()
+        _max = curr_pop_values.max()
+        _min = curr_pop_values.min()
+        if report:
+            print("\t{:25} - avg {:10.2f} max {:10.2f}".format(
+                pop, curr_pop_values.mean(), curr_pop_values.max()))
+        # save values
+        pop_results[pop] = {
+            'mean': _mean,
+            'max': _max,
+            'min': _min,
+        }
+        _means.append(_mean)
+        _maxs.append(_max)
+        _mins.append(_min)
+    pop_results['global_mean'] = np.nanmean(np.asarray(_means))
+    pop_results['global_max'] = np.nanmax(np.asarray(_maxs))
+    pop_results['global_min'] = np.nanmin(np.asarray(_mins))
+    return pop_results
+
+
 def provenance_csv_analysis(in_folder, fig_folder):
     write_header("Reading provenances in folder " + in_folder)
     prov = pd.read_csv(join(in_folder, "structured_provenance.csv"))
     pops = prov['pop'].unique()
     types_of_provenance = prov['prov_name'].unique()
-    max_spikes_in_a_tick = {}
-    max_dmas_in_a_tick = {}
+    prov_of_interest = [
+        'MAX_SPIKES_IN_A_TICK',
+        'Times_synaptic_weights_have_saturated',
+        'late_packets',
+        'Times_the_input_buffer_lost_packets',
+        'Times_the_timer_tic_over_ran'
+    ]
 
+    results = {k: None for k in types_of_provenance}
     # TODO report number of neurons to make sure the networks is correct
     write_short_msg("DETECTED POPULATIONS", pops)
 
-    # check that no cores have a positive value for 'max_number_of_times_timer_tic_over_ran'
-    if 'max_number_of_times_timer_tic_over_ran' in types_of_provenance:
-        overran = prov['prov_name'] == 'max_number_of_times_timer_tic_over_ran'
-        where_overran = prov[overran].prov_value > 0
-        if any(where_overran):
-            print(Fore.RED + "SOME CORES OVERRAN THE TIMER TICK")
-            print("\t" + prov[where_overran].prov_name.unique(),
-                  Style.RESET_ALL)
-    else:
-        print(Fore.GREEN + "max_number_of_times_timer_tic_over_ran not in file",
-              Style.RESET_ALL)
+    for type_of_prov in types_of_provenance:
+        rep = True if type_of_prov in prov_of_interest else False
+        results[type_of_prov] = extract_per_pop_info(prov, type_of_prov, pops,
+                                                     report=rep)
 
-    # TODO report 'MAX_SPIKES_IN_A_TICK' for each population (avg and max)
-    if 'MAX_SPIKES_IN_A_TICK' in types_of_provenance:
-        max_tick_filter = prov['prov_name'] == 'MAX_SPIKES_IN_A_TICK'
-        max_tick_prov = prov[max_tick_filter]
-        print("MAX SPIKE IN A TICK FOR POPULATIONS:")
-        for pop in pops:
-            curr_pop_values = max_tick_prov[max_tick_prov['pop'] == pop].prov_value
-            print("\t{:25} - avg {:10.2f} max {:10.2f}".format(
-                pop, curr_pop_values.mean(), curr_pop_values.max()))
-    else:
-        print(Fore.GREEN + "MAX_SPIKES_IN_A_TICK not in file",
-              Style.RESET_ALL)
-
-    # TODO report 'MAX_DMAS_IN_A_TICK' for each population (avg and max)
-
-
-    # TODO report 'Times_synaptic_weights_have_saturated' for each population (avg and max)
-
-    return max_spikes_in_a_tick
+    return results, types_of_provenance, prov_of_interest
 
 
 def sweep_provenance_analysis(in_folder, fig_folder):
@@ -63,14 +81,49 @@ def sweep_provenance_analysis(in_folder, fig_folder):
         write_header("Batch info contained in " + batch_infos[0])
         write_short_msg("FILES", batch_info.files)
         poi = batch_info['parameters_of_interest'].ravel()[0]
+        calls = batch_info['log_calls']
         write_short_msg("PARAMETERS", poi)
     run_folders = [fc for fc in folder_contents if run_id in fc]
     collated_results = {k: None for k in run_folders}
+    types_of_provenance = None
+    prov_of_interest = None
     write_short_msg("Number of folders", len(run_folders))
     write_sep()
     for folder in run_folders:
-        collated_results[folder] = provenance_csv_analysis(
+        collated_results[folder], types_of_provenance, \
+        prov_of_interest = provenance_csv_analysis(
             join(in_folder, folder), fig_folder)
+
+    write_header("REPORTING BEST SIMULATIONS")
+    sorted_key_list = list(collated_results.keys())
+    sorted_key_list.sort()
+    for type_of_prov in types_of_provenance:
+        of_interest = True if type_of_prov in prov_of_interest else False
+        if not of_interest:
+            continue
+        # Need to loop over all dicts in collated_results
+        _means = []
+        _maxs = []
+        _mins = []
+        _keys = []
+
+        print("{:40} for all cases".format(type_of_prov))
+        for k in sorted_key_list:
+            v = collated_results[k]
+            filtered_v = v[type_of_prov]
+            _keys.append(k)
+            _means.append(filtered_v['global_mean'])
+            _maxs.append(filtered_v['global_max'])
+            _mins.append(filtered_v['global_min'])
+            print("{:40} | min {:10.2f} | mean {:10.2f} | max {:10.2f}".format(
+                k.split("@")[0], filtered_v['global_min'], filtered_v['global_mean'], filtered_v['global_max']
+            ))
+
+
+
+
+
+
 
 
 if __name__ == "__main__":

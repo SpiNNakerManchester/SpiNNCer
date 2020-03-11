@@ -14,7 +14,6 @@ import pylab as plt
 from spinncer.batch_argparser import *
 import shutil
 
-
 currrent_time = plt.datetime.datetime.now()
 string_time = currrent_time.strftime("%H%M%S_%d%m%Y")
 
@@ -29,16 +28,19 @@ MAX_CONCURRENT_PROCESSES = args.max_processes
 
 POISSON_PHASE = 0
 PERIODIC_PHASE = 1
-PHASES = [POISSON_PHASE, PERIODIC_PHASE]
-PHASES_NAMES = ["poisson", "periodic"]
-PHASES_ARGS = [None, "--periodic_stimulus"]
+# PHASES = [POISSON_PHASE, PERIODIC_PHASE]
+# PHASES_NAMES = ["poisson", "periodic"]
+# PHASES_ARGS = [None, "--periodic_stimulus"]
+PHASES = [POISSON_PHASE]
+PHASES_NAMES = ["poisson"]
+PHASES_ARGS = [None]
 
 concurrently_active_processes = 0
 
 f_peaks = np.arange(10, 200, 20)  # Hz
 radii = np.arange(40, 200, 20)  # um
 # TODO Fix ring buffer left shift value from previous experiment
-RB_LEFT_SHIFT = None
+RB_LEFT_SHIFT = [5, 5]
 
 # Compute total number of runs
 total_runs = f_peaks.size * len(PHASES) * radii.size
@@ -53,7 +55,7 @@ dataset = "scaffold_full_dcn_400.0x400.0_v3.hdf5"
 log_calls = []
 
 # making a directory for this experiment
-dir_name = "activity_sweep_@{}".format(suffix)
+dir_name = "activity_sweep_ls_5_5_@{}".format(suffix)
 print("=" * 80)
 print("TOTAL RUNS", total_runs)
 print("MKDIR", dir_name)
@@ -62,6 +64,8 @@ print("CHDIR", dir_name)
 os.chdir(dir_name)
 print("GETCWD", os.getcwd())
 print("-" * 80)
+
+params = {}
 
 for phase in PHASES:
     for f_peak in f_peaks:
@@ -74,6 +78,11 @@ for phase in PHASES:
                                      stim_radius,
                                      PHASES_NAMES[phase],
                                      suffix)
+
+            params[filename] = {'phase': phase,
+                                'f_peak': f_peak,
+                                'stim_radius': stim_radius}
+
             # making a directory for this individual experiment
             os.mkdir(filename)
             os.chdir(filename)
@@ -90,11 +99,13 @@ for phase in PHASES:
                     '../../cerebellum_experiment.py',
                     '--input', dataset,
                     '-o', filename,
-                    '--f_peak', f_peak,
-                    '--stim_radius', stim_radius
+                    '--f_peak', str(f_peak),
+                    '--stim_radius', str(stim_radius)
                     ]
-            for rbls in RB_LEFT_SHIFT:
-                call.append(str(rbls))
+            if RB_LEFT_SHIFT is not None:
+                call.append('--rb_left_shifts')
+                for rbls in RB_LEFT_SHIFT:
+                    call.append(str(rbls))
 
             if PHASES_ARGS[phase] is not None:
                 call.append(PHASES_ARGS[phase])
@@ -119,4 +130,5 @@ total_time = end_time - currrent_time
 np.savez_compressed("batch_{}".format(suffix),
                     parameters_of_interest=parameters_of_interest,
                     total_time=total_time,
-                    log_calls=log_calls)
+                    log_calls=log_calls,
+                    params=params)

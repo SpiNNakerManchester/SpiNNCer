@@ -54,8 +54,11 @@ log_calls = []
 dir_name = "ls_sweep_@{}".format(suffix)
 print("=" * 80)
 print("TOTAL RUNS", total_runs)
-print("MKDIR", dir_name)
-os.mkdir(dir_name)
+if not os.path.isdir(dir_name):
+    print("MKDIR", dir_name)
+    os.mkdir(dir_name)
+else:
+    print("FOLDER ALREADY EXISTS. RE-RUNNING INCOMPLETE JOBS.")
 print("CHDIR", dir_name)
 os.chdir(dir_name)
 print("GETCWD", os.getcwd())
@@ -70,12 +73,21 @@ for phase in PHASES:
                                  PHASES_NAMES[phase],
                                  suffix)
         # making a directory for this individual experiment
-        os.mkdir(filename)
+        prev_run = True
+        if os.path.isdir(filename) and os.path.isfile(
+                os.path.join(filename, "structured_provenance.csv")):
+            print("Skipping", filename)
+            continue
+        elif not os.path.isdir(filename):
+            os.mkdir(filename)
+            prev_run = False
         os.chdir(filename)
         print("GETCWD", os.getcwd())
         shutil.copyfile("../../spynnaker.cfg", "spynnaker.cfg")
-        os.mknod("results.etxt")
-        os.mknod("results.otxt")
+
+        if not prev_run:
+            os.mknod("results.etxt")
+            os.mknod("results.otxt")
 
         concurrently_active_processes += 1
         null = open(os.devnull, 'w')
@@ -94,8 +106,8 @@ for phase in PHASES:
             call.append(PHASES_ARGS[phase])
         print("CALL", call)
         log_calls.append(call)
-        if concurrently_active_processes % MAX_CONCURRENT_PROCESSES == 0 \
-                or concurrently_active_processes == total_runs:
+        if (concurrently_active_processes % MAX_CONCURRENT_PROCESSES == 0
+                or concurrently_active_processes == total_runs):
             # Blocking
             with open("results.out", "wb") as out, open("results.err", "wb") as err:
                 subprocess.call(call, stdout=out, stderr=err)
@@ -106,6 +118,7 @@ for phase in PHASES:
                 subprocess.Popen(call, stdout=out, stderr=err)
         os.chdir("..")
         print("=" * 80)
+        # TODO block if re-running simulations and not yet done (how would I know?)
 print("All done!")
 
 end_time = plt.datetime.datetime.now()
