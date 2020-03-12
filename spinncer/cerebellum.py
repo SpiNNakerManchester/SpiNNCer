@@ -626,7 +626,7 @@ class Cerebellum(Circuit):
         :return: spike times for all populations
         :rtype: list or Neo.Block
         """
-        gsyn_rec = {}
+        _rec = {}
         for label, pop in self.populations.items():
             if not pop:
                 continue
@@ -634,11 +634,12 @@ class Cerebellum(Circuit):
                 print("Skipping selective recording for", label, "...")
                 continue
             print("Retrieving recordings for ", label, "...")
-            gsyn_rec[label] = {}
-            gsyn_rec[label]['gsyn_inh'] = pop.get_data(['gsyn_inh'])
-            gsyn_rec[label]['gsyn_exc'] = pop.get_data(['gsyn_exc'])
-            gsyn_rec[label]['v'] = pop.get_data(['v'])
-        return gsyn_rec
+            _rec[label] = {}
+            _rec[label]['gsyn_inh'] = pop.get_data(['gsyn_inh'])
+            _rec[label]['gsyn_exc'] = pop.get_data(['gsyn_exc'])
+            _rec[label]['v'] = pop.get_data(['v'])
+            _rec[label]['all'] = pop.get_data(['v', 'gsyn_exc', 'gsyn_inh'])
+        return _rec
 
     def selectively_record_all(self, number_of_neurons=None, every=None):
         if bool(number_of_neurons) == bool(every):
