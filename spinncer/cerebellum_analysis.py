@@ -20,6 +20,7 @@ import ntpath
 from spinncer.utilities.constants import CONNECTIVITY_MAP, CELL_PARAMS
 from spinncer.utilities.neo_converter import convert_spikes
 from colorama import Fore, Style, init as color_init
+from multiprocessing import Process, Pool
 
 mlib.use('Agg')
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -64,18 +65,22 @@ def color_for_index(index, size, cmap=viridis_cmap):
 
 def plot_analog_signal(data, variable_name, ylabel, plot_order,
                        wanted_times, time_to_bin_conversion,
-                       fig_folder):
+                       fig_folder,
+                       highlight_stim, common_highlight_values):
     print("Plotting {} traces for each population".format(variable_name))
     for index, pop in enumerate(plot_order):
-        print("\t{:20}".format(pop), end=' ')
+        # print("\t{:20}".format(pop), end=' ')
         if pop == "glomerulus":
-            print("FAIL -- spike source")
+            # print("FAIL -- spike source")
             f = plt.figure(1, figsize=(9, 9), dpi=400)
             plt.close(f)
             continue
         try:
             values_for_pop = data[pop]
             f = plt.figure(1, figsize=(9, 9), dpi=400)
+            # if highlight_stim:
+            #     ax = plt.gca()
+            #     highlight_area(ax, **common_highlight_values)
             for _ind, _trace in enumerate(values_for_pop):
                 plt.plot(_trace,
                          color=color_for_index(_ind, values_for_pop.shape[0]),
@@ -88,9 +93,20 @@ def plot_analog_signal(data, variable_name, ylabel, plot_order,
             plt.savefig(os.path.join(fig_folder,
                                      "{}_{}.pdf".format(pop, variable_name)))
             plt.close(f)
-            print("SUCCESS")
+            # print("SUCCESS")
         except:
-            print("FAIL -- no {} info".format(variable_name))
+            # print("FAIL -- no {} info".format(variable_name))
+            pass
+
+
+def highlight_area(ax, start, stop, increment):
+    _highlight_times = np.arange(start,
+                                 stop,
+                                 increment)
+    ax.fill_between(
+        _highlight_times, 0, 1,
+        color='grey', alpha=0.3,
+        transform=ax.get_xaxis_transform())
 
 
 def spike_analysis(results_file, fig_folder,
@@ -247,6 +263,9 @@ def spike_analysis(results_file, fig_folder,
                                           stimulus_periods)) * -10
         per_neuron_spike_count[pop] = np.ones((all_neurons[pop],
                                                stimulus_periods)) * -10
+
+        stim_period_start = 300
+        stim_period_end = 350
         for period in range(stimulus_periods):
 
             if delay_sensitive and period == 0:
@@ -258,6 +277,10 @@ def spike_analysis(results_file, fig_folder,
             else:
                 time_filter_pre = time_filter[period]
                 time_filter_post = time_filter[period + 1]
+
+            if period == 1:
+                stim_period_start = time_filter_pre
+                stim_period_end = time_filter_post
 
             _filtered_spike_times = np.logical_and(
                 _spike_times >= time_filter_pre,
@@ -540,22 +563,65 @@ def spike_analysis(results_file, fig_folder,
     print("-" * 80)
 
     wanted_times = np.linspace(0, (simtime / ms), 6).astype(int)
+
+    common_highlight_values = {
+        'start': stim_period_start,
+        'stop': stim_period_end,
+        'increment': timestep / ms,
+    }
+
     common_values_for_plots = {
         'plot_order': plot_order,
         'wanted_times': wanted_times,
         'time_to_bin_conversion': time_to_bin_conversion,
-        'fig_folder': sim_fig_folder
+        'fig_folder': sim_fig_folder,
+        'highlight_stim':highlight_stim,
+        'common_highlight_values':common_highlight_values,
     }
 
-    plot_analog_signal(all_exc_gsyn, variable_name="gsyn_exc",
-                       ylabel="Exc synaptic conductance ($\mu S$)",
-                       **common_values_for_plots)
-    plot_analog_signal(all_inh_gsyn, variable_name="gsyn_inh",
-                       ylabel="Inh synaptic conductance ($\mu S$)",
-                       **common_values_for_plots)
-    plot_analog_signal(all_voltages, variable_name="v",
-                       ylabel="Membrane potential (mV)",
-                       **common_values_for_plots)
+    p1 = Process(target=plot_analog_signal,
+                 args=(all_exc_gsyn,
+                       "gsyn_exc",
+                       "Exc synaptic conductance ($\mu S$)",),
+                 kwargs=common_values_for_plots)
+    p2 = Process(target=plot_analog_signal,
+                 args=(all_inh_gsyn,
+                       "gsyn_inh",
+                       "Inh synaptic conductance ($\mu S$)",),
+                 kwargs=common_values_for_plots)
+    p3 = Process(target=plot_analog_signal,
+                 args=(all_voltages,
+                       "v",
+                       "Membrane potential (mV)",),
+                 kwargs=common_values_for_plots)
+
+    p1.start()
+    p2.start()
+    p3.start()
+
+    # raster plot including ALL populations
+    print("Plotting spiking raster plot for all populations")
+    f, axes = plt.subplots(len(all_spikes.keys()), 1,
+                           figsize=(14, 20), sharex=True, dpi=400)
+    for index, pop in enumerate(plot_order):
+        curr_ax = axes[index]
+        # spike raster
+        _times = all_spikes[pop][:, 1]
+        _ids = all_spikes[pop][:, 0]
+        if highlight_stim:
+            highlight_area(curr_ax, **common_highlight_values)
+
+        curr_ax.scatter(_times,
+                        _ids,
+                        color=viridis_cmap(index / (n_plots + 1)),
+                        s=.5, rasterized=True)
+        axes[index].set_title(pop)
+    plt.xlabel("Time (ms)")
+    plt.savefig(os.path.join(sim_fig_folder,
+                             "raster_plots.png"))
+    plt.savefig(os.path.join(sim_fig_folder,
+                             "raster_plots.pdf"))
+    plt.close(f)
 
     # raster + PSTH for each population
     print("Plotting spiking raster plot + PSTH for each population")
@@ -568,10 +634,13 @@ def spike_analysis(results_file, fig_folder,
         _times = all_spikes[pop][:, 1]
         _ids = all_spikes[pop][:, 0]
 
+        if highlight_stim:
+            highlight_area(ax_0, **common_highlight_values)
         ax_0.scatter(_times,
                      _ids,
                      color=viridis_cmap(index / (n_plots + 1)),
                      s=.5, rasterized=True)
+
         # ax_0.fill_between(all_spikes[pop][:, 1], 0, 1,
         #                   where=np.where(np.logical_and(_times>=stimulus_periods, a<=10)),
         #                 color='green', alpha=0.5,
@@ -579,14 +648,13 @@ def spike_analysis(results_file, fig_folder,
 
         ax_0.set_ylabel("NID")
         # PSTH
+        if highlight_stim:
+            highlight_area(ax_1, **common_highlight_values)
         ax_1.bar(np.arange(spikes_per_timestep[pop].size) * timestep / ms,
                  spikes_per_timestep[pop],
                  color=viridis_cmap(index / (n_plots + 1)))
-        # plt.xticks(wanted_times * time_to_bin_conversion, wanted_times)
         ax_1.set_ylabel("Count")
-        # plt.xticks(wanted_times * time_to_bin_conversion, wanted_times)
         plt.xlabel("Time (ms)")
-        # plt.ylabel("NID")
         plt.savefig(os.path.join(sim_fig_folder,
                                  "{}_raster_and_psth.png".format(pop)))
         plt.savefig(os.path.join(sim_fig_folder,
@@ -594,7 +662,7 @@ def spike_analysis(results_file, fig_folder,
         plt.close(f)
         print("SUCCESS")
 
-    # raster + PSTH for each population
+    # raster + PSTH + voltage for each population
     print("Plotting spiking raster plot + PSTH + voltage for each population")
     for index, pop in enumerate(plot_order):
         # plot voltage traces
@@ -609,12 +677,16 @@ def spike_analysis(results_file, fig_folder,
 
         try:
             # spike raster
+            if highlight_stim:
+                highlight_area(ax_0, **common_highlight_values)
             ax_0.scatter(all_spikes[pop][:, 1],
                          all_spikes[pop][:, 0],
                          color=viridis_cmap(index / (n_plots + 1)),
                          s=.5, rasterized=True)
             ax_0.set_ylabel("NID")
             # PSTH
+            if highlight_stim:
+                highlight_area(ax_1, **common_highlight_values)
             ax_1.bar(np.arange(spikes_per_timestep[pop].size) * timestep / ms,
                      spikes_per_timestep[pop],
                      color=viridis_cmap(index / (n_plots + 1)))
@@ -641,6 +713,8 @@ def spike_analysis(results_file, fig_folder,
     f, axes = plt.subplots(len(spikes_per_timestep.keys()), 1,
                            figsize=(14, 20), sharex=True, dpi=400)
     for index, pop in enumerate(plot_order):
+        if highlight_stim:
+            highlight_area(axes[index], **common_highlight_values)
         axes[index].bar(np.arange(spikes_per_timestep[pop].size),
                         spikes_per_timestep[pop],
                         color=viridis_cmap(index / (n_plots + 1)),
@@ -670,33 +744,6 @@ def spike_analysis(results_file, fig_folder,
                              "timestep_psth_3ms.pdf"))
     plt.close(f)
 
-    # print("Plotting voltage traces for each population")
-    # for index, pop in enumerate(plot_order):
-    #     # plot voltage traces
-    #     print("\t{:20}".format(pop), end=' ')
-    #     if pop == "glomerulus":
-    #         print("FAIL -- spike source")
-    #         f = plt.figure(1, figsize=(9, 9), dpi=400)
-    #         plt.close(f)
-    #         continue
-    #     try:
-    #         pop_exc_g = all_voltages[pop]
-    #         f = plt.figure(1, figsize=(9, 9), dpi=400)
-    #         for _ind, _trace in enumerate(pop_exc_g):
-    #             plt.plot(_trace, color=color_for_index(_ind, pop_exc_g.shape[0]),
-    #                      rasterized=True)
-    #         plt.xticks(wanted_times * time_to_bin_conversion, wanted_times)
-    #         plt.xlabel("Time (ms)")
-    #         plt.ylabel("Membrane potential (mV)")
-    #         plt.savefig(os.path.join(sim_fig_folder,
-    #                                  "{}_voltage.png".format(pop)))
-    #         plt.savefig(os.path.join(sim_fig_folder,
-    #                                  "{}_voltage.pdf".format(pop)))
-    #         plt.close(f)
-    #         print("SUCCESS")
-    #     except:
-    #         print("FAIL -- no voltage info")
-
     # plot firing rate histogram per PSTH region
     print("Plotting firing rate histograms")
     f, axes = plt.subplots(len(plot_order), 3,
@@ -714,33 +761,19 @@ def spike_analysis(results_file, fig_folder,
                                           labelbottom=True)
             curr_ax.set_xticks([0, 75, 150])
 
+    f.tight_layout()
     plt.savefig(os.path.join(sim_fig_folder,
                              "neuron_firing_rate_hist.png"))
     plt.savefig(os.path.join(sim_fig_folder,
                              "neuron_firing_rate_hist.pdf"))
     plt.close(f)
-
-    # raster plot
-    print("Plotting spiking raster plot for each population")
-    f, axes = plt.subplots(len(all_spikes.keys()), 1,
-                           figsize=(14, 20), sharex=True, dpi=400)
-    for index, pop in enumerate(plot_order):
-        axes[index].scatter(all_spikes[pop][:, 1],
-                            all_spikes[pop][:, 0],
-                            color=viridis_cmap(index / (n_plots + 1)),
-                            s=.5, rasterized=True)
-        axes[index].set_title(pop)
-        # axes[index].set_ylim([0, all_neurons[pop]])
-    plt.xlabel("Time (ms)")
-    plt.savefig(os.path.join(sim_fig_folder,
-                             "raster_plots.png"))
-    plt.savefig(os.path.join(sim_fig_folder,
-                             "raster_plots.pdf"))
-    plt.close(f)
-
     # TODO plot weight histogram
 
     # TODO plot centred connectivity
+
+    p1.join()
+    p2.join()
+    p3.join()
     print("=" * 80)
 
 
