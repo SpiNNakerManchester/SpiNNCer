@@ -615,12 +615,45 @@ def spike_analysis(results_file, fig_folder,
                         _ids,
                         color=viridis_cmap(index / (n_plots + 1)),
                         s=.5, rasterized=True)
-        axes[index].set_title(pop)
+        curr_ax.set_title(pop)
     plt.xlabel("Time (ms)")
+    f.tight_layout()
     plt.savefig(os.path.join(sim_fig_folder,
                              "raster_plots.png"))
     plt.savefig(os.path.join(sim_fig_folder,
                              "raster_plots.pdf"))
+    plt.close(f)
+
+    # raster plot + PSTH including ALL populations
+    print("Plotting spiking raster plot + PSTH for all populations")
+    f, axes = plt.subplots(2 * len(all_spikes.keys()), 1,
+                           figsize=(14, 30), sharex=True, dpi=500)
+    for index, pop in enumerate(np.repeat(plot_order, 2)):
+        curr_ax = axes[index]
+        if highlight_stim:
+            highlight_area(curr_ax, **common_highlight_values)
+        if index % 2 == 0:
+            # spike raster
+            _times = all_spikes[pop][:, 1]
+            _ids = all_spikes[pop][:, 0]
+            curr_ax.scatter(_times,
+                            _ids,
+                            color=viridis_cmap(int(index/2) / (n_plots + 1)),
+                            s=.5, rasterized=True)
+            curr_ax.set_title(pop)
+            curr_ax.set_ylabel("NID")
+        else:
+            curr_ax.bar(np.arange(spikes_per_timestep[pop].size) * timestep / ms,
+                     spikes_per_timestep[pop],
+                     color=viridis_cmap(int(index/2) / (n_plots + 1)))
+            curr_ax.set_ylabel("Count")
+
+    plt.xlabel("Time (ms)")
+    f.tight_layout()
+    plt.savefig(os.path.join(sim_fig_folder,
+                             "raster_and_psth_plots.png"))
+    plt.savefig(os.path.join(sim_fig_folder,
+                             "raster_and_psth_plots.png"))
     plt.close(f)
 
     # raster + PSTH for each population
@@ -640,13 +673,8 @@ def spike_analysis(results_file, fig_folder,
                      _ids,
                      color=viridis_cmap(index / (n_plots + 1)),
                      s=.5, rasterized=True)
-
-        # ax_0.fill_between(all_spikes[pop][:, 1], 0, 1,
-        #                   where=np.where(np.logical_and(_times>=stimulus_periods, a<=10)),
-        #                 color='green', alpha=0.5,
-        #                 transform=ax_0.get_xaxis_transform())
-
         ax_0.set_ylabel("NID")
+
         # PSTH
         if highlight_stim:
             highlight_area(ax_1, **common_highlight_values)
