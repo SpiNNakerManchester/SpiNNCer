@@ -62,6 +62,37 @@ def color_for_index(index, size, cmap=viridis_cmap):
     return cmap(1 / (size - index + 1))
 
 
+def plot_analog_signal(data, variable_name, ylabel, plot_order,
+                       wanted_times, time_to_bin_conversion,
+                       fig_folder):
+    print("Plotting {} traces for each population".format(variable_name))
+    print("\t{:20}".format(pop), end=' ')
+    for index, pop in enumerate(plot_order):
+        if pop == "glomerulus":
+            print("FAIL -- spike source")
+            f = plt.figure(1, figsize=(9, 9), dpi=400)
+            plt.close(f)
+            continue
+        try:
+            values_for_pop = data[pop]
+            f = plt.figure(1, figsize=(9, 9), dpi=400)
+            for _ind, _trace in enumerate(values_for_pop):
+                plt.plot(_trace,
+                         color=color_for_index(_ind, values_for_pop.shape[0]),
+                         rasterized=True)
+            plt.xticks(wanted_times * time_to_bin_conversion, wanted_times)
+            plt.xlabel("Time (ms)")
+            plt.ylabel(ylabel)
+            plt.savefig(os.path.join(fig_folder,
+                                     "{}_{}.png".format(pop, variable_name)))
+            plt.savefig(os.path.join(fig_folder,
+                                     "{}_{}.pdf".format(pop, variable_name)))
+            plt.close(f)
+            print("SUCCESS")
+        except:
+            print("FAIL -- no {} info".format(variable_name))
+
+
 def spike_analysis(results_file, fig_folder,
                    worst_case=True, delay_sensitive=False,
                    dark_background=False,
@@ -459,7 +490,6 @@ def spike_analysis(results_file, fig_folder,
                         np.asarray(curr_inh_gsyn.segments[0].analogsignals).T,
                         axis=-1)
 
-
         # TODO report gsyn information here
     else:
         print("No other recording information present.")
@@ -492,33 +522,22 @@ def spike_analysis(results_file, fig_folder,
     print("-" * 80)
 
     wanted_times = np.linspace(0, (simtime / ms), 6).astype(int)
-    print("Plotting gsyn exc traces for each population")
-    for index, pop in enumerate(plot_order):
-        # plot voltage traces
-        print("\t{:20}".format(pop), end=' ')
-        if pop == "glomerulus":
-            print("FAIL -- spike source")
-            f = plt.figure(1, figsize=(9, 9), dpi=400)
-            plt.close(f)
-            continue
-        try:
-            pop_exc_g = all_exc_gsyn[pop]
-            f = plt.figure(1, figsize=(9, 9), dpi=400)
-            for _ind, _trace in enumerate(pop_exc_g):
-                plt.plot(_trace,
-                         color=color_for_index(_ind, pop_exc_g.shape[0]),
-                         rasterized=True)
-            plt.xticks(wanted_times * time_to_bin_conversion, wanted_times)
-            plt.xlabel("Time (ms)")
-            plt.ylabel("Exc synaptic conductance ($\mu S$)")
-            plt.savefig(os.path.join(sim_fig_folder,
-                                     "{}_gsyn_exc.png".format(pop)))
-            plt.savefig(os.path.join(sim_fig_folder,
-                                     "{}_gsyn_exc.pdf".format(pop)))
-            plt.close(f)
-            print("SUCCESS")
-        except:
-            print("FAIL -- no gsyn exc info")
+    common_values_for_plots = {
+        'plot_order': plot_order,
+        'wanted_times': wanted_times,
+        'time_to_bin_conversion': time_to_bin_conversion,
+        'fig_folder': sim_fig_folder
+    }
+
+    plot_analog_signal(all_exc_gsyn, variable_name="gsyn_exc",
+                       ylabel="Exc synaptic conductance ($\mu S$)",
+                       **common_values_for_plots)
+    plot_analog_signal(all_inh_gsyn, variable_name="gsyn_inh",
+                       ylabel="Inh synaptic conductance ($\mu S$)",
+                       **common_values_for_plots)
+    plot_analog_signal(all_voltages, variable_name="v",
+                       ylabel="Membrane potential (mV)",
+                       **common_values_for_plots)
 
     # raster + PSTH for each population
     print("Plotting spiking raster plot + PSTH for each population")
@@ -633,32 +652,32 @@ def spike_analysis(results_file, fig_folder,
                              "timestep_psth_3ms.pdf"))
     plt.close(f)
 
-    print("Plotting voltage traces for each population")
-    for index, pop in enumerate(plot_order):
-        # plot voltage traces
-        print("\t{:20}".format(pop), end=' ')
-        if pop == "glomerulus":
-            print("FAIL -- spike source")
-            f = plt.figure(1, figsize=(9, 9), dpi=400)
-            plt.close(f)
-            continue
-        try:
-            pop_exc_g = all_voltages[pop]
-            f = plt.figure(1, figsize=(9, 9), dpi=400)
-            for _ind, _trace in enumerate(pop_exc_g):
-                plt.plot(_trace, color=color_for_index(_ind, pop_exc_g.shape[0]),
-                         rasterized=True)
-            plt.xticks(wanted_times * time_to_bin_conversion, wanted_times)
-            plt.xlabel("Time (ms)")
-            plt.ylabel("Membrane potential (mV)")
-            plt.savefig(os.path.join(sim_fig_folder,
-                                     "{}_voltage.png".format(pop)))
-            plt.savefig(os.path.join(sim_fig_folder,
-                                     "{}_voltage.pdf".format(pop)))
-            plt.close(f)
-            print("SUCCESS")
-        except:
-            print("FAIL -- no voltage info")
+    # print("Plotting voltage traces for each population")
+    # for index, pop in enumerate(plot_order):
+    #     # plot voltage traces
+    #     print("\t{:20}".format(pop), end=' ')
+    #     if pop == "glomerulus":
+    #         print("FAIL -- spike source")
+    #         f = plt.figure(1, figsize=(9, 9), dpi=400)
+    #         plt.close(f)
+    #         continue
+    #     try:
+    #         pop_exc_g = all_voltages[pop]
+    #         f = plt.figure(1, figsize=(9, 9), dpi=400)
+    #         for _ind, _trace in enumerate(pop_exc_g):
+    #             plt.plot(_trace, color=color_for_index(_ind, pop_exc_g.shape[0]),
+    #                      rasterized=True)
+    #         plt.xticks(wanted_times * time_to_bin_conversion, wanted_times)
+    #         plt.xlabel("Time (ms)")
+    #         plt.ylabel("Membrane potential (mV)")
+    #         plt.savefig(os.path.join(sim_fig_folder,
+    #                                  "{}_voltage.png".format(pop)))
+    #         plt.savefig(os.path.join(sim_fig_folder,
+    #                                  "{}_voltage.pdf".format(pop)))
+    #         plt.close(f)
+    #         print("SUCCESS")
+    #     except:
+    #         print("FAIL -- no voltage info")
 
     # plot firing rate histogram per PSTH region
     print("Plotting firing rate histograms")
