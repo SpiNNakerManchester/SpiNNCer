@@ -25,4 +25,12 @@ analysis_parser.add_argument('--consider_delays', action="store_true",
                                   'propagation of excitation are taken into '
                                   'account when report firing rates.')
 
+analysis_parser.add_argument('--dark_background', action="store_true",
+                             help='if this flag is set plots will have a '
+                                  'black background instead of white.')
+
+analysis_parser.add_argument('--highlight_stim', action="store_true",
+                             help='if this flag is set plots will highlight'
+                                  'the stimulus time by using a different '
+                                  'background colour.')
 analysis_args = analysis_parser.parse_args()

@@ -63,7 +63,11 @@ def color_for_index(index, size, cmap=viridis_cmap):
 
 
 def spike_analysis(results_file, fig_folder,
-                   worst_case=True, delay_sensitive=False):
+                   worst_case=True, delay_sensitive=False,
+                   dark_background=False,
+                   highlight_stim=False):
+    if dark_background:
+        plt.style.use('dark_background')
     # Retrieve results file
     try:
         data = np.load(results_file, allow_pickle=True)
@@ -388,8 +392,11 @@ def spike_analysis(results_file, fig_folder,
     print("Input current analysis")
     print("-" * 80)
     all_voltages = {}
+    all_exc_gsyn = {}
+    all_inh_gsyn = {}
 
     if other_recordings is not None:
+        # Looking at the voltage
         for pop in plot_order:
             try:
                 curr_v = other_recordings[pop]
@@ -407,8 +414,8 @@ def spike_analysis(results_file, fig_folder,
                 try:
                     all_voltages[pop] = np.array(curr_v.segments[0].filter(name='v')[0]).T
                 except AttributeError as ae:
-                    print("[WARNING]", pop, "has no voltage information.")
-                    all_voltages[pop] = np.ones((1, no_timesteps)) * 3.14
+                    all_voltages[pop] = np.squeeze(
+                        np.asarray(curr_v.segments[0].analogsignals).T, axis=-1)
 
             elif curr_v.shape[1] == 4:
                 all_voltages[pop + "_exc"] = np.zeros((all_neurons[pop], no_timesteps))
@@ -425,8 +432,37 @@ def spike_analysis(results_file, fig_folder,
             print("{:20}-> neuron {:>8d} received {:>6d}".format(
                 key, int(nid), int(np.max(v))),
                 "nA in timestep #{:8d}".format(int(tstep)))
+        # Looking at gsyn
+        for pop in plot_order:
+            try:
+                og = other_recordings[pop]
+                if og is None:
+                    raise KeyError()
+                else:
+                    curr_exc_gsyn = og['gsyn_exc']
+                    curr_inh_gsyn = og['gsyn_inh']
+            except KeyError:
+                print("No gsyn information for", pop)
+                continue
+
+            if (isinstance(curr_exc_gsyn, neo.Block)
+                    and isinstance(curr_inh_gsyn, neo.Block)):
+                try:
+                    all_exc_gsyn[pop] = np.array(curr_exc_gsyn.segments[0].filter(name='gsyn_exc')[0]).T
+                    all_inh_gsyn[pop] = np.array(curr_inh_gsyn.segments[0].filter(name='gsyn_inh')[0]).T
+
+                except:
+                    all_exc_gsyn[pop] = np.squeeze(
+                        np.asarray(curr_exc_gsyn.segments[0].analogsignals).T,
+                        axis=-1)
+                    all_inh_gsyn[pop] = np.squeeze(
+                        np.asarray(curr_inh_gsyn.segments[0].analogsignals).T,
+                        axis=-1)
+
+
+        # TODO report gsyn information here
     else:
-        print("No voltage information present.")
+        print("No other recording information present.")
 
     if worst_case:
         # The following is expensive time wise
@@ -455,27 +491,55 @@ def spike_analysis(results_file, fig_folder,
     print("Plotting figures...")
     print("-" * 80)
 
-    # wanted_times = np.arange(6) * ((simtime/ms)//6)
     wanted_times = np.linspace(0, (simtime / ms), 6).astype(int)
+    print("Plotting gsyn exc traces for each population")
+    for index, pop in enumerate(plot_order):
+        # plot voltage traces
+        print("\t{:20}".format(pop), end=' ')
+        if pop == "glomerulus":
+            print("FAIL -- spike source")
+            f = plt.figure(1, figsize=(9, 9), dpi=400)
+            plt.close(f)
+            continue
+        try:
+            pop_exc_g = all_exc_gsyn[pop]
+            f = plt.figure(1, figsize=(9, 9), dpi=400)
+            for _ind, _trace in enumerate(pop_exc_g):
+                plt.plot(_trace,
+                         color=color_for_index(_ind, pop_exc_g.shape[0]),
+                         rasterized=True)
+            plt.xticks(wanted_times * time_to_bin_conversion, wanted_times)
+            plt.xlabel("Time (ms)")
+            plt.ylabel("Exc synaptic conductance ($\mu S$)")
+            plt.savefig(os.path.join(sim_fig_folder,
+                                     "{}_gsyn_exc.png".format(pop)))
+            plt.savefig(os.path.join(sim_fig_folder,
+                                     "{}_gsyn_exc.pdf".format(pop)))
+            plt.close(f)
+            print("SUCCESS")
+        except:
+            print("FAIL -- no gsyn exc info")
 
     # raster + PSTH for each population
     print("Plotting spiking raster plot + PSTH for each population")
     for index, pop in enumerate(plot_order):
-        # plot voltage traces
         print("\t{:20}".format(pop), end=' ')
-        # if pop in ["glomerulus", "mossy_fibers"]:
-        #     print("FAIL -- spike source")
-        #     f = plt.figure(1, figsize=(9, 9), dpi=400)
-        #     plt.close(f)
-        #     continue
         f, (ax_0, ax_1) = plt.subplots(2, 1, figsize=(9, 9),
                                        sharex=True, dpi=400)
 
         # spike raster
-        ax_0.scatter(all_spikes[pop][:, 1],
-                     all_spikes[pop][:, 0],
+        _times = all_spikes[pop][:, 1]
+        _ids = all_spikes[pop][:, 0]
+
+        ax_0.scatter(_times,
+                     _ids,
                      color=viridis_cmap(index / (n_plots + 1)),
                      s=.5, rasterized=True)
+        # ax_0.fill_between(all_spikes[pop][:, 1], 0, 1,
+        #                   where=np.where(np.logical_and(_times>=stimulus_periods, a<=10)),
+        #                 color='green', alpha=0.5,
+        #                 transform=ax_0.get_xaxis_transform())
+
         ax_0.set_ylabel("NID")
         # PSTH
         ax_1.bar(np.arange(spikes_per_timestep[pop].size) * timestep / ms,
@@ -520,9 +584,9 @@ def spike_analysis(results_file, fig_folder,
             ax_1.set_ylabel("Count")
 
             # voltage
-            pop_vs = all_voltages[pop]
-            for v_ind, v_trace in enumerate(pop_vs):
-                ax_2.plot(np.arange(v_trace.size) * timestep / ms, v_trace,
+            pop_exc_g = all_voltages[pop]
+            for _ind, _trace in enumerate(pop_exc_g):
+                ax_2.plot(np.arange(_trace.size) * timestep / ms, _trace,
                           color=viridis_cmap(index / (n_plots + 1)))
 
             ax_2.set_ylabel("Membrane potential (mV)")
@@ -579,10 +643,10 @@ def spike_analysis(results_file, fig_folder,
             plt.close(f)
             continue
         try:
-            pop_vs = all_voltages[pop]
+            pop_exc_g = all_voltages[pop]
             f = plt.figure(1, figsize=(9, 9), dpi=400)
-            for v_ind, v_trace in enumerate(pop_vs):
-                plt.plot(v_trace, color=color_for_index(v_ind, pop_vs.shape[0]),
+            for _ind, _trace in enumerate(pop_exc_g):
+                plt.plot(_trace, color=color_for_index(_ind, pop_exc_g.shape[0]),
                          rasterized=True)
             plt.xticks(wanted_times * time_to_bin_conversion, wanted_times)
             plt.xlabel("Time (ms)")
@@ -650,7 +714,9 @@ if __name__ == "__main__":
         for in_file in analysis_args.input:
             spike_analysis(in_file, analysis_args.figures_dir,
                            worst_case=analysis_args.worst_case_spikes,
-                           delay_sensitive=analysis_args.consider_delays)
+                           delay_sensitive=analysis_args.consider_delays,
+                           dark_background=analysis_args.dark_background,
+                           highlight_stim=analysis_args.highlight_stim)
     else:
         # Constants
         fig_folder = "figures"
