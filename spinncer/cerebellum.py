@@ -128,11 +128,19 @@ class Cerebellum(Circuit):
         self.number_of_neurons = {k: None for k in self.cell_params.keys()}
         self.nid_offset = {k: None for k in self.cell_params.keys()}
         self.rb_shifts = {k: None for k in self.cell_params.keys()}
+
+        # TODO is there anything clever and worth it here?
+        # for k in self.rb_shifts.keys():
+        #     if rb_left_shifts is not None and "purkinje" in k:
+        #         self.rb_shifts[k] = np.asarray(rb_left_shifts).astype(int)
+        #     else:
+        #         self.rb_shifts[k] = None
         for k in self.rb_shifts.keys():
-            if rb_left_shifts is not None:
-                self.rb_shifts[k] = np.asarray(rb_left_shifts).astype(int)
-            else:
-                self.rb_shifts[k] = None
+            if "purkinje" in k:
+                self.rb_shifts[k] = np.asarray([5, 5]).astype(int)
+            elif "golgi" in k:
+                self.rb_shifts[k] = np.asarray([5, 5]).astype(int)
+
         # Save the neuron model to be used by spiking neurons in the network
         self.neuron_models = {k: str.lower(neuron_model) for k in self.cell_params.keys()}
         # Hard-code glomerulus
