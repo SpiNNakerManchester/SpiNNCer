@@ -419,14 +419,14 @@ def spike_analysis(results_file, fig_folder,
 
     # Check voltage information
 
-    print("=" * 80)
-    print("Input current analysis")
-    print("-" * 80)
     all_voltages = {}
     all_exc_gsyn = {}
     all_inh_gsyn = {}
 
     if other_recordings is not None:
+        print("=" * 80)
+        print("Input current analysis")
+        print("-" * 80)
         # Looking at the voltage
         for pop in plot_order:
             try:
@@ -490,7 +490,25 @@ def spike_analysis(results_file, fig_folder,
                         np.asarray(curr_inh_gsyn.segments[0].analogsignals).T,
                         axis=-1)
 
-        # TODO report gsyn information here
+        # report gsyn information
+        print("=" * 80)
+        print("Excitatory synaptic conductance analysis")
+        print("-" * 80)
+        for key, g in all_exc_gsyn.items():
+            nid, tstep = np.unravel_index(np.argmax(g, axis=None), g.shape)
+            print("{:20}-> neuron {:>8d} had an excitatory synaptic "
+                  "conductance (g_syn) {:>10.2f}".format(
+                key, int(nid), np.max(g)),
+                "uS in timestep #{:8d}".format(int(tstep)))
+        print("=" * 80)
+        print("Inhibitory synaptic conductance analysis")
+        print("-" * 80)
+        for key, g in all_inh_gsyn.items():
+            nid, tstep = np.unravel_index(np.argmax(g, axis=None), g.shape)
+            print("{:20}-> neuron {:>8d} had an inhibitory synaptic "
+                  "conductance (g_syn) {:>10.2f}".format(
+                key, int(nid), np.max(g)),
+                "uS in timestep #{:8d}".format(int(tstep)))
     else:
         print("No other recording information present.")
 
