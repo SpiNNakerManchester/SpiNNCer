@@ -66,8 +66,8 @@ def plot_analog_signal(data, variable_name, ylabel, plot_order,
                        wanted_times, time_to_bin_conversion,
                        fig_folder):
     print("Plotting {} traces for each population".format(variable_name))
-    print("\t{:20}".format(pop), end=' ')
     for index, pop in enumerate(plot_order):
+        print("\t{:20}".format(pop), end=' ')
         if pop == "glomerulus":
             print("FAIL -- spike source")
             f = plt.figure(1, figsize=(9, 9), dpi=400)
