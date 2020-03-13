@@ -24,6 +24,7 @@ from multiprocessing import Process, Pool
 
 mlib.use('Agg')
 warnings.filterwarnings("ignore", category=UserWarning)
+warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 # ensure we use viridis as the default cmap
 plt.viridis()
@@ -310,7 +311,19 @@ def spike_analysis(results_file, fig_folder,
         after = _x[2]
         print("\t{:20}->[{:>8.2f}, {:>8.2f}, {:>8.2f}] Hz".format(
             pop, before, during, after), "per neuron")
+
     print("=" * 80)
+    print("(LaTeX formatting) "
+          "Average firing rates before, during and after stimulation "
+          "(LaTeX formatting)")
+    print("-" * 80)
+    for pop in plot_order:
+        _x = average_firing_rates[pop] / Hz
+        before = _x[0]
+        during = _x[1]
+        after = _x[2]
+        print("\t{:20} & {:>8.2f} & {:>8.2f} & {:>8.2f}".format(
+            pop, before, during, after))
 
     print("=" * 80)
     print("FILTERED average firing rates before, during and after stimulation")
@@ -388,6 +401,28 @@ def spike_analysis(results_file, fig_folder,
             no_inhibited, no_inhibited / all_neurons[pop]))
         print("\t{:10} neurons didn't fire at all".format(
             np.count_nonzero(np.invert(_neurons_that_fire))))
+        print("<(LaTeX formatting)>")
+        print("{:15} EXCITED  & "
+              "{:>8.2f}$\pm${:>4.1f} & "
+              "{:>8.2f}$\pm${:>4.1f} & "
+              "{:>8.2f}$\pm${:>4.1f}".format(
+            pop,
+            excited_before, excited_before_std,
+            excited_during, excited_during_std,
+            excited_after, excited_after_std))
+        print("\t {:6d} ({:7.2%})".format(
+            no_excited, no_excited / all_neurons[pop]))
+        print("{:15} INHIBITED  & "
+              "{:>8.2f}$\pm${:>4.1f} & "
+              "{:>8.2f}$\pm${:>4.1f} & "
+              "{:>8.2f}$\pm${:>4.1f}".format(
+            pop,
+            inhibited_before, inhibited_before_std,
+            inhibited_during, inhibited_during_std,
+            inhibited_after, inhibited_after_std))
+        print("\t {:6d} ({:7.2%})".format(
+            no_inhibited, no_inhibited / all_neurons[pop]))
+        print("</(LaTeX formatting)>")
         print("-" * 80)
     print("=" * 80)
 
@@ -462,9 +497,30 @@ def spike_analysis(results_file, fig_folder,
             "c.f. {: 4.2f} ms ({:>7.2%})".format(
                 conn_params[key]["delay"], proportion))
 
+    # Report delay values
+    print("=" * 80)
+    print("(LaTeX formatting) "
+          "Average weight per projection "
+          "(LaTeX formatting)")
+    print("-" * 80)
+    for key in final_connectivity:
+        conn = conn_dict[key]
+        mean = np.mean(conn[:, 2])
+        # replace with percentage of difference
+        original_conn = np.abs(conn_params[key]["weight"])
+        if mean < original_conn:
+            proportion = mean / original_conn
+        else:
+            proportion = original_conn / mean
+        # assert (0 <= proportion <= 1), proportion
+        is_close = proportion >= .95
+        _c = Fore.GREEN if is_close else Fore.RED
+
+        print("{:27} & {:4.6f} &".format(key, mean),
+              "{: 4.6f} ({:>7.2%})".format(
+                  conn_params[key]["weight"], proportion))
 
     # Check voltage information
-
     all_voltages = {}
     all_exc_gsyn = {}
     all_inh_gsyn = {}
