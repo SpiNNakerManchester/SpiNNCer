@@ -99,9 +99,9 @@ def plot_analog_signal(data, variable_name, ylabel, plot_order,
             pass
 
 
-def highlight_area(ax, start, stop, increment):
-    _highlight_times = np.arange(start,
-                                 stop,
+def highlight_area(ax, pop, start, stop, increment):
+    _highlight_times = np.arange(start[pop],
+                                 stop[pop],
                                  increment)
     ax.fill_between(
         _highlight_times, 0, 1,
@@ -234,6 +234,9 @@ def spike_analysis(results_file, fig_folder,
     print("=" * 80)
     print("Maximum number of generated spikes per timestep")
     print("-" * 80)
+
+    stim_period_start = {}
+    stim_period_end = {}
     for pop in plot_order:
         spikes = all_spikes[pop]
 
@@ -264,8 +267,6 @@ def spike_analysis(results_file, fig_folder,
         per_neuron_spike_count[pop] = np.ones((all_neurons[pop],
                                                stimulus_periods)) * -10
 
-        stim_period_start = 300
-        stim_period_end = 350
         for period in range(stimulus_periods):
 
             if delay_sensitive and period == 0:
@@ -279,8 +280,8 @@ def spike_analysis(results_file, fig_folder,
                 time_filter_post = time_filter[period + 1]
 
             if period == 1:
-                stim_period_start = time_filter_pre
-                stim_period_end = time_filter_post
+                stim_period_start[pop] = time_filter_pre
+                stim_period_end[pop] = time_filter_post
 
             _filtered_spike_times = np.logical_and(
                 _spike_times >= time_filter_pre,
@@ -435,10 +436,32 @@ def spike_analysis(results_file, fig_folder,
         is_close = proportion >= .95
         _c = Fore.GREEN if is_close else Fore.RED
 
-        print("{:27} -> {}{:4.8f}{} uS".format(
+        print("{:27} -> {}{:4.6f}{} uS".format(
             key, _c, mean, Style.RESET_ALL),
-            "c.f. {: 4.8f} uS ({:>7.2%})".format(
+            "c.f. {: 4.6f} uS ({:>7.2%})".format(
                 conn_params[key]["weight"], proportion))
+    # Report delay values
+    print("=" * 80)
+    print("Average Delay per projection")
+    print("-" * 80)
+    for key in final_connectivity:
+        conn = conn_dict[key]
+        mean = np.mean(conn[:, 3])
+        # replace with percentage of difference
+        original_conn = np.abs(conn_params[key]["delay"])
+        if mean < original_conn:
+            proportion = mean / original_conn
+        else:
+            proportion = original_conn / mean
+        # assert (0 <= proportion <= 1), proportion
+        is_close = proportion >= .95
+        _c = Fore.GREEN if is_close else Fore.RED
+
+        print("{:27} -> {}{:4.2f}{} ms".format(
+            key, _c, mean, Style.RESET_ALL),
+            "c.f. {: 4.2f} ms ({:>7.2%})".format(
+                conn_params[key]["delay"], proportion))
+
 
     # Check voltage information
 
@@ -575,8 +598,8 @@ def spike_analysis(results_file, fig_folder,
         'wanted_times': wanted_times,
         'time_to_bin_conversion': time_to_bin_conversion,
         'fig_folder': sim_fig_folder,
-        'highlight_stim':highlight_stim,
-        'common_highlight_values':common_highlight_values,
+        'highlight_stim': highlight_stim,
+        'common_highlight_values': common_highlight_values,
     }
 
     p1 = Process(target=plot_analog_signal,
@@ -609,7 +632,7 @@ def spike_analysis(results_file, fig_folder,
         _times = all_spikes[pop][:, 1]
         _ids = all_spikes[pop][:, 0]
         if highlight_stim:
-            highlight_area(curr_ax, **common_highlight_values)
+            highlight_area(curr_ax, pop, **common_highlight_values)
 
         curr_ax.scatter(_times,
                         _ids,
@@ -631,21 +654,21 @@ def spike_analysis(results_file, fig_folder,
     for index, pop in enumerate(np.repeat(plot_order, 2)):
         curr_ax = axes[index]
         if highlight_stim:
-            highlight_area(curr_ax, **common_highlight_values)
+            highlight_area(curr_ax, pop, **common_highlight_values)
         if index % 2 == 0:
             # spike raster
             _times = all_spikes[pop][:, 1]
             _ids = all_spikes[pop][:, 0]
             curr_ax.scatter(_times,
                             _ids,
-                            color=viridis_cmap(int(index/2) / (n_plots + 1)),
+                            color=viridis_cmap(int(index / 2) / (n_plots + 1)),
                             s=.5, rasterized=True)
             curr_ax.set_title(pop)
             curr_ax.set_ylabel("NID")
         else:
             curr_ax.bar(np.arange(spikes_per_timestep[pop].size) * timestep / ms,
-                     spikes_per_timestep[pop],
-                     color=viridis_cmap(int(index/2) / (n_plots + 1)))
+                        spikes_per_timestep[pop],
+                        color=viridis_cmap(int(index / 2) / (n_plots + 1)))
             curr_ax.set_ylabel("Count")
 
     plt.xlabel("Time (ms)")
@@ -668,7 +691,7 @@ def spike_analysis(results_file, fig_folder,
         _ids = all_spikes[pop][:, 0]
 
         if highlight_stim:
-            highlight_area(ax_0, **common_highlight_values)
+            highlight_area(ax_0, pop, **common_highlight_values)
         ax_0.scatter(_times,
                      _ids,
                      color=viridis_cmap(index / (n_plots + 1)),
@@ -677,7 +700,7 @@ def spike_analysis(results_file, fig_folder,
 
         # PSTH
         if highlight_stim:
-            highlight_area(ax_1, **common_highlight_values)
+            highlight_area(ax_1, pop, **common_highlight_values)
         ax_1.bar(np.arange(spikes_per_timestep[pop].size) * timestep / ms,
                  spikes_per_timestep[pop],
                  color=viridis_cmap(index / (n_plots + 1)))
@@ -706,7 +729,7 @@ def spike_analysis(results_file, fig_folder,
         try:
             # spike raster
             if highlight_stim:
-                highlight_area(ax_0, **common_highlight_values)
+                highlight_area(ax_0, pop, **common_highlight_values)
             ax_0.scatter(all_spikes[pop][:, 1],
                          all_spikes[pop][:, 0],
                          color=viridis_cmap(index / (n_plots + 1)),
@@ -714,7 +737,7 @@ def spike_analysis(results_file, fig_folder,
             ax_0.set_ylabel("NID")
             # PSTH
             if highlight_stim:
-                highlight_area(ax_1, **common_highlight_values)
+                highlight_area(ax_1, pop, **common_highlight_values)
             ax_1.bar(np.arange(spikes_per_timestep[pop].size) * timestep / ms,
                      spikes_per_timestep[pop],
                      color=viridis_cmap(index / (n_plots + 1)))
@@ -742,7 +765,7 @@ def spike_analysis(results_file, fig_folder,
                            figsize=(14, 20), sharex=True, dpi=400)
     for index, pop in enumerate(plot_order):
         if highlight_stim:
-            highlight_area(axes[index], **common_highlight_values)
+            highlight_area(axes[index], pop, **common_highlight_values)
         axes[index].bar(np.arange(spikes_per_timestep[pop].size),
                         spikes_per_timestep[pop],
                         color=viridis_cmap(index / (n_plots + 1)),
