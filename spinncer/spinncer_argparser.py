@@ -29,6 +29,8 @@ STIMULATED_GLOMERULUS_RADIUS = 140  # micrometers
 
 DEFAULT_PERCENTAGE_ACTIVE_FIBERS = .8
 
+DEFAULT_TIMESCALE = None
+
 DEFAULT_RB_LEFT_SHIFTS = None
 
 parser = argparse.ArgumentParser(
@@ -131,5 +133,9 @@ parser.add_argument('--rb_left_shifts', type=float, nargs="+",
                     help="left shifts for ring buffer values "
                          "-- default {}ms".format(DEFAULT_RB_LEFT_SHIFTS),
                     default=DEFAULT_RB_LEFT_SHIFTS)
+
+parser.add_argument('--timescale', type=int,
+                    help='set the slowdown factor of the simulation',
+                    default=DEFAULT_TIMESCALE)
 
 args = parser.parse_args()

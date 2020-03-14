@@ -91,8 +91,8 @@ def plot_analog_signal(data, variable_name, ylabel, plot_order,
             plt.ylabel(ylabel)
             plt.savefig(os.path.join(fig_folder,
                                      "{}_{}.png".format(pop, variable_name)))
-            plt.savefig(os.path.join(fig_folder,
-                                     "{}_{}.pdf".format(pop, variable_name)))
+            # plt.savefig(os.path.join(fig_folder,
+            #                          "{}_{}.pdf".format(pop, variable_name)))
             plt.close(f)
             # print("SUCCESS")
         except:
@@ -274,6 +274,9 @@ def spike_analysis(results_file, fig_folder,
                 time_filter_pre = time_filter[period]
                 time_filter_post = time_filter[period + 1] + DELAY_IN_EXCITATION[pop]
             elif delay_sensitive and period == 1:
+                time_filter_pre = time_filter[period] + DELAY_IN_EXCITATION[pop]
+                time_filter_post = time_filter[period + 1] + DELAY_IN_EXCITATION[pop]
+            elif delay_sensitive and period == 2:
                 time_filter_pre = time_filter[period] + DELAY_IN_EXCITATION[pop]
                 time_filter_post = time_filter[period + 1]
             else:
@@ -724,7 +727,8 @@ def spike_analysis(results_file, fig_folder,
         else:
             curr_ax.bar(np.arange(spikes_per_timestep[pop].size) * timestep / ms,
                         spikes_per_timestep[pop],
-                        color=viridis_cmap(int(index / 2) / (n_plots + 1)))
+                        color=viridis_cmap(int(index / 2) / (n_plots + 1)),
+                        rasterized=True)
             curr_ax.set_ylabel("Count")
 
     plt.xlabel("Time (ms)")
@@ -732,7 +736,7 @@ def spike_analysis(results_file, fig_folder,
     plt.savefig(os.path.join(sim_fig_folder,
                              "raster_and_psth_plots.png"))
     plt.savefig(os.path.join(sim_fig_folder,
-                             "raster_and_psth_plots.png"))
+                             "raster_and_psth_plots.pdf"))
     plt.close(f)
 
     # raster + PSTH for each population
@@ -796,7 +800,8 @@ def spike_analysis(results_file, fig_folder,
                 highlight_area(ax_1, pop, **common_highlight_values)
             ax_1.bar(np.arange(spikes_per_timestep[pop].size) * timestep / ms,
                      spikes_per_timestep[pop],
-                     color=viridis_cmap(index / (n_plots + 1)))
+                     color=viridis_cmap(index / (n_plots + 1)),
+                     rasterized=True)
             ax_1.set_ylabel("Count")
 
             # voltage
@@ -809,8 +814,6 @@ def spike_analysis(results_file, fig_folder,
             plt.xlabel("Time (ms)")
             plt.savefig(os.path.join(sim_fig_folder,
                                      "{}_raster_psth_and_voltage.png".format(pop)))
-            plt.savefig(os.path.join(sim_fig_folder,
-                                     "{}_raster_psth_and_voltage.pdf".format(pop)))
             plt.close(f)
             print("SUCCESS")
         except:
@@ -830,8 +833,8 @@ def spike_analysis(results_file, fig_folder,
     plt.xticks(wanted_times * time_to_bin_conversion, wanted_times)
     plt.savefig(os.path.join(sim_fig_folder,
                              "timestep_psth.png"))
-    plt.savefig(os.path.join(sim_fig_folder,
-                             "timestep_psth.pdf"))
+    # plt.savefig(os.path.join(sim_fig_folder,
+    #                          "timestep_psth.pdf"))
     plt.close(f)
 
     # plot 3 ms PSTH
