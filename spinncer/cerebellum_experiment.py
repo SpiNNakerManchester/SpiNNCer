@@ -203,7 +203,7 @@ sim.end()
 
 # Analysis time!
 spike_analysis(results_file=results_file, fig_folder=args.figures_dir,
-               worst_case=False, delay_sensitive=False)
+               worst_case=False, delay_sensitive=True)
 
 # Report time taken
 print("Results stored in  -- " + filename)
