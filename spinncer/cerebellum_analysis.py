@@ -661,25 +661,35 @@ def spike_analysis(results_file, fig_folder,
         'common_highlight_values': common_highlight_values,
     }
 
-    p1 = Process(target=plot_analog_signal,
-                 args=(all_exc_gsyn,
-                       "gsyn_exc",
-                       "Exc synaptic conductance ($\mu S$)",),
-                 kwargs=common_values_for_plots)
-    p2 = Process(target=plot_analog_signal,
-                 args=(all_inh_gsyn,
-                       "gsyn_inh",
-                       "Inh synaptic conductance ($\mu S$)",),
-                 kwargs=common_values_for_plots)
-    p3 = Process(target=plot_analog_signal,
-                 args=(all_voltages,
-                       "v",
-                       "Membrane potential (mV)",),
-                 kwargs=common_values_for_plots)
+    plot_analog_signal(all_exc_gsyn, variable_name="gsyn_exc",
+                       ylabel="Exc synaptic conductance ($\mu S$)",
+                       **common_values_for_plots)
+    plot_analog_signal(all_inh_gsyn, variable_name="gsyn_inh",
+                       ylabel="Inh synaptic conductance ($\mu S$)",
+                       **common_values_for_plots)
+    plot_analog_signal(all_voltages, variable_name="v",
+                       ylabel="Membrane potential (mV)",
+                       **common_values_for_plots)
 
-    p1.start()
-    p2.start()
-    p3.start()
+    # p1 = Process(target=plot_analog_signal,
+    #              args=(all_exc_gsyn,
+    #                    "gsyn_exc",
+    #                    "Exc synaptic conductance ($\mu S$)",),
+    #              kwargs=common_values_for_plots)
+    # p2 = Process(target=plot_analog_signal,
+    #              args=(all_inh_gsyn,
+    #                    "gsyn_inh",
+    #                    "Inh synaptic conductance ($\mu S$)",),
+    #              kwargs=common_values_for_plots)
+    # p3 = Process(target=plot_analog_signal,
+    #              args=(all_voltages,
+    #                    "v",
+    #                    "Membrane potential (mV)",),
+    #              kwargs=common_values_for_plots)
+    #
+    # p1.start()
+    # p2.start()
+    # p3.start()
 
     # raster plot including ALL populations
     print("Plotting spiking raster plot for all populations")
@@ -881,9 +891,9 @@ def spike_analysis(results_file, fig_folder,
 
     # TODO plot centred connectivity
 
-    p1.join()
-    p2.join()
-    p3.join()
+    # p1.join()
+    # p2.join()
+    # p3.join()
     print("=" * 80)
 
 
