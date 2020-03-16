@@ -238,6 +238,7 @@ def spike_analysis(results_file, fig_folder,
 
     stim_period_start = {}
     stim_period_end = {}
+    per_pop_stim_durations = {k: [] for k in plot_order}
     for pop in plot_order:
         spikes = all_spikes[pop]
 
@@ -286,13 +287,14 @@ def spike_analysis(results_file, fig_folder,
             if period == 1:
                 stim_period_start[pop] = time_filter_pre
                 stim_period_end[pop] = time_filter_post
-
+            per_pop_stim_durations[pop].append(time_filter_post-time_filter_pre)
+            current_period_duration = per_pop_stim_durations[pop][period]
             _filtered_spike_times = np.logical_and(
                 _spike_times >= time_filter_pre,
                 _spike_times < time_filter_post)
             _filtered_spike_rates[period] = \
                 np.count_nonzero(_filtered_spike_times) / \
-                (stim_durations[period] * ms)
+                (current_period_duration * ms)
             for nid in range(all_neurons[pop]):
                 _spikes_for_nid = spikes[spikes[:, 0] == nid][:, 1]
                 _no_spike_for_nid = np.count_nonzero(np.logical_and(
@@ -300,7 +302,7 @@ def spike_analysis(results_file, fig_folder,
                     _spikes_for_nid < time_filter_post))
                 per_neuron_spike_count[pop][nid, period] = _no_spike_for_nid
                 per_neuron_firing[pop][nid, period] = \
-                    _no_spike_for_nid / (stim_durations[period] * ms)
+                    _no_spike_for_nid / (current_period_duration * ms)
         # save the firing rate for the average neuron in this population
         average_firing_rates[pop] = _filtered_spike_rates / all_neurons[pop]
     # Report average firing rates before, during and after stimulation
