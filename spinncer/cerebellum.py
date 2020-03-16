@@ -387,6 +387,7 @@ class Cerebellum(Circuit):
             pre_pop = self.conn_params[conn_label]['pre']
             post_pop = self.conn_params[conn_label]['post']
             weight = self.conn_params[conn_label]['weight']
+            delay = self.conn_params[conn_label]['delay']
 
             if post_pop in ["glomerulus", "mossy_fibers"]:
                 print("Ignoring connection {:25} "
@@ -395,11 +396,20 @@ class Cerebellum(Circuit):
 
             # Adding the projection to the network
             receptor_type = "inhibitory" if weight < 0 else "excitatory"
+            # self.projections[conn_label] = self.sim.Projection(
+            #     self.populations[pre_pop],  # pre-synaptic population
+            #     self.populations[post_pop],  # post-synaptic population
+            #     # connector includes (source, target, weight, delay)
+            #     self.sim.FromListConnector(self.connections[conn_label]),
+            #     receptor_type=receptor_type,  # inh or exc
+            #     label=conn_label)  # label for connection
+
             self.projections[conn_label] = self.sim.Projection(
                 self.populations[pre_pop],  # pre-synaptic population
                 self.populations[post_pop],  # post-synaptic population
                 # connector includes (source, target, weight, delay)
-                self.sim.FromListConnector(self.connections[conn_label]),
+                self.sim.FromListConnector(self.connections[conn_label][:, 0:2]),
+                synapse_type=self.sim.StaticSynapse(weight=weight, delay=delay),
                 receptor_type=receptor_type,  # inh or exc
                 label=conn_label)  # label for connection
 
