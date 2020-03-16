@@ -37,10 +37,10 @@ PHASES_ARGS = [None]
 
 concurrently_active_processes = 0
 
-f_peaks = np.arange(10, 200, 20)  # Hz
-radii = np.arange(40, 200, 20)  # um
+f_peaks = np.arange(30, 200, 20)  # Hz
+radii = np.arange(40, 200, 40)  # um
 # TODO Fix ring buffer left shift value from previous experiment
-RB_LEFT_SHIFT = [5, 5]
+RB_LEFT_SHIFT = None
 
 # Compute total number of runs
 total_runs = f_peaks.size * len(PHASES) * radii.size
@@ -70,6 +70,7 @@ params = {}
 for phase in PHASES:
     for f_peak in f_peaks:
         for stim_radius in radii:
+            curr_params = (stim_radius, f_peak, phase)
             filename = "spinn_400x400" \
                        "_f_peak_{}" \
                        "_stim_radius_{}" \
@@ -110,7 +111,7 @@ for phase in PHASES:
             if PHASES_ARGS[phase] is not None:
                 call.append(PHASES_ARGS[phase])
             print("CALL", call)
-            log_calls.append(call)
+            log_calls.append((call, filename, curr_params))
             if concurrently_active_processes % MAX_CONCURRENT_PROCESSES == 0 \
                     or concurrently_active_processes == total_runs:
                 # Blocking

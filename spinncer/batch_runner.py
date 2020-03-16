@@ -44,6 +44,7 @@ total_runs = rb_left_shifts.size * len(PHASES)
 
 parameters_of_interest = {
     'rb_left_shifts': rb_left_shifts,
+    'phase': PHASES,
 }
 
 dataset = "scaffold_full_dcn_400.0x400.0_v3.hdf5"
@@ -66,6 +67,7 @@ print("-" * 80)
 
 for phase in PHASES:
     for ls in rb_left_shifts:
+        curr_params = (ls, phase)
         filename = "spinn_400x400" \
                    "_ls_{}" \
                    "_{}" \
@@ -105,7 +107,7 @@ for phase in PHASES:
         if PHASES_ARGS[phase] is not None:
             call.append(PHASES_ARGS[phase])
         print("CALL", call)
-        log_calls.append(call)
+        log_calls.append((call, filename, curr_params))
         if (concurrently_active_processes % MAX_CONCURRENT_PROCESSES == 0
                 or concurrently_active_processes == total_runs):
             # Blocking
