@@ -33,6 +33,8 @@ def extract_per_pop_info(df, type_of_prov, pops, report=False):
         _means.append(_mean)
         _maxs.append(_max)
         _mins.append(_min)
+    if report:
+        write_line()
     pop_results['global_mean'] = np.nanmean(np.asarray(_means))
     pop_results['global_max'] = np.nanmax(np.asarray(_maxs))
     pop_results['global_min'] = np.nanmin(np.asarray(_mins))
@@ -43,6 +45,7 @@ def provenance_csv_analysis(in_folder, fig_folder):
     write_header("Reading provenances in folder " + in_folder)
     prov = pd.read_csv(join(in_folder, "structured_provenance.csv"))
     pops = prov['pop'].unique()
+    pops.sort()
     types_of_provenance = prov['prov_name'].unique()
     prov_of_interest = [
         'MAX_SPIKES_IN_A_TICK',
@@ -64,7 +67,7 @@ def provenance_csv_analysis(in_folder, fig_folder):
     return results, types_of_provenance, prov_of_interest
 
 
-def sweep_provenance_analysis(in_folder, fig_folder):
+def sweep_provenance_analysis(in_folder, fig_folder, group_on):
     # Check if the folders exist
     if not os.path.isdir(fig_folder) and not os.path.exists(fig_folder):
         os.mkdir(fig_folder)
@@ -75,15 +78,22 @@ def sweep_provenance_analysis(in_folder, fig_folder):
     if len(batch_infos) > 1:
         raise FileExistsError("There are multiple batch info .npz archives "
                               "in the current directory!")
-    batch_info = np.load(join(in_folder, batch_infos[0]))
-    run_id = "@" + batch_infos[0].split("_")[1].split(".")[0]
-    if batch_info:
-        write_header("Batch info contained in " + batch_infos[0])
-        write_short_msg("FILES", batch_info.files)
-        poi = batch_info['parameters_of_interest'].ravel()[0]
-        calls = batch_info['log_calls']
-        write_short_msg("PARAMETERS", poi)
-    run_folders = [fc for fc in folder_contents if run_id in fc]
+    if len(batch_infos) == 1:
+        batch_info = np.load(join(in_folder, batch_infos[0]))
+        run_id = "@" + batch_infos[0].split("_")[1].split(".")[0]
+        if batch_info:
+            write_header("Batch info contained in " + batch_infos[0])
+            write_short_msg("FILES", batch_info.files)
+            poi = batch_info['parameters_of_interest'].ravel()[0]
+            calls = batch_info['log_calls']
+            write_short_msg("PARAMETERS", poi)
+        run_folders = [fc for fc in folder_contents if run_id in fc]
+
+    if len(batch_infos) == 0:
+        print("No batch info detected. Going to assume that "
+              "all folders in the current directory are "
+              "related to the run.")
+    run_folders = [fc for fc in folder_contents if os.path.isdir(join(in_folder, fc))]
     collated_results = {k: None for k in run_folders}
     types_of_provenance = None
     prov_of_interest = None
@@ -94,7 +104,20 @@ def sweep_provenance_analysis(in_folder, fig_folder):
         prov_of_interest = provenance_csv_analysis(
             join(in_folder, folder), fig_folder)
 
-    write_header("REPORTING BEST SIMULATIONS")
+    if group_on is None:
+        write_header("REPORTING BEST SIMULATIONS")
+        cumulative_report(collated_results, types_of_provenance,
+                          prov_of_interest)
+    else:
+        for condition in group_on:
+            write_header("GROUPING ON CONDITION {}".format(condition))
+            new_collated_results = {key: value for (key, value) in
+                                    collated_results.items() if condition in key}
+            cumulative_report(new_collated_results, types_of_provenance,
+                              prov_of_interest)
+
+
+def cumulative_report(collated_results, types_of_provenance, prov_of_interest):
     sorted_key_list = list(collated_results.keys())
     sorted_key_list.sort()
     for type_of_prov in types_of_provenance:
@@ -106,6 +129,7 @@ def sweep_provenance_analysis(in_folder, fig_folder):
         _maxs = []
         _mins = []
         _keys = []
+        _max_values_per_pop = None
 
         print("{:40} for all cases".format(type_of_prov))
         for k in sorted_key_list:
@@ -118,12 +142,24 @@ def sweep_provenance_analysis(in_folder, fig_folder):
             print("{:40} | min {:10.2f} | mean {:10.2f} | max {:10.2f}".format(
                 k.split("@")[0], filtered_v['global_min'], filtered_v['global_mean'], filtered_v['global_max']
             ))
+            if _max_values_per_pop is None:
+                _max_values_per_pop = {x: [] for x in filtered_v.keys() if "cell" in x}
+            for vp in _max_values_per_pop.keys():
+                _max_values_per_pop[vp].append(filtered_v[vp]['max'])
+        # Report cumulative stats per population
+        write_line()
+        print("{:40} for all populations".format(type_of_prov))
+        reporting_keys = list(_max_values_per_pop.keys())
+        reporting_keys.sort()
+        for rk in reporting_keys:
+            vals = _max_values_per_pop[rk]
+            print("{:40} | mean {:10.2f} | max {:10.2f} | std {:10.2f}".format(
+                rk, np.nanmean(vals), np.nanmax(vals), np.nanstd(vals)
+            ))
 
 
-
-
-
-
+def plot_population_placement():
+    pass
 
 
 if __name__ == "__main__":
@@ -131,7 +167,8 @@ if __name__ == "__main__":
 
     if analysis_args.input and len(analysis_args.input) > 0:
         for in_folder in analysis_args.input:
-            sweep_provenance_analysis(in_folder, analysis_args.figures_dir)
+            sweep_provenance_analysis(in_folder, analysis_args.figures_dir,
+                                      group_on=analysis_args.group_on)
     else:
         # Constants
         fig_folder = "figures"

@@ -33,4 +33,11 @@ analysis_parser.add_argument('--highlight_stim', action="store_true",
                              help='if this flag is set plots will highlight'
                                   'the stimulus time by using a different '
                                   'background colour.')
+
+analysis_parser.add_argument('--group_on', type=str, nargs="+",
+                             help="For certain kinds of analysis (e.g. "
+                                  "provenance) group results based on string "
+                                  "pattern matching",
+                             default=None)
+
 analysis_args = analysis_parser.parse_args()
