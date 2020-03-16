@@ -2,15 +2,17 @@ from setuptools import setup, find_packages
 
 
 install_requires = [
-    "numpy",
-    "scipy",
+    "numpy==1.15.4",
+    "scipy==1.3.0",
     "brian2",
+    "neo==0.7.1",
     "pynn",
     "h5py",
     "matplotlib",
     "argparse",
     "elephant==0.6.2",
-    "colorama"
+    "colorama",
+    "pandas==0.23.4",
 ]
 
 setup(
