@@ -13,6 +13,7 @@ import hashlib
 import pylab as plt
 from spinncer.batch_argparser import *
 import shutil
+from collections import namedtuple
 
 currrent_time = plt.datetime.datetime.now()
 string_time = currrent_time.strftime("%H%M%S_%d%m%Y")
@@ -36,9 +37,11 @@ PHASES_NAMES = ["poisson"]
 PHASES_ARGS = [None]
 
 concurrently_active_processes = 0
+Result = namedtuple('Result', 'call filename parameters')
 
 f_peaks = np.arange(30, 200, 20)  # Hz
-radii = np.arange(40, 200, 40)  # um
+# radii = np.arange(40, 200, 40)  # um
+radii = np.asarray([140])  # um
 # TODO Fix ring buffer left shift value from previous experiment
 RB_LEFT_SHIFT = None
 
@@ -47,7 +50,8 @@ total_runs = f_peaks.size * len(PHASES) * radii.size
 
 parameters_of_interest = {
     'f_peak': f_peaks,
-    'stim_radius': radii
+    'stim_radius': radii,
+    'phase': PHASES,
 }
 
 dataset = "scaffold_full_dcn_400.0x400.0_v3.hdf5"
@@ -55,7 +59,7 @@ dataset = "scaffold_full_dcn_400.0x400.0_v3.hdf5"
 log_calls = []
 
 # making a directory for this experiment
-dir_name = "activity_sweep_ls_5_5_@{}".format(suffix)
+dir_name = "activity_sweep_@{}".format(suffix)
 print("=" * 80)
 print("TOTAL RUNS", total_runs)
 print("MKDIR", dir_name)
@@ -70,7 +74,9 @@ params = {}
 for phase in PHASES:
     for f_peak in f_peaks:
         for stim_radius in radii:
-            curr_params = (stim_radius, f_peak, phase)
+            curr_params = {'stim_radius': stim_radius,
+                           'f_peak': f_peak,
+                           'phase': phase}
             filename = "spinn_400x400" \
                        "_f_peak_{}" \
                        "_stim_radius_{}" \
@@ -111,7 +117,7 @@ for phase in PHASES:
             if PHASES_ARGS[phase] is not None:
                 call.append(PHASES_ARGS[phase])
             print("CALL", call)
-            log_calls.append((call, filename, curr_params))
+            log_calls.append(Result(call, filename, curr_params))
             if concurrently_active_processes % MAX_CONCURRENT_PROCESSES == 0 \
                     or concurrently_active_processes == total_runs:
                 # Blocking
