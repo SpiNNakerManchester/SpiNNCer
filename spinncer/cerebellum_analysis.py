@@ -747,8 +747,8 @@ def spike_analysis(results_file, fig_folder,
     f.tight_layout()
     plt.savefig(os.path.join(sim_fig_folder,
                              "raster_and_psth_plots.png"))
-    plt.savefig(os.path.join(sim_fig_folder,
-                             "raster_and_psth_plots.pdf"))
+    # plt.savefig(os.path.join(sim_fig_folder,
+    #                          "raster_and_psth_plots.pdf"))
     plt.close(f)
 
     # raster + PSTH for each population
@@ -780,8 +780,8 @@ def spike_analysis(results_file, fig_folder,
         plt.xlabel("Time (ms)")
         plt.savefig(os.path.join(sim_fig_folder,
                                  "{}_raster_and_psth.png".format(pop)))
-        plt.savefig(os.path.join(sim_fig_folder,
-                                 "{}_raster_and_psth.pdf".format(pop)))
+        # plt.savefig(os.path.join(sim_fig_folder,
+        #                          "{}_raster_and_psth.pdf".format(pop)))
         plt.close(f)
         print("SUCCESS")
 
