@@ -21,6 +21,7 @@ from spinncer.utilities.constants import CONNECTIVITY_MAP, CELL_PARAMS
 from spinncer.utilities.neo_converter import convert_spikes
 from colorama import Fore, Style, init as color_init
 from multiprocessing import Process, Pool
+from spinncer.analysis_common import *
 
 mlib.use('Agg')
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -134,12 +135,6 @@ def spike_analysis(results_file, fig_folder,
         os.mkdir(sim_fig_folder)
     # Set up colours
     color_init(strip=False)
-    # plot order
-    preferred_order = ['mossy_fibers',
-                       'glomerulus',
-                       'granule', 'golgi',
-                       'stellate', 'basket',
-                       'purkinje', 'dcn']
 
     # Plotting results for ...
     print("=" * 80)
@@ -168,19 +163,7 @@ def spike_analysis(results_file, fig_folder,
     conn_params = data['conn_params'].ravel()[0] if 'conn_params' in data.files else CONNECTIVITY_MAP
     cell_params = data['cell_params'].ravel()[0] if 'cell_params' in data.files else CELL_PARAMS
     # Compute plot order
-    plot_order = []
-    # only focus on keys for pops that have spikes
-    key_duplicate = list(all_spikes.keys())
-    key_duplicate.sort()
-    for pref in preferred_order:
-        for i, key in enumerate(key_duplicate):
-            if pref in key:
-                plot_order.append(key)
-                key_duplicate.pop(i)
-
-    # add remaining keys to the end of plot order
-    plot_order += key_duplicate
-
+    plot_order = get_plot_order(all_spikes.keys())
     n_plots = float(len(plot_order))
 
     # Check if using neo blocks

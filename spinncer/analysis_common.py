@@ -21,6 +21,7 @@ from spinncer.utilities.constants import CONNECTIVITY_MAP, CELL_PARAMS
 from spinncer.utilities.neo_converter import convert_spikes
 from colorama import Fore, Style, init as color_init
 import pandas as pd
+import string
 
 mlib.use('Agg')
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -33,6 +34,16 @@ mlib.rcParams.update({'font.size': 24})
 mlib.rcParams.update({'errorbar.capsize': 5})
 mlib.rcParams.update({'figure.autolayout': True})
 viridis_cmap = mlib.cm.get_cmap('viridis')
+
+PREFFERED_ORDER = ['mossy_fibers',
+                   'glomerulus',
+                   'granule', 'golgi',
+                   'stellate', 'basket',
+                   'purkinje', 'dcn']
+
+
+def color_for_index(index, size, cmap=viridis_cmap):
+    return cmap(index / (size + 1))
 
 
 def write_sep():
@@ -55,3 +66,20 @@ def write_short_msg(msg, value):
 
 def write_value(msg, value):
     print("{:60}:{:19}".format(msg, str(value)))
+
+
+def get_plot_order(for_keys):
+    # Compute plot order
+    plot_order = []
+    # only focus on keys for pops that have spikes
+    key_duplicate = list(for_keys)
+    key_duplicate.sort()
+    for pref in PREFFERED_ORDER:
+        for i, key in enumerate(key_duplicate):
+            if pref in key:
+                plot_order.append(key)
+                key_duplicate.pop(i)
+
+    # add remaining keys to the end of plot order
+    plot_order += key_duplicate
+    return plot_order

@@ -71,6 +71,10 @@ def sweep_provenance_analysis(in_folder, fig_folder, group_on):
     # Check if the folders exist
     if not os.path.isdir(fig_folder) and not os.path.exists(fig_folder):
         os.mkdir(fig_folder)
+    current_fig_folder = join(fig_folder, in_folder)
+    # Make folder for current figures
+    if not os.path.isdir(current_fig_folder) and not os.path.exists(current_fig_folder):
+        os.mkdir(current_fig_folder)
 
     write_header("Analysing provenances in folder " + in_folder)
     folder_contents = os.listdir(in_folder)
@@ -93,7 +97,8 @@ def sweep_provenance_analysis(in_folder, fig_folder, group_on):
         print("No batch info detected. Going to assume that "
               "all folders in the current directory are "
               "related to the run.")
-    run_folders = [fc for fc in folder_contents if os.path.isdir(join(in_folder, fc))]
+        calls, poi = None
+        run_folders = [fc for fc in folder_contents if os.path.isdir(join(in_folder, fc))]
     collated_results = {k: None for k in run_folders}
     types_of_provenance = None
     prov_of_interest = None
@@ -115,6 +120,10 @@ def sweep_provenance_analysis(in_folder, fig_folder, group_on):
                                     collated_results.items() if condition in key}
             cumulative_report(new_collated_results, types_of_provenance,
                               prov_of_interest)
+
+    plot_per_population_max_spikes_per_tick(collated_results, calls, poi,
+                                            prov_of_interest,
+                                            group_on, current_fig_folder)
 
 
 def cumulative_report(collated_results, types_of_provenance, prov_of_interest):
@@ -158,8 +167,76 @@ def cumulative_report(collated_results, types_of_provenance, prov_of_interest):
             ))
 
 
-def plot_population_placement():
+def plot_population_placement(collated_results):
     pass
+
+
+def plot_per_population_max_spikes_per_tick(collated_results, calls, poi, prov,
+                                            group_on, fig_folder):
+    write_header("PLOTTING PER POPULATION VALUES FOR PROVENANCE")
+    sorted_key_list = list(collated_results.keys())
+    sorted_key_list.sort()
+    display_names = {
+        'f_peak': "$f_{peak}$ (Hz)"
+    }
+    f = plt.figure(1, figsize=(9, 9), dpi=400)
+    plt.close(f)
+    # Look at parameters in calls
+    # Check if group_on is a parameter in poi and calls
+    # Grab all of the uniques from
+    for curr_g in group_on:
+        # if curr_g is in POI then we can proceed with plotting things like this
+        if curr_g in poi.keys():
+            curr_poi = poi[curr_g]
+            print("Current parameter of interest is ", curr_g,
+                  "with values", curr_poi)
+            # sort, just in case
+            curr_poi.sort()
+            for type_of_prov in prov:
+                # Now we need to start collecting values
+                # match curr_poi value with collated_results.keys() via calls
+                curr_mapping = {}
+                for curr_poi_val in curr_poi:
+                    for call in calls:
+                        if call[2][curr_g] == curr_poi_val:
+                            # store filename associated with current value
+                            match_fname = call[1]
+                            filtered_collated_results = \
+                                collated_results[match_fname][type_of_prov]
+                            _max_values_per_pop = None
+                            if _max_values_per_pop is None:
+                                _max_values_per_pop = {x: None for x in filtered_collated_results.keys() if "cell" in x}
+                            for vp in _max_values_per_pop.keys():
+                                _max_values_per_pop[vp] = filtered_collated_results[vp]['max']
+                            curr_mapping[curr_poi_val] = _max_values_per_pop
+                            break
+                # Plotting bit
+                plot_order = get_plot_order(_max_values_per_pop.keys())
+                n_plots = float(len(plot_order))
+
+                f = plt.figure(1, figsize=(9, 9), dpi=400)
+                for index, pop in enumerate(plot_order):
+                    vals = []
+                    for k in curr_poi:
+                        vals.append(curr_mapping[k][pop])
+                    # vals = np.sort(np.asarray(vals).view('i8,i8'), order=['f1'], axis=0).view(np.int)
+                    plt.plot(curr_poi, vals,
+                             color=color_for_index(index, n_plots),
+                             marker='o',
+                             label=pop)
+
+                plt.xlabel(display_names[curr_g]
+                           if curr_g in display_names.keys()
+                           else curr_g)
+                plt.ylabel(string.capwords(
+                    " ".join(
+                        str.split(type_of_prov, "_")
+                    )))
+                plt.legend(loc='best')
+                plt.tight_layout()
+                plt.savefig(os.path.join(fig_folder,
+                                         "{}.png".format(type_of_prov)))
+                plt.close(f)
 
 
 if __name__ == "__main__":
