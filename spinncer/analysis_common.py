@@ -22,6 +22,7 @@ from spinncer.utilities.neo_converter import convert_spikes
 from colorama import Fore, Style, init as color_init
 import pandas as pd
 import string
+from matplotlib.ticker import MultipleLocator
 
 mlib.use('Agg')
 warnings.filterwarnings("ignore", category=UserWarning)
@@ -114,5 +115,3 @@ def use_display_name(name):
 def save_figure(plt, name, extensions=(".png", ),**kwargs):
     for ext in extensions:
         plt.savefig(name + ext, **kwargs)
-
-

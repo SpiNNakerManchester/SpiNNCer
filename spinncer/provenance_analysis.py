@@ -2,6 +2,15 @@ from spinncer.analysis_common import *
 from os.path import join as join
 
 
+def extract_per_pop_placements(df, pops):
+    placement_results = {}
+    for pop in pops:
+        pop_df = df[df['pop'] == pop]
+        placement_df = pop_df[["x", "y", "p", "no_atoms"]].drop_duplicates()
+        placement_results[pop] = placement_df
+    return placement_results
+
+
 def extract_per_pop_info(df, type_of_prov, pops, report=False):
     pop_results = {k: None for k in pops}
     pop_results['global_mean'] = np.nan
@@ -17,7 +26,8 @@ def extract_per_pop_info(df, type_of_prov, pops, report=False):
     _maxs = []
     _mins = []
     for pop in pops:
-        curr_pop_values = filtered_prov[filtered_prov['pop'] == pop].prov_value
+        pop_df = filtered_prov[filtered_prov['pop'] == pop]
+        curr_pop_values = pop_df.prov_value
         _mean = curr_pop_values.mean()
         _max = curr_pop_values.max()
         _min = curr_pop_values.min()
@@ -29,6 +39,7 @@ def extract_per_pop_info(df, type_of_prov, pops, report=False):
             'mean': _mean,
             'max': _max,
             'min': _min,
+            'all': curr_pop_values
         }
         _means.append(_mean)
         _maxs.append(_max)
@@ -56,6 +67,7 @@ def provenance_csv_analysis(in_folder, fig_folder):
     ]
 
     results = {k: None for k in types_of_provenance}
+    placements = {}
     # TODO report number of neurons to make sure the networks is correct
     write_short_msg("DETECTED POPULATIONS", pops)
 
@@ -63,8 +75,8 @@ def provenance_csv_analysis(in_folder, fig_folder):
         rep = True if type_of_prov in prov_of_interest else False
         results[type_of_prov] = extract_per_pop_info(prov, type_of_prov, pops,
                                                      report=rep)
-
-    return results, types_of_provenance, prov_of_interest
+    placements = extract_per_pop_placements(prov, pops)
+    return results, types_of_provenance, prov_of_interest, placements
 
 
 def sweep_provenance_analysis(in_folder, fig_folder, group_on):
@@ -102,11 +114,12 @@ def sweep_provenance_analysis(in_folder, fig_folder, group_on):
     collated_results = {k: None for k in run_folders}
     types_of_provenance = None
     prov_of_interest = None
+    placements = {}
     write_short_msg("Number of folders", len(run_folders))
     write_sep()
     for folder in run_folders:
         collated_results[folder], types_of_provenance, \
-        prov_of_interest = provenance_csv_analysis(
+        prov_of_interest, placements[folder] = provenance_csv_analysis(
             join(in_folder, folder), fig_folder)
 
     if group_on is None:
@@ -120,6 +133,9 @@ def sweep_provenance_analysis(in_folder, fig_folder, group_on):
                                     collated_results.items() if condition in key}
             cumulative_report(new_collated_results, types_of_provenance,
                               prov_of_interest)
+
+    plot_population_placement(collated_results, placements,
+                              fig_folder=current_fig_folder)
 
     plot_per_population_max_spikes_per_tick(collated_results, calls, poi,
                                             prov_of_interest,
@@ -167,9 +183,84 @@ def cumulative_report(collated_results, types_of_provenance, prov_of_interest):
             ))
 
 
-def plot_population_placement(collated_results):
-    pass
+def plot_population_placement(collated_results, placements, fig_folder):
+    write_header("PLOTTING MAPS")
+    sorted_key_list = list(collated_results.keys())
+    sorted_key_list.sort()
+    for selected_sim in sorted_key_list:
+        filtered_placement = \
+            placements[selected_sim]
+        placements_per_pop = {x: filtered_placement[x]
+                              for x in filtered_placement.keys()
+                              if "cell" in x}
 
+        # Plotting bit
+        # Fake printing to start things off...
+        f = plt.figure(1, figsize=(9, 9), dpi=400)
+        plt.close(f)
+        # Compute plot order
+        plot_order = get_plot_order(placements_per_pop.keys())
+        plot_display_names = []
+        for po in plot_order:
+            plot_display_names.append(use_display_name(po))
+        n_plots = len(plot_order)
+
+        collated_placements = pd.concat([
+            filtered_placement[x] for x in plot_order
+        ])
+
+        max_x = collated_placements.x.max() * 5
+        max_y = collated_placements.y.max() * 5
+        x_ticks = np.arange(0, max_x, 5)[::2]
+        # x_tick_lables = np.linspace(0, collated_placements.x.max(), 6).astype(int)
+        x_tick_lables = (x_ticks / 5).astype(int)
+        y_ticks = np.arange(0, max_y, 5)[::2]
+        # y_tick_lables = np.linspace(0, collated_placements.y.max(), 6).astype(int)
+        y_tick_lables = (y_ticks / 5).astype(int)
+        map = np.ones((max_x, max_y)) * np.nan
+        for index, pop in enumerate(plot_order):
+            curr_pl = placements_per_pop[pop]
+            for row_index, row in curr_pl.iterrows():
+                map[
+                    int(4 * row.x + (row.p // 4)),
+                    int(4 * row.y + (row.p % 4))
+                ] = index
+
+        uniques = np.unique(map[np.isfinite(map)]).astype(int)
+        # norm = mlib.colors.BoundaryNorm(uniques, n_plots)
+        # fmt = mlib.ticker.FuncFormatter(lambda x, pos: plot_order[::-1][norm(x)])
+        # crop_point = np.max(np.max(np.argwhere(np.isfinite(map)), axis=0))
+        f = plt.figure(1, figsize=(9, 9), dpi=500)
+        # plt.matshow(map[:crop_point, :crop_point], interpolation='none')
+        im = plt.imshow(map, interpolation='none', vmin=0, vmax=n_plots,
+                        cmap=plt.get_cmap('viridis', n_plots))
+        ax = plt.gca()
+
+        plt.xticks(x_ticks, x_tick_lables)
+        plt.yticks(y_ticks, y_tick_lables)
+        ax.yaxis.set_minor_locator(MultipleLocator(5))
+        ax.xaxis.set_minor_locator(MultipleLocator(5))
+
+
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", "5%", pad="3%")
+        cbar = plt.colorbar(im, cax=cax)
+        cbar.set_label("Population")
+        cbar.ax.set_yticks(uniques)
+        cbar.ax.set_yticklabels(plot_display_names)
+
+        save_figure(plt, join(fig_folder,
+                              "map_of_placements_for_{}".format(selected_sim)),
+                    extensions=['.png', '.pdf'])
+        plt.close(f)
+
+        # Some reports
+        write_short_msg("Plotting map for", selected_sim)
+        write_short_msg("Number of cores used", collated_placements.shape[0])
+        write_short_msg("Number of chips used",
+                        collated_placements[["x", "y"]].drop_duplicates().shape[0])
+        write_short_msg("Unique pop ids", uniques)
+        write_line()
 
 def plot_per_population_max_spikes_per_tick(collated_results, calls, poi, prov,
                                             group_on, fig_folder):
