@@ -37,7 +37,7 @@ PHASES_ARGS = [None, "--periodic_stimulus"]
 
 concurrently_active_processes = 0
 
-no_runs = np.arange(4)
+no_runs = np.arange(5)
 # Compute total number of runs
 total_runs = no_runs.size * len(PHASES)
 
@@ -86,10 +86,6 @@ for phase in PHASES:
         os.chdir(filename)
         print("GETCWD", os.getcwd())
         shutil.copyfile("../../spynnaker.cfg", "spynnaker.cfg")
-
-        if not prev_run:
-            os.mknod("results.etxt")
-            os.mknod("results.otxt")
 
         concurrently_active_processes += 1
         null = open(os.devnull, 'w')

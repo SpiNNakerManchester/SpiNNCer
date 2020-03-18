@@ -95,8 +95,6 @@ for phase in PHASES:
             os.chdir(filename)
             print("GETCWD", os.getcwd())
             shutil.copyfile("../../spynnaker.cfg", "spynnaker.cfg")
-            os.mknod("results.etxt")
-            os.mknod("results.otxt")
 
             concurrently_active_processes += 1
             null = open(os.devnull, 'w')
