@@ -217,19 +217,20 @@ def plot_per_population_max_spikes_per_tick(collated_results, calls, poi, prov,
                     for k in curr_poi:
                         vals.append(curr_mapping[k][pop])
                     # vals = np.sort(np.asarray(vals).view('i8,i8'), order=['f1'], axis=0).view(np.int)
-                    plt.plot(curr_poi, vals,
-                             color=color_for_index(index, n_plots),
-                             marker='o',
-                             label=use_display_name(pop))
+                    vals = np.array(vals)
+                    if np.any(np.isfinite(vals)):
+                        plt.plot(curr_poi, vals,
+                                 color=color_for_index(index, n_plots),
+                                 marker='o',
+                                 label=use_display_name(pop),
+                                 alpha=0.8)
 
                 plt.xlabel(use_display_name(curr_g))
                 plt.ylabel(use_display_name(type_of_prov))
                 plt.legend(loc='best')
                 plt.tight_layout()
-                plt.savefig(os.path.join(fig_folder,
-                                         "{}.png".format(type_of_prov)))
-                plt.savefig(os.path.join(fig_folder,
-                                         "{}.pdf".format(type_of_prov)))
+                save_figure(plt, join(fig_folder, "{}".format(type_of_prov)),
+                            extensions=['.png', '.pdf'])
                 plt.close(f)
 
 

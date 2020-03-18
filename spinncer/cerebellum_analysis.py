@@ -23,18 +23,18 @@ from colorama import Fore, Style, init as color_init
 from multiprocessing import Process, Pool
 from spinncer.analysis_common import *
 
-mlib.use('Agg')
-warnings.filterwarnings("ignore", category=UserWarning)
-warnings.filterwarnings("ignore", category=RuntimeWarning)
-
-# ensure we use viridis as the default cmap
-plt.viridis()
-
-# ensure we use the same rc parameters for all matplotlib outputs
-mlib.rcParams.update({'font.size': 24})
-mlib.rcParams.update({'errorbar.capsize': 5})
-mlib.rcParams.update({'figure.autolayout': True})
-viridis_cmap = mlib.cm.get_cmap('viridis')
+# mlib.use('Agg')
+# warnings.filterwarnings("ignore", category=UserWarning)
+# warnings.filterwarnings("ignore", category=RuntimeWarning)
+#
+# # ensure we use viridis as the default cmap
+# plt.viridis()
+#
+# # ensure we use the same rc parameters for all matplotlib outputs
+# mlib.rcParams.update({'font.size': 24})
+# mlib.rcParams.update({'errorbar.capsize': 5})
+# mlib.rcParams.update({'figure.autolayout': True})
+# viridis_cmap = mlib.cm.get_cmap('viridis')
 
 DELAY_IN_EXCITATION = {
     'glomerulus': 0,
@@ -56,11 +56,6 @@ DELAY_IN_EXCITATION = {
 }
 
 
-# def plotfig(name, suffix, fig_folder, extensions=("png", "pdf")):
-#     for ext in extensions:
-#         plt.savefig(os.path.join(fig_folder,
-#                                  "{}_raster_and_psth.png".format(pop)))
-
 def color_for_index(index, size, cmap=viridis_cmap):
     return cmap(1 / (size - index + 1))
 
@@ -71,9 +66,7 @@ def plot_analog_signal(data, variable_name, ylabel, plot_order,
                        highlight_stim, common_highlight_values):
     print("Plotting {} traces for each population".format(variable_name))
     for index, pop in enumerate(plot_order):
-        # print("\t{:20}".format(pop), end=' ')
         if pop == "glomerulus":
-            # print("FAIL -- spike source")
             f = plt.figure(1, figsize=(9, 9), dpi=400)
             plt.close(f)
             continue
@@ -90,14 +83,12 @@ def plot_analog_signal(data, variable_name, ylabel, plot_order,
             plt.xticks(wanted_times * time_to_bin_conversion, wanted_times)
             plt.xlabel("Time (ms)")
             plt.ylabel(ylabel)
-            plt.savefig(os.path.join(fig_folder,
-                                     "{}_{}.png".format(pop, variable_name)))
-            # plt.savefig(os.path.join(fig_folder,
-            #                          "{}_{}.pdf".format(pop, variable_name)))
+
+            save_figure(plt, os.path.join(fig_folder,
+                                          "{}_{}".format(pop, variable_name)),
+                        extensions=['.png', ])
             plt.close(f)
-            # print("SUCCESS")
         except:
-            # print("FAIL -- no {} info".format(variable_name))
             pass
 
 
@@ -270,7 +261,7 @@ def spike_analysis(results_file, fig_folder,
             if period == 1:
                 stim_period_start[pop] = time_filter_pre
                 stim_period_end[pop] = time_filter_post
-            per_pop_stim_durations[pop].append(time_filter_post-time_filter_pre)
+            per_pop_stim_durations[pop].append(time_filter_post - time_filter_pre)
             current_period_duration = per_pop_stim_durations[pop][period]
             _filtered_spike_times = np.logical_and(
                 _spike_times >= time_filter_pre,
@@ -656,26 +647,6 @@ def spike_analysis(results_file, fig_folder,
                        ylabel="Membrane potential (mV)",
                        **common_values_for_plots)
 
-    # p1 = Process(target=plot_analog_signal,
-    #              args=(all_exc_gsyn,
-    #                    "gsyn_exc",
-    #                    "Exc synaptic conductance ($\mu S$)",),
-    #              kwargs=common_values_for_plots)
-    # p2 = Process(target=plot_analog_signal,
-    #              args=(all_inh_gsyn,
-    #                    "gsyn_inh",
-    #                    "Inh synaptic conductance ($\mu S$)",),
-    #              kwargs=common_values_for_plots)
-    # p3 = Process(target=plot_analog_signal,
-    #              args=(all_voltages,
-    #                    "v",
-    #                    "Membrane potential (mV)",),
-    #              kwargs=common_values_for_plots)
-    #
-    # p1.start()
-    # p2.start()
-    # p3.start()
-
     # raster plot including ALL populations
     print("Plotting spiking raster plot for all populations")
     f, axes = plt.subplots(len(all_spikes.keys()), 1,
@@ -695,10 +666,8 @@ def spike_analysis(results_file, fig_folder,
         curr_ax.set_title(pop)
     plt.xlabel("Time (ms)")
     f.tight_layout()
-    plt.savefig(os.path.join(sim_fig_folder,
-                             "raster_plots.png"))
-    plt.savefig(os.path.join(sim_fig_folder,
-                             "raster_plots.pdf"))
+    save_figure(plt, os.path.join(sim_fig_folder, "raster_plots"),
+                extensions=['.png', '.pdf'])
     plt.close(f)
 
     # raster plot + PSTH including ALL populations
@@ -728,10 +697,9 @@ def spike_analysis(results_file, fig_folder,
 
     plt.xlabel("Time (ms)")
     f.tight_layout()
-    plt.savefig(os.path.join(sim_fig_folder,
-                             "raster_and_psth_plots.png"))
-    # plt.savefig(os.path.join(sim_fig_folder,
-    #                          "raster_and_psth_plots.pdf"))
+
+    save_figure(plt, os.path.join(sim_fig_folder, "raster_and_psth_plots"),
+                extensions=['.png', ])
     plt.close(f)
 
     # raster + PSTH for each population
@@ -761,10 +729,9 @@ def spike_analysis(results_file, fig_folder,
                  color=viridis_cmap(index / (n_plots + 1)))
         ax_1.set_ylabel("Count")
         plt.xlabel("Time (ms)")
-        plt.savefig(os.path.join(sim_fig_folder,
-                                 "{}_raster_and_psth.png".format(pop)))
-        # plt.savefig(os.path.join(sim_fig_folder,
-        #                          "{}_raster_and_psth.pdf".format(pop)))
+        save_figure(plt, os.path.join(sim_fig_folder,
+                                      "{}_raster_and_psth".format(pop)),
+                    extensions=['.png', ])
         plt.close(f)
         print("SUCCESS")
 
@@ -807,8 +774,10 @@ def spike_analysis(results_file, fig_folder,
 
             ax_2.set_ylabel("Membrane potential (mV)")
             plt.xlabel("Time (ms)")
-            plt.savefig(os.path.join(sim_fig_folder,
-                                     "{}_raster_psth_and_voltage.png".format(pop)))
+
+            save_figure(plt, os.path.join(sim_fig_folder,
+                                          "{}_raster_psth_and_voltage".format(pop)),
+                        extensions=['.png', ])
             plt.close(f)
             print("SUCCESS")
         except:
@@ -826,10 +795,10 @@ def spike_analysis(results_file, fig_folder,
                         rasterized=True)
         axes[index].set_title(pop)
     plt.xticks(wanted_times * time_to_bin_conversion, wanted_times)
-    plt.savefig(os.path.join(sim_fig_folder,
-                             "timestep_psth.png"))
-    # plt.savefig(os.path.join(sim_fig_folder,
-    #                          "timestep_psth.pdf"))
+
+    save_figure(plt, os.path.join(sim_fig_folder,
+                                  "timestep_psth"),
+                extensions=['.png', ])
     plt.close(f)
 
     # plot 3 ms PSTH
@@ -843,10 +812,10 @@ def spike_analysis(results_file, fig_folder,
         axes[index].set_title(pop)
 
     plt.xticks(wanted_times * time_to_bin_conversion / bins_in_3ms, wanted_times)
-    plt.savefig(os.path.join(sim_fig_folder,
-                             "timestep_psth_3ms.png"))
-    plt.savefig(os.path.join(sim_fig_folder,
-                             "timestep_psth_3ms.pdf"))
+
+    save_figure(plt, os.path.join(sim_fig_folder,
+                                  "timestep_psth_3ms"),
+                extensions=['.png', '.pdf'])
     plt.close(f)
 
     # plot firing rate histogram per PSTH region
@@ -867,18 +836,14 @@ def spike_analysis(results_file, fig_folder,
             curr_ax.set_xticks([0, 75, 150])
 
     f.tight_layout()
-    plt.savefig(os.path.join(sim_fig_folder,
-                             "neuron_firing_rate_hist.png"))
-    plt.savefig(os.path.join(sim_fig_folder,
-                             "neuron_firing_rate_hist.pdf"))
+
+    save_figure(plt, os.path.join(sim_fig_folder,
+                                  "neuron_firing_rate_hist"),
+                extensions=['.png', '.pdf'])
     plt.close(f)
     # TODO plot weight histogram
 
     # TODO plot centred connectivity
-
-    # p1.join()
-    # p2.join()
-    # p3.join()
     print("=" * 80)
 
 

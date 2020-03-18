@@ -25,6 +25,7 @@ import string
 
 mlib.use('Agg')
 warnings.filterwarnings("ignore", category=UserWarning)
+warnings.filterwarnings("ignore", category=RuntimeWarning)
 
 # ensure we use viridis as the default cmap
 plt.viridis()
@@ -108,3 +109,10 @@ def use_display_name(name):
     return COMMON_DISPLAY_NAMES[name] \
         if name in COMMON_DISPLAY_NAMES.keys() \
         else capitalise(name)
+
+
+def save_figure(plt, name, extensions=(".png", ),**kwargs):
+    for ext in extensions:
+        plt.savefig(name + ext, **kwargs)
+
+
