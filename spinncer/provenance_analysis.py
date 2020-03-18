@@ -176,9 +176,6 @@ def plot_per_population_max_spikes_per_tick(collated_results, calls, poi, prov,
     write_header("PLOTTING PER POPULATION VALUES FOR PROVENANCE")
     sorted_key_list = list(collated_results.keys())
     sorted_key_list.sort()
-    display_names = {
-        'f_peak': "$f_{peak}$ (Hz)"
-    }
     f = plt.figure(1, figsize=(9, 9), dpi=400)
     plt.close(f)
     # Look at parameters in calls
@@ -223,19 +220,16 @@ def plot_per_population_max_spikes_per_tick(collated_results, calls, poi, prov,
                     plt.plot(curr_poi, vals,
                              color=color_for_index(index, n_plots),
                              marker='o',
-                             label=pop)
+                             label=use_display_name(pop))
 
-                plt.xlabel(display_names[curr_g]
-                           if curr_g in display_names.keys()
-                           else curr_g)
-                plt.ylabel(string.capwords(
-                    " ".join(
-                        str.split(type_of_prov, "_")
-                    )))
+                plt.xlabel(use_display_name(curr_g))
+                plt.ylabel(use_display_name(type_of_prov))
                 plt.legend(loc='best')
                 plt.tight_layout()
                 plt.savefig(os.path.join(fig_folder,
                                          "{}.png".format(type_of_prov)))
+                plt.savefig(os.path.join(fig_folder,
+                                         "{}.pdf".format(type_of_prov)))
                 plt.close(f)
 
 

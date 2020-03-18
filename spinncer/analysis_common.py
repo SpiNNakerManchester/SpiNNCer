@@ -83,3 +83,28 @@ def get_plot_order(for_keys):
     # add remaining keys to the end of plot order
     plot_order += key_duplicate
     return plot_order
+
+
+COMMON_DISPLAY_NAMES = {
+    'f_peak': "$f_{peak}$ (Hz)",
+    'glomerulus cells': "Glom",
+    'granule cells': "GrC",
+    'dcn cells': "DCNC",
+    'golgi cells': "GoC",
+    'purkinje cells': "PC",
+    'stellate cells': "SC",
+    'basket cells': "BC",
+    'max_spikes_in_a_tick': "Max # of spikes in a time step"
+}
+
+def capitalise(name):
+    return string.capwords(
+        " ".join(
+            str.split(name, "_")
+        ))
+
+def use_display_name(name):
+    name = name.lower()
+    return COMMON_DISPLAY_NAMES[name] \
+        if name in COMMON_DISPLAY_NAMES.keys() \
+        else capitalise(name)
