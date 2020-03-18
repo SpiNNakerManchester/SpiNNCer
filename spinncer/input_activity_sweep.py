@@ -29,12 +29,16 @@ MAX_CONCURRENT_PROCESSES = args.max_processes
 
 POISSON_PHASE = 0
 PERIODIC_PHASE = 1
+# Both phases
 # PHASES = [POISSON_PHASE, PERIODIC_PHASE]
-# PHASES_NAMES = ["poisson", "periodic"]
-# PHASES_ARGS = [None, "--periodic_stimulus"]
+PHASES_NAMES = ["poisson", "periodic"]
+PHASES_ARGS = [None, "--periodic_stimulus"]
+
+# Only Poisson phase
 PHASES = [POISSON_PHASE]
-PHASES_NAMES = ["poisson"]
-PHASES_ARGS = [None]
+
+# Only PERIODIC phase
+# PHASES = [PERIODIC_PHASE]
 
 concurrently_active_processes = 0
 Result = namedtuple('Result', 'call filename parameters')
@@ -59,6 +63,7 @@ dataset = "scaffold_full_dcn_400.0x400.0_v3.hdf5"
 log_calls = []
 
 # making a directory for this experiment
+# dir_name = "activity_sweep_PERIODIC_@{}".format(suffix)
 dir_name = "activity_sweep_@{}".format(suffix)
 print("=" * 80)
 print("TOTAL RUNS", total_runs)
