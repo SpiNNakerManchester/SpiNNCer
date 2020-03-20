@@ -157,42 +157,40 @@ def sweep_provenance_analysis(in_folder, fig_folder, group_on):
     plot_per_population_provenance_of_interest(
         collated_results, calls, poi, router_provenance_of_interest,
         group_on, current_fig_folder, router_pop=router_pop_names)
+    for folder in run_folders:
+        plot_router_provenance(in_folder, folder, router_pop_names,
+                               router_provenance_of_interest,
+                               current_fig_folder)
 
-    # plot_router_provenance(collated_results, placements,
-    #                        router_provenance_of_interest, current_fig_folder)
 
-
-def plot_router_provenance(collated_results, placements,
+def plot_router_provenance(folder, selected_sim, router_pop_names,
                            router_provenance_of_interest, fig_folder):
     write_header("PLOTTING ROUTER INFO AND MAPS")
+    prov = pd.read_csv(join(join(folder, selected_sim), "structured_provenance.csv"))
+    # Need to filter only info for routers
+    # then filter by type of router provenance
+    # extract X, Y, prov_value
+    # Plot map
+    router_only_prov = prov[prov['pop'].isin(router_pop_names)]
 
-    # TODO from here
-    sorted_key_list = list(collated_results.keys())
-    sorted_key_list.sort()
-    for selected_sim in sorted_key_list:
+    for type_of_provenance in router_provenance_of_interest:
         filtered_placement = \
-            placements[selected_sim]
-        placements_per_pop = {x: filtered_placement[x]
-                              for x in filtered_placement.keys()
-                              if x in router_pop_names}
-
+            router_only_prov[router_only_prov.prov_name == type_of_provenance][['x', 'y', 'prov_value']]
+        if filtered_placement.shape[0] == 0:
+            write_short_msg("NO INFORMATION FOR PROVENANCE", type_of_provenance)
+            continue
         # Plotting bit
         # Fake printing to start things off...
         f = plt.figure(1, figsize=(9, 9), dpi=400)
         plt.close(f)
         # Compute plot order
-        plot_order = get_plot_order(placements_per_pop.keys())
+        plot_order = get_plot_order(router_pop_names)
         plot_display_names = []
         for po in plot_order:
             plot_display_names.append(use_display_name(po))
-        n_plots = len(plot_order)
 
-        collated_placements = pd.concat([
-            filtered_placement[x] for x in plot_order
-        ])
-
-        max_x = collated_placements.x.max() * 5
-        max_y = collated_placements.y.max() * 5
+        max_x = filtered_placement.x.max() * 5
+        max_y = filtered_placement.y.max() * 5
         x_ticks = np.arange(0, max_x, 5)[::2]
         # x_tick_lables = np.linspace(0, collated_placements.x.max(), 6).astype(int)
         x_tick_lables = (x_ticks / 5).astype(int)
@@ -200,20 +198,18 @@ def plot_router_provenance(collated_results, placements,
         # y_tick_lables = np.linspace(0, collated_placements.y.max(), 6).astype(int)
         y_tick_lables = (y_ticks / 5).astype(int)
         map = np.ones((max_x, max_y)) * np.nan
-        for index, pop in enumerate(plot_order):
-            curr_pl = placements_per_pop[pop]
-            for row_index, row in curr_pl.iterrows():
-                map[
-                    int(4 * row.x + (row.p // 4)),
-                    int(4 * row.y + (row.p % 4))
-                ] = index
 
-        uniques = np.unique(map[np.isfinite(map)]).astype(int)
+        for row_index, row in filtered_placement.iterrows():
+            map[
+                int(4 * row.x):int(4 * (row.x+1)),
+                int(4 * row.y):int(4 * (row.y+1))
+            ] = row.prov_value
+
         # crop_point = np.max(np.max(np.argwhere(np.isfinite(map)), axis=0))
         f = plt.figure(1, figsize=(9, 9), dpi=500)
         # plt.matshow(map[:crop_point, :crop_point], interpolation='none')
-        im = plt.imshow(map, interpolation='none', vmin=0, vmax=n_plots,
-                        cmap=plt.get_cmap('viridis', n_plots))
+        im = plt.imshow(map, interpolation='none',
+                        cmap=plt.get_cmap('inferno'))
         ax = plt.gca()
 
         plt.xlabel("Chip X coordinate")
@@ -227,21 +223,20 @@ def plot_router_provenance(collated_results, placements,
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", "5%", pad="3%")
         cbar = plt.colorbar(im, cax=cax)
-        cbar.set_label("Population")
-        cbar.ax.set_yticks(uniques)
-        cbar.ax.set_yticklabels(plot_display_names)
+        cbar.set_label(use_display_name(type_of_provenance))
 
         save_figure(plt, join(fig_folder,
-                              "map_of_placements_for_{}".format(selected_sim)),
+                              "map_of_{}_for_{}".format(type_of_provenance,
+                                                        selected_sim)),
                     extensions=['.png', '.pdf'])
         plt.close(f)
 
         # Some reports
-        write_short_msg("Plotting map for", selected_sim)
-        write_short_msg("Number of cores used", collated_placements.shape[0])
+        write_short_msg("Plotting ROUTER map for", selected_sim)
+        write_short_msg("ROUTER provenance", type_of_provenance)
+        write_short_msg("Number of cores used", filtered_placement.shape[0])
         write_short_msg("Number of chips used",
-                        collated_placements[["x", "y"]].drop_duplicates().shape[0])
-        write_short_msg("Unique pop ids", uniques)
+                        filtered_placement[["x", "y"]].drop_duplicates().shape[0])
         write_line()
 
 
