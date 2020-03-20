@@ -89,6 +89,7 @@ def get_plot_order(for_keys):
 
 COMMON_DISPLAY_NAMES = {
     'f_peak': "$f_{peak}$ (Hz)",
+    'stim_radius': "Stimulation radius ($\mu m$)",
     'glomerulus cells': "Glom",
     'granule cells': "GrC",
     'dcn cells': "DCNC",
@@ -96,7 +97,9 @@ COMMON_DISPLAY_NAMES = {
     'purkinje cells': "PC",
     'stellate cells': "SC",
     'basket cells': "BC",
-    'max_spikes_in_a_tick': "Max # of spikes in a time step"
+    'max_spikes_in_a_tick': "Max # of spikes in a time step",
+    'send_multicast_packets': "Multicast packets sent",
+    'router_provenance': "Router"
 }
 
 def capitalise(name):
@@ -114,4 +117,5 @@ def use_display_name(name):
 
 def save_figure(plt, name, extensions=(".png", ),**kwargs):
     for ext in extensions:
+        write_short_msg("Plotting", name+ext)
         plt.savefig(name + ext, **kwargs)
