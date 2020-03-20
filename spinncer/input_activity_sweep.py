@@ -29,23 +29,24 @@ MAX_CONCURRENT_PROCESSES = args.max_processes
 
 POISSON_PHASE = 0
 PERIODIC_PHASE = 1
-# Both phases
-# PHASES = [POISSON_PHASE, PERIODIC_PHASE]
 PHASES_NAMES = ["poisson", "periodic"]
 PHASES_ARGS = [None, "--periodic_stimulus"]
+# Both phases
+# PHASES = [POISSON_PHASE, PERIODIC_PHASE]
 
 # Only Poisson phase
-PHASES = [POISSON_PHASE]
+# PHASES = [POISSON_PHASE]
 
 # Only PERIODIC phase
-# PHASES = [PERIODIC_PHASE]
+PHASES = [PERIODIC_PHASE]
 
 concurrently_active_processes = 0
 Result = namedtuple('Result', 'call filename parameters')
 
-f_peaks = np.arange(30, 200, 20)  # Hz
-# radii = np.arange(40, 200, 40)  # um
-radii = np.asarray([140])  # um
+# f_peaks = np.arange(30, 200, 20)  # Hz
+f_peaks = np.asarray([150])  # Hz
+# radii = np.asarray([140])  # um
+radii = np.arange(20, 190, 20)  # um
 # TODO Fix ring buffer left shift value from previous experiment
 RB_LEFT_SHIFT = None
 
@@ -64,7 +65,9 @@ log_calls = []
 
 # making a directory for this experiment
 # dir_name = "activity_sweep_PERIODIC_@{}".format(suffix)
-dir_name = "activity_sweep_@{}".format(suffix)
+# dir_name = "activity_sweep_stim_radius_POISSON_@{}".format(suffix)
+dir_name = "activity_sweep_no_reinjection_stim_radius_PERIODIC_@{}".format(suffix)
+# dir_name = "activity_sweep_no_reinjection_f_peak_POISSON_@{}".format(suffix)
 print("=" * 80)
 print("TOTAL RUNS", total_runs)
 print("MKDIR", dir_name)
