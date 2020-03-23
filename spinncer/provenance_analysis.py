@@ -189,27 +189,30 @@ def plot_router_provenance(folder, selected_sim, router_pop_names,
         for po in plot_order:
             plot_display_names.append(use_display_name(po))
 
-        max_x = filtered_placement.x.max() * 5
-        max_y = filtered_placement.y.max() * 5
-        x_ticks = np.arange(0, max_x, 5)[::2]
+        magic_constant = 4
+        max_x = (filtered_placement.x.max() + 1) * magic_constant
+        max_y = (filtered_placement.y.max() + 1) * magic_constant
+        x_ticks = np.arange(0, max_x, magic_constant)[::2]
         # x_tick_lables = np.linspace(0, collated_placements.x.max(), 6).astype(int)
-        x_tick_lables = (x_ticks / 5).astype(int)
-        y_ticks = np.arange(0, max_y, 5)[::2]
+        x_tick_lables = (x_ticks / magic_constant).astype(int)
+        y_ticks = np.arange(0, max_y, magic_constant)[::2]
         # y_tick_lables = np.linspace(0, collated_placements.y.max(), 6).astype(int)
-        y_tick_lables = (y_ticks / 5).astype(int)
+        y_tick_lables = (y_ticks / magic_constant).astype(int)
         map = np.ones((max_x, max_y)) * np.nan
 
         for row_index, row in filtered_placement.iterrows():
             map[
-                int(4 * row.x):int(4 * (row.x+1)),
-                int(4 * row.y):int(4 * (row.y+1))
+            int(magic_constant * row.x):int(magic_constant * (row.x + 1)),
+            int(magic_constant * row.y):int(magic_constant * (row.y + 1))
             ] = row.prov_value
 
         # crop_point = np.max(np.max(np.argwhere(np.isfinite(map)), axis=0))
         f = plt.figure(1, figsize=(9, 9), dpi=500)
         # plt.matshow(map[:crop_point, :crop_point], interpolation='none')
         im = plt.imshow(map, interpolation='none',
-                        cmap=plt.get_cmap('inferno'))
+                        cmap=plt.get_cmap('inferno'),
+                        extent=[0, max_x, 0, max_y],
+                        origin='lower')
         ax = plt.gca()
 
         plt.xlabel("Chip X coordinate")
@@ -217,8 +220,10 @@ def plot_router_provenance(folder, selected_sim, router_pop_names,
 
         plt.xticks(x_ticks, x_tick_lables)
         plt.yticks(y_ticks, y_tick_lables)
-        ax.yaxis.set_minor_locator(MultipleLocator(5))
-        ax.xaxis.set_minor_locator(MultipleLocator(5))
+        ax.yaxis.set_minor_locator(MultipleLocator(magic_constant))
+        ax.xaxis.set_minor_locator(MultipleLocator(magic_constant))
+
+        plt.grid(b=True, which='both', color='k', linestyle='-')
 
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", "5%", pad="3%")
@@ -339,6 +344,8 @@ def plot_population_placement(collated_results, placements, fig_folder):
         plt.yticks(y_ticks, y_tick_lables)
         ax.yaxis.set_minor_locator(MultipleLocator(5))
         ax.xaxis.set_minor_locator(MultipleLocator(5))
+
+        plt.grid(b=True, which='both', color='k', linestyle='-')
 
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", "5%", pad="3%")
