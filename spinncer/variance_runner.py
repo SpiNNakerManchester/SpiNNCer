@@ -27,7 +27,7 @@ else:
 
 # Some constants
 NO_CPUS = args.no_cpus
-MAX_CONCURRENT_PROCESSES = args.max_processes or 8
+MAX_CONCURRENT_PROCESSES = args.max_processes or 10
 
 POISSON_PHASE = 0
 PERIODIC_PHASE = 1
@@ -51,7 +51,7 @@ dataset = "scaffold_full_dcn_400.0x400.0_v3.hdf5"
 log_calls = []
 
 # making a directory for this experiment
-dir_name = "variance_testing_@{}".format(suffix)
+dir_name = "variance_testing_w_reinjection_@{}".format(suffix)
 print("=" * 80)
 print("TOTAL RUNS", total_runs)
 if not os.path.isdir(dir_name):
@@ -64,6 +64,8 @@ os.chdir(dir_name)
 print("GETCWD", os.getcwd())
 print("-" * 80)
 
+params = {}
+
 for phase in PHASES:
     for n_run in no_runs:
         curr_params = {'n_run': n_run,
@@ -74,6 +76,9 @@ for phase in PHASES:
                    "_@{}".format(n_run,
                                  PHASES_NAMES[phase],
                                  suffix)
+
+        params[filename] = curr_params
+
         # making a directory for this individual experiment
         prev_run = True
         if os.path.isdir(filename) and os.path.isfile(
