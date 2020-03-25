@@ -36,6 +36,12 @@ analysis_parser.add_argument('--highlight_stim', action="store_true",
 
 analysis_parser.add_argument('--group_on', type=str, nargs="+",
                              help="For certain kinds of analysis (e.g. "
+                                  "provenance) group results based on a "
+                                  "parameter of interest",
+                             default=None)
+
+analysis_parser.add_argument('--group_on_name', type=str, nargs="+",
+                             help="For certain kinds of analysis (e.g. "
                                   "provenance) group results based on string "
                                   "pattern matching",
                              default=None)
