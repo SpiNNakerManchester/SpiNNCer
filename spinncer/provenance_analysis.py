@@ -1,5 +1,6 @@
 from spinncer.analysis_common import *
 from os.path import join as join
+from numpy.polynomial.polynomial import Polynomial
 
 
 def extract_per_pop_placements(df, pops):
@@ -82,7 +83,8 @@ def provenance_csv_analysis(in_folder, fig_folder):
     return results, types_of_provenance, prov_of_interest, placements
 
 
-def sweep_provenance_analysis(in_folder, fig_folder, group_on):
+def sweep_provenance_analysis(in_folder, fig_folder, group_on,
+                              group_on_name):
     # Check if the folders exist
     if not os.path.isdir(fig_folder) and not os.path.exists(fig_folder):
         os.mkdir(fig_folder)
@@ -125,12 +127,12 @@ def sweep_provenance_analysis(in_folder, fig_folder, group_on):
         prov_of_interest, placements[folder] = provenance_csv_analysis(
             join(in_folder, folder), fig_folder)
 
-    if group_on is None:
+    if group_on_name is None:
         write_header("REPORTING BEST SIMULATIONS")
         cumulative_report(collated_results, types_of_provenance,
                           prov_of_interest)
     else:
-        for condition in group_on:
+        for condition in group_on_name:
             write_header("GROUPING ON CONDITION {}".format(condition))
             new_collated_results = {key: value for (key, value) in
                                     collated_results.items() if condition in key}
@@ -142,7 +144,8 @@ def sweep_provenance_analysis(in_folder, fig_folder, group_on):
 
     plot_per_population_provenance_of_interest(collated_results, calls, poi,
                                                prov_of_interest,
-                                               group_on, current_fig_folder)
+                                               group_on or group_on_name,
+                                               current_fig_folder)
 
     router_provenance_of_interest = [
         'Dumped_from_a_Link',
@@ -156,7 +159,8 @@ def sweep_provenance_analysis(in_folder, fig_folder, group_on):
 
     plot_per_population_provenance_of_interest(
         collated_results, calls, poi, router_provenance_of_interest,
-        group_on, current_fig_folder, router_pop=router_pop_names)
+        group_on or group_on_name, current_fig_folder,
+        router_pop=router_pop_names)
     for folder in run_folders:
         plot_router_provenance(in_folder, folder, router_pop_names,
                                router_provenance_of_interest,
@@ -293,6 +297,9 @@ def plot_population_placement(collated_results, placements, fig_folder):
     for selected_sim in sorted_key_list:
         filtered_placement = \
             placements[selected_sim]
+
+        router_provenance = filtered_placement['router_provenance']
+
         placements_per_pop = {x: filtered_placement[x]
                               for x in filtered_placement.keys()
                               if "cell" in x}
@@ -312,29 +319,35 @@ def plot_population_placement(collated_results, placements, fig_folder):
             filtered_placement[x] for x in plot_order
         ])
 
-        max_x = collated_placements.x.max() * 5
-        max_y = collated_placements.y.max() * 5
-        x_ticks = np.arange(0, max_x, 5)[::2]
+        magic_constant = 4
+
+        max_x = (router_provenance.x.max() + 1) * magic_constant
+        max_y = (router_provenance.y.max() + 1) * magic_constant
+
+        x_ticks = np.arange(0, max_x, magic_constant)[::2]
         # x_tick_lables = np.linspace(0, collated_placements.x.max(), 6).astype(int)
-        x_tick_lables = (x_ticks / 5).astype(int)
-        y_ticks = np.arange(0, max_y, 5)[::2]
+        x_tick_lables = (x_ticks / magic_constant).astype(int)
+        y_ticks = np.arange(0, max_y, magic_constant)[::2]
         # y_tick_lables = np.linspace(0, collated_placements.y.max(), 6).astype(int)
-        y_tick_lables = (y_ticks / 5).astype(int)
+        y_tick_lables = (y_ticks / magic_constant).astype(int)
         map = np.ones((max_x, max_y)) * np.nan
         for index, pop in enumerate(plot_order):
             curr_pl = placements_per_pop[pop]
             for row_index, row in curr_pl.iterrows():
-                map[
-                    int(4 * row.x + (row.p // 4)),
-                    int(4 * row.y + (row.p % 4))
-                ] = index
+                x_pos = int(magic_constant * row.x +
+                            ((row.p // magic_constant) % magic_constant))
+                y_pos = int(magic_constant * row.y +
+                            (row.p % magic_constant))
+                map[x_pos, y_pos] = index
 
         uniques = np.unique(map[np.isfinite(map)]).astype(int)
         # crop_point = np.max(np.max(np.argwhere(np.isfinite(map)), axis=0))
         f = plt.figure(1, figsize=(9, 9), dpi=500)
         # plt.matshow(map[:crop_point, :crop_point], interpolation='none')
         im = plt.imshow(map, interpolation='none', vmin=0, vmax=n_plots,
-                        cmap=plt.get_cmap('viridis', n_plots))
+                        cmap=plt.get_cmap('viridis', n_plots),
+                        extent=[0, max_x, 0, max_y],
+                        origin='lower')
         ax = plt.gca()
 
         plt.xlabel("Chip X coordinate")
@@ -342,8 +355,8 @@ def plot_population_placement(collated_results, placements, fig_folder):
 
         plt.xticks(x_ticks, x_tick_lables)
         plt.yticks(y_ticks, y_tick_lables)
-        ax.yaxis.set_minor_locator(MultipleLocator(5))
-        ax.xaxis.set_minor_locator(MultipleLocator(5))
+        ax.yaxis.set_minor_locator(MultipleLocator(magic_constant))
+        ax.xaxis.set_minor_locator(MultipleLocator(magic_constant))
 
         plt.grid(b=True, which='both', color='k', linestyle='-')
 
@@ -399,6 +412,8 @@ def plot_per_population_provenance_of_interest(
                         if call[2][curr_g] == curr_poi_val:
                             # store filename associated with current value
                             match_fname = call[1]
+                            if match_fname not in collated_results.keys():
+                                continue
                             if type_of_prov not in collated_results[match_fname].keys():
                                 filtered_collated_results = {x: None for x in router_pop}
                                 for rp in router_pop:
@@ -438,6 +453,18 @@ def plot_per_population_provenance_of_interest(
                                  marker='o',
                                  label=use_display_name(pop),
                                  alpha=0.8)
+                        # also print out the values per pop to easily copy and paste
+                        write_short_msg(use_display_name(pop), vals)
+                        # TODO also do some curve fitting for these numbers
+                        for deg in [1, 2]:
+                            fit_res = polyfit(curr_poi, vals, deg)
+                            write_short_msg("degree poly {} coeff of "
+                                            "determination".format(deg),
+                                            fit_res['determination'])
+                        fit_res = polyfit(curr_poi, np.log(vals), deg)
+                        write_short_msg("exp fit coeff of "
+                                        "determination",
+                                        fit_res['determination'])
 
                 plt.xlabel(use_display_name(curr_g))
                 plt.ylabel(use_display_name(type_of_prov))
@@ -447,6 +474,25 @@ def plot_per_population_provenance_of_interest(
                             extensions=['.png', '.pdf'])
                 plt.close(f)
 
+# Polynomial Regression
+def polyfit(x, y, degree):
+    results = {}
+
+    coeffs = np.polyfit(x, y, degree)
+
+    # Polynomial Coefficients
+    results['polynomial'] = coeffs.tolist()
+
+    # r-squared
+    p = np.poly1d(coeffs)
+    # fit values, and mean
+    yhat = p(x)                         # or [p(z) for z in x]
+    ybar = np.sum(y)/len(y)          # or sum(y)/len(y)
+    ssreg = np.sum((yhat-ybar)**2)   # or sum([ (yihat - ybar)**2 for yihat in yhat])
+    sstot = np.sum((y - ybar)**2)    # or sum([ (yi - ybar)**2 for yi in y])
+    results['determination'] = ssreg / sstot
+
+    return results
 
 if __name__ == "__main__":
     from spinncer.analysis_argparser import *
@@ -454,7 +500,8 @@ if __name__ == "__main__":
     if analysis_args.input and len(analysis_args.input) > 0:
         for in_folder in analysis_args.input:
             sweep_provenance_analysis(in_folder, analysis_args.figures_dir,
-                                      group_on=analysis_args.group_on)
+                                      group_on=analysis_args.group_on,
+                                      group_on_name=analysis_args.group_on_name)
     else:
         # Constants
         fig_folder = "figures"
