@@ -468,10 +468,15 @@ def plot_per_population_provenance_of_interest(
 
                 plt.xlabel(use_display_name(curr_g))
                 plt.ylabel(use_display_name(type_of_prov))
+                ax = plt.gca()
                 plt.legend(loc='best')
                 plt.tight_layout()
                 save_figure(plt, join(fig_folder, "{}".format(type_of_prov)),
                             extensions=['.png', '.pdf'])
+                if "MAX" in type_of_prov:
+                    ax.set_yscale('log')
+                    save_figure(plt, join(fig_folder, "log_y_{}".format(type_of_prov)),
+                                extensions=['.png', '.pdf'])
                 plt.close(f)
 
 # Polynomial Regression
