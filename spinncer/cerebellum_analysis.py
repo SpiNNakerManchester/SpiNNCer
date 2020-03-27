@@ -156,7 +156,7 @@ def spike_analysis(results_file, fig_folder,
     # Compute plot order
     plot_order = get_plot_order(all_spikes.keys())
     n_plots = float(len(plot_order))
-
+    simulator = sim_params['argparser']['simulator']
     # Check if using neo blocks
     neo_all_spikes = {}
     for pop, potential_neo_block in all_spikes.items():
@@ -663,8 +663,9 @@ def spike_analysis(results_file, fig_folder,
                         _ids,
                         color=viridis_cmap(index / (n_plots + 1)),
                         s=.5, rasterized=True)
-        curr_ax.set_title(pop)
+        curr_ax.set_title(use_display_name(pop))
     plt.xlabel("Time (ms)")
+    # plt.suptitle(use_display_name(simulator))
     f.tight_layout()
     save_figure(plt, os.path.join(sim_fig_folder, "raster_plots"),
                 extensions=['.png', '.pdf'])
@@ -686,7 +687,7 @@ def spike_analysis(results_file, fig_folder,
                             _ids,
                             color=viridis_cmap(int(index / 2) / (n_plots + 1)),
                             s=.5, rasterized=True)
-            curr_ax.set_title(pop)
+            curr_ax.set_title(use_display_name(pop))
             curr_ax.set_ylabel("NID")
         else:
             curr_ax.bar(np.arange(spikes_per_timestep[pop].size) * timestep / ms,
@@ -696,8 +697,8 @@ def spike_analysis(results_file, fig_folder,
             curr_ax.set_ylabel("Count")
 
     plt.xlabel("Time (ms)")
+    # plt.suptitle(use_display_name(simulator))
     f.tight_layout()
-
     save_figure(plt, os.path.join(sim_fig_folder, "raster_and_psth_plots"),
                 extensions=['.png', ])
     plt.close(f)
@@ -793,8 +794,9 @@ def spike_analysis(results_file, fig_folder,
                         spikes_per_timestep[pop],
                         color=viridis_cmap(index / (n_plots + 1)),
                         rasterized=True)
-        axes[index].set_title(pop)
+        axes[index].set_title(use_display_name(pop))
     plt.xticks(wanted_times * time_to_bin_conversion, wanted_times)
+    # plt.suptitle(use_display_name(simulator))
 
     save_figure(plt, os.path.join(sim_fig_folder,
                                   "timestep_psth"),
@@ -809,9 +811,10 @@ def spike_analysis(results_file, fig_folder,
         axes[index].bar(np.arange(spikes_per_3ms[pop].size), spikes_per_3ms[pop],
                         color=viridis_cmap(index / (n_plots + 1)),
                         rasterized=True)
-        axes[index].set_title(pop)
+        axes[index].set_title(use_display_name(pop))
 
     plt.xticks(wanted_times * time_to_bin_conversion / bins_in_3ms, wanted_times)
+    # plt.suptitle(use_display_name(simulator))
 
     save_figure(plt, os.path.join(sim_fig_folder,
                                   "timestep_psth_3ms"),
@@ -829,7 +832,7 @@ def spike_analysis(results_file, fig_folder,
                          color=viridis_cmap(index / (n_plots + 1)),
                          bins=20, rasterized=True)
             if period == 1:
-                curr_ax.set_title(pop)
+                curr_ax.set_title(use_display_name(pop))
             curr_ax.set_xlabel("Hz")
             curr_ax.xaxis.set_tick_params(which='both',
                                           labelbottom=True)

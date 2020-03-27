@@ -89,14 +89,23 @@ def get_plot_order(for_keys):
 
 COMMON_DISPLAY_NAMES = {
     'f_peak': "$f_{peak}$ (Hz)",
+    'spinnaker': "SpiNNaker",
+    'nest': "NEST",
     'stim_radius': "Stimulation radius ($\mu m$)",
     'glomerulus cells': "Glom",
+    'glomerulus': "Glom",
     'granule cells': "GrC",
+    'granule': "GrC",
     'dcn cells': "DCNC",
+    'dcn': "DCNC",
     'golgi cells': "GoC",
+    'golgi': "GoC",
     'purkinje cells': "PC",
+    'purkinje': "PC",
     'stellate cells': "SC",
+    'stellate': "SC",
     'basket cells': "BC",
+    'basket': "BC",
     'max_spikes_in_a_tick': "Max # of spikes in a time step",
     'send_multicast_packets': "Multicast packets sent",
     'router_provenance': "Router"
