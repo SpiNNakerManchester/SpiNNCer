@@ -73,7 +73,7 @@ else:
 input_spikes = None
 if args.stimulus_from_file is not None:
     # Assembly the dictionary to pass to the cerebellum circuit
-    input_spikes = np.load(args.stimulus_from_file)['input_spikes'].ravel()[0]
+    input_spikes = np.load(args.stimulus_from_file, allow_pickle=True)['input_spikes'].ravel()[0]
 
 
 # Instantiate a Cerebellum
