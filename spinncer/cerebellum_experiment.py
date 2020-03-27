@@ -6,6 +6,7 @@ on the connectivity input to it.
 import json
 # argparser for easily running experiment from cli
 from spinncer.spinncer_argparser import *
+import sys
 
 # import sPyNNaker
 # import simulator
@@ -68,6 +69,13 @@ if args.param_json:
 else:
     json_data = None
 
+# read spikes from file
+input_spikes = None
+if args.stimulus_from_file is not None:
+    # Assembly the dictionary to pass to the cerebellum circuit
+    input_spikes = np.load(args.stimulus_from_file)['input_spikes'].ravel()[0]
+
+
 # Instantiate a Cerebellum
 cerebellum_circuit = Cerebellum(
     sim, connectivity_filename,
@@ -76,10 +84,31 @@ cerebellum_circuit = Cerebellum(
     params=json_data,
     skip_projections=args.skip_projections,
     weight_scaling=args.weight_scaling,
-    save_conversion_file=args.generate_conversion_constants,
     neuron_model=args.neuron_model,
+    input_spikes=input_spikes,
     rb_left_shifts=args.rb_left_shifts
 )
+
+if args.generate_conversion_constants:
+    np.savez_compressed("conversion_constants",
+                        nid_offsets=cerebellum_circuit.nid_offset,
+                        connectivity=cerebellum_circuit.connections,
+                        all_neurons=cerebellum_circuit.number_of_neurons,
+                        connectivity_file=connectivity_filename)
+    # expand to also save spikes
+    np.savez_compressed(
+        "stimulus",
+        details={
+            "argparser": vars(args),
+            "git_hash": retrieve_git_commit(),
+            "current_time": plt.datetime.datetime.now().strftime("%H:%M:%S_%d/%m/%Y"),
+            "n_neurons_per_core": n_neurons_per_core,
+            "ss_neurons_per_core": ss_neurons_per_core,
+        },
+        input_spikes=cerebellum_circuit.stimulus,
+        **cerebellum_circuit.stimulus)
+    print("Saved conversion_constants.npz. Exiting...")
+    sys.exit(0)
 
 # Test various exposed methods
 populations = cerebellum_circuit.get_all_populations()

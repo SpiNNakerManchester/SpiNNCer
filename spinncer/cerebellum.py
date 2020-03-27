@@ -22,14 +22,13 @@ from spinncer.utilities.reporting import (population_reporting,
                                           projection_reporting)
 from elephant.spike_train_generation import homogeneous_poisson_process
 import quantities as pq
-import sys
 
 
 class Cerebellum(Circuit):
 
     def __init__(self, sim, connectivity, stimulus_information, reporting=True,
                  params=None, skip_projections=False,
-                 weight_scaling=None, save_conversion_file=False,
+                 weight_scaling=None,
                  neuron_model="IF_cond_exp", force_number_of_neurons=None,
                  input_spikes=None, rb_left_shifts=None):
         """
@@ -208,6 +207,7 @@ class Cerebellum(Circuit):
 
         if input_spikes:
             # use passed in spikes
+            print("USING SPIKES FROM FILE")
             self.stimulus = input_spikes
         else:
             # generate necessary spikes
@@ -222,15 +222,6 @@ class Cerebellum(Circuit):
             print("NOT GENERATING ANY CONNECTIVITY FOR THIS MODEL")
             print("skip_projections", skip_projections)
             print("force_number_of_neurons", force_number_of_neurons)
-
-        if save_conversion_file:
-            np.savez_compressed("conversion_constants",
-                                nid_offsets=self.nid_offset,
-                                connectivity=self.connections,
-                                all_neurons=self.number_of_neurons,
-                                connectivity_file=connectivity)
-            print("Saved conversion_constants.npz. Exiting...")
-            sys.exit(0)
 
         for pop_name, pop_obj in self.populations.items():
             self.__setattr__(pop_name, pop_obj)
@@ -386,7 +377,7 @@ class Cerebellum(Circuit):
 
             pre_pop = self.conn_params[conn_label]['pre']
             post_pop = self.conn_params[conn_label]['post']
-            weight = self.conn_params[conn_label]['weight']
+            weight = np.abs(self.conn_params[conn_label]['weight'])
             delay = self.conn_params[conn_label]['delay']
 
             if post_pop in ["glomerulus", "mossy_fibers"]:
@@ -395,23 +386,29 @@ class Cerebellum(Circuit):
                 continue
 
             # Adding the projection to the network
-            receptor_type = "inhibitory" if weight < 0 else "excitatory"
-            # self.projections[conn_label] = self.sim.Projection(
-            #     self.populations[pre_pop],  # pre-synaptic population
-            #     self.populations[post_pop],  # post-synaptic population
-            #     # connector includes (source, target, weight, delay)
-            #     self.sim.FromListConnector(self.connections[conn_label]),
-            #     receptor_type=receptor_type,  # inh or exc
-            #     label=conn_label)  # label for connection
 
+            flc = self.sim.FromListConnector(self.connections[conn_label])
+            setattr(flc, 'label', conn_label)
+            receptor_type = "inhibitory" if weight < 0 else "excitatory"
             self.projections[conn_label] = self.sim.Projection(
                 self.populations[pre_pop],  # pre-synaptic population
                 self.populations[post_pop],  # post-synaptic population
                 # connector includes (source, target, weight, delay)
-                self.sim.FromListConnector(self.connections[conn_label][:, 0:2]),
-                synapse_type=self.sim.StaticSynapse(weight=weight, delay=delay),
+                self.sim.FromListConnector(self.connections[conn_label]),
                 receptor_type=receptor_type,  # inh or exc
                 label=conn_label)  # label for connection
+
+
+            # flc = self.sim.FromListConnector(self.connections[conn_label][:, 0:2])
+            # setattr(flc, 'label', conn_label)
+            # self.projections[conn_label] = self.sim.Projection(
+            #     self.populations[pre_pop],  # pre-synaptic population
+            #     self.populations[post_pop],  # post-synaptic population
+            #     flc, # connector includes (source, target, weight, delay),
+            #     synapse_type=self.sim.StaticSynapse(weight=np.abs(weight),
+            #                                         delay=delay),
+            #     receptor_type=receptor_type,  # inh or exc
+            #     label=conn_label)  # label for connection
 
     def __compute_stimulus(self):
         # convert stimulation times to numpy array

@@ -138,4 +138,9 @@ parser.add_argument('--timescale', type=int,
                     help='set the slowdown factor of the simulation',
                     default=DEFAULT_TIMESCALE)
 
+parser.add_argument('-s', '--stimulus', type=str,
+                    help="name of the file storing "
+                         "input spikes",
+                    dest='stimulus_from_file')
+
 args = parser.parse_args()
