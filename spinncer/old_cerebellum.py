@@ -32,22 +32,21 @@ class Cerebellum(Circuit):
                  weight_scaling=None,
                  neuron_model="IF_cond_exp", force_number_of_neurons=None,
                  input_spikes=None, rb_left_shifts=None):
+        """
+        Cerebellum Circuit
+        """
+        # Reference to the PyNN simulation that this object (Cerebellum) is
+        # building itself into
         self.sim = sim
+        # Flag that controls whether reports are printed as the  network is
+        # being generated
         self.reporting = reporting
 
-        self.populations = {k: None for k in POPULATION_ID.keys()}
-        self.number_of_neurons = {k: None for k in POPULATION_ID.keys()}
-        self.nid_offset = {k: None for k in POPULATION_ID.keys()}
-        self.projections = {k: None for k in CONNECTIVITY_MAP.keys()}
-        self.connections = {k: None for k in CONNECTIVITY_MAP.keys()}
-        self.stimulus_information = stimulus_information
-        self.cell_params = CELL_PARAMS
-        self.conn_params = CONNECTIVITY_MAP
-        self.stimulus_information = stimulus_information
-
-        self.periodic_stimulus = stimulus_information['periodic_stimulus']
-        self.stimulus = None
-        self.weight_scaling = weight_scaling or 1.0
+        # flag to be used when building the connectivity from hdf5 files
+        self.new_scaffold = False
+        # Attempt to use passed in cell and connectivity params. If none,
+        # use defaults specified in constants but report DECISION
+        print("=" * 80)
 
         connectivity_data = self.__extract_connectivity(connectivity)
         if 'connections' in connectivity_data.keys():
@@ -60,7 +59,88 @@ class Cerebellum(Circuit):
             self.cell_positions = np.asarray(connectivity_data['cells']['positions'])
             connections = connectivity_data['cells']['connections']
             self.new_scaffold = True
-        self.cell_positions = np.asarray(connectivity_data['positions'])
+
+        if params:
+            # Convert from pyNest to PyNN
+            # https://nest-test.readthedocs.io/en/pynest_mock/models/neurons.html#_CPPv4N4nest14iaf_cond_alphaE
+            # use conversion map from pyNest param names to PyNN param names + units
+            # ignore V_m in pyNest
+            print("Cell params extracted and converted from Json. ")
+            self.cell_params = {}
+            sim_params = params['simulations']['FCN_2019']
+            for cell_name, param_sets in sim_params['cell_models'].items():
+                self.cell_params[cell_name] = {}
+                # WARNING this assumes that the different models included in
+                # the nested dictionary do NOT have parameter names in common
+                # otherwise, "the last one" is the one used here
+                if "eglif_cond_alpha_multisyn" in param_sets.keys():
+                    del param_sets["eglif_cond_alpha_multisyn"]
+                param_dict = flatten_dict(param_sets)
+                cp = self.cell_params[cell_name]
+                if ('neuron_model' in param_dict.keys() and
+                        param_dict['neuron_model'] == "parrot_neuron"):
+                    # Mark the current population as input in a distinctive
+                    # fashion
+                    self.cell_params[cell_name] = None
+                    continue
+                for p, v in param_dict.items():
+                    if (p in PYNEST_TO_PYNN_CONVERSION.keys() and
+                            PYNEST_TO_PYNN_CONVERSION[p][0] is not None):
+                        cp[PYNEST_TO_PYNN_CONVERSION[p][0]] = v * PYNEST_TO_PYNN_CONVERSION[p][1]
+                    if p == "g_L":
+                        # convert g_L to tau_m using the equation tau_m = R * C
+                        cp['tau_m'] = param_dict['C_m'] / v
+
+            print("Connection params extracted and converted from Json.")
+            self.conn_params = {}
+            for conn_name, param_sets in sim_params['connection_models'].items():
+                # Adjust
+                self.conn_params[conn_name] = {}
+                adjust_for_units = 1e-3 if sim_params['simulator'] == "nest" else 1
+                self.conn_params[conn_name]['weight'] = param_sets['connection']['weight'] * adjust_for_units
+                self.conn_params[conn_name]['delay'] = param_sets['connection']['delay']
+
+                # Read connectivity from hdf5 files first rather than from the
+                # JSON
+                for conn_type in connections[conn_name].attrs['connection_types']:
+                    if "from_cell_types" in connections[conn_name].attrs:
+                        self.conn_params[conn_name]['pre'] = \
+                            connections[conn_name].attrs["from_cell_types"][0]
+                    else:
+                        self.conn_params[conn_name]['pre'] = \
+                            params['connection_types'][conn_type]['from_cell_types'][0]['type']
+
+                    self.conn_params[conn_name]['post'] = \
+                        params['connection_types'][conn_type]['to_cell_types'][0]['type']
+                    print("[{:8}]: retrieved pre and post for {:15}".format(
+                        "INFO", conn_name))
+                if self.conn_params[conn_name]['pre'] == "mossy_fibers":
+                    self.cell_params["mossy_fibers"] = None
+        else:
+            print("Cell params not specified. Using defaults...")
+            self.cell_params = CELL_PARAMS
+            print("Connection params not specified. Using defaults...")
+            self.conn_params = CONNECTIVITY_MAP
+
+        print("=" * 80)
+
+        self.populations = {k: None for k in self.cell_params.keys()}
+        self.number_of_neurons = {k: None for k in self.cell_params.keys()}
+        self.nid_offset = {k: None for k in self.cell_params.keys()}
+        self.rb_shifts = {k: None for k in self.cell_params.keys()}
+
+        # TODO is there anything clever and worth it here?
+        # for k in self.rb_shifts.keys():
+        #     if rb_left_shifts is not None and "purkinje" in k:
+        #         self.rb_shifts[k] = np.asarray(rb_left_shifts).astype(int)
+        #     else:
+        #         self.rb_shifts[k] = None
+        for k in self.rb_shifts.keys():
+            if "purkinje" in k:
+                self.rb_shifts[k] = np.asarray([5, 5]).astype(int)
+            elif "golgi" in k:
+                self.rb_shifts[k] = np.asarray([5, 5]).astype(int)
+
         # Save the neuron model to be used by spiking neurons in the network
         self.neuron_models = {k: str.lower(neuron_model) for k in self.cell_params.keys()}
         # Hard-code glomerulus
@@ -82,6 +162,13 @@ class Cerebellum(Circuit):
             for k, _ in self.number_of_neurons.items():
                 self.number_of_neurons[k] = force_number_of_neurons
 
+        self.projections = {k: None for k in self.conn_params.keys()}
+        self.connections = {k: None for k in self.conn_params.keys()}
+
+        self.stimulus_information = stimulus_information
+
+        self.periodic_stimulus = stimulus_information['periodic_stimulus']
+        self.weight_scaling = weight_scaling or 1.0
         if self.new_scaffold:
             # Try to read in nid_offsets too
             # populate offsets here too based on ['cells']['type_maps']
@@ -116,6 +203,8 @@ class Cerebellum(Circuit):
             self.__compute_number_of_neurons()
 
         self._raw_connectivity_info = connections
+        if not skip_projections and force_number_of_neurons is None:
+            self.__normalise_connections()
 
         if input_spikes:
             # use passed in spikes
@@ -127,10 +216,13 @@ class Cerebellum(Circuit):
 
         # Construct PyNN neural Populations
         self.build_populations(self.cell_positions)
-
         # Construct PyNN Projections
-        if not skip_projections:
-            self.build_projections(connectivity_data['connections'])
+        if not skip_projections and force_number_of_neurons is None:
+            self.build_projections(self.connections)
+        else:
+            print("NOT GENERATING ANY CONNECTIVITY FOR THIS MODEL")
+            print("skip_projections", skip_projections)
+            print("force_number_of_neurons", force_number_of_neurons)
 
         for pop_name, pop_obj in self.populations.items():
             self.__setattr__(pop_name, pop_obj)
@@ -162,65 +254,54 @@ class Cerebellum(Circuit):
         if self.reporting:
             # Report statistics about the populations to be built
             population_reporting(positions, self.number_of_neurons)
-        # Unique populations ids
-        unique_ids = np.unique(positions[:, 1]).astype(int)
-        for ui in unique_ids:
-            # Get cell name based on the population id
-            _cell_name = CELL_NAME_FOR_ID[ui]
-            _no_cells = positions[positions[:, 1] == ui, :].shape[0]
-            # Store number of neurons for later
-            self.number_of_neurons[_cell_name] = _no_cells
-            # save global neuron ID offset
-            # NOTE: np.min(unique_ids) == 1
-            if ui == 1:
-                self.nid_offset[_cell_name] = 0
-            else:
-                self.nid_offset[_cell_name] = \
-                    self.nid_offset[CELL_NAME_FOR_ID[ui - 1]] + \
-                    self.number_of_neurons[CELL_NAME_FOR_ID[ui - 1]]
-            # Retrieve correct cell parameters for the current cell
-            cell_model = CELL_TYPES[_cell_name]
-            if _cell_name == "glomerulus":
-                cell_param = self.stimulus[_cell_name]
-                cell_model = self.sim.SpikeSourceArray
-                additional_params = {'seed': 31415926}
-            #                 if self.periodic_stimulus:
-            #                     cell_model = self.sim.SpikeSourceArray
-            #                     CELL_TYPES[_cell_name] = cell_model
-            #                     additional_params = {}
-            #                 else:
-            #                     cell_model = self.sim.extra_models.SpikeSourcePoissonVariable
-            #                 self.stimulus = cell_param
 
-            else:
-                cell_param = CELL_PARAMS[_cell_name]
+        for cell_name, cell_param in self.cell_params.items():
+            # Retrieve correct cell parameters for the current cell
+            cell_model = self.neuron_models[cell_name]
+            no_cells = self.number_of_neurons[cell_name]
+            # skip the creation of glom or mossy fibers
+            ins = ["glomerulus", "mossy_fibers"]
+            if cell_name in ins and self.force_number_of_neurons:
+                print("SKIPPING THE CREATION OF", cell_name,
+                      "BECAUSE FORCING # OF NEURONS")
+                continue
+            if cell_name in ["glomerulus", "mossy_fibers"]:
+                cell_param = self.stimulus[cell_name]
+                cell_model = self.sim.SpikeSourceArray
+                CELL_TYPES[cell_name] = cell_model
                 additional_params = {}
+            else:
+                # else for all other cells
+                additional_params = {"rb_left_shifts":
+                                         self.rb_shifts[cell_name]}
                 # add E_rev_I to all cells
                 capp_rev = -90.
-                # add E_rev_I to all cells
-                if cell_model == "IF_cond_exp":
+                if cell_model == "if_cond_exp":
                     cell_model = self.sim.IF_cond_exp
                     cell_param['e_rev_I'] = capp_rev  # mV
                     cell_param['e_rev_E'] = 0.  # mV
-                elif cell_model == "IF_curr_exp":
+                elif cell_model == "if_curr_exp":
                     cell_model = self.sim.IF_curr_exp
-                elif cell_model == "IF_curr_alpha":
+                elif cell_model == "if_curr_alpha":
                     cell_model = self.sim.IF_curr_alpha
+                elif cell_model == "if_cond_alpha":
+                    cell_model = self.sim.IF_cond_alpha
+                    cell_param['e_rev_I'] = capp_rev  # mV
+                    cell_param['e_rev_E'] = 0.  # mV
             # Adding the population to the network
-            print(cell_model)
             try:
-                self.populations[_cell_name] = self.sim.Population(
-                    _no_cells,
+                self.populations[cell_name] = self.sim.Population(
+                    no_cells,
                     cellclass=cell_model,
                     cellparams=cell_param,
-                    label=_cell_name + " cells",
+                    label=cell_name + " cells",
                     additional_parameters=additional_params)
             except TypeError as te:
-                self.populations[_cell_name] = self.sim.Population(
-                    _no_cells,
+                self.populations[cell_name] = self.sim.Population(
+                    no_cells,
                     cellclass=cell_model,
                     cellparams=cell_param,
-                    label=_cell_name + " cells")
+                    label=cell_name + " cells")
 
 
     def build_projections(self, connections):
@@ -433,6 +514,62 @@ class Cerebellum(Circuit):
             return {'glomerulus': {
                 'spike_times': spike_times
             }}
+
+
+    def __normalise_connections(self):
+        connections = self._raw_connectivity_info
+        # Retrieve the Projection labels
+        labels = connections.keys()
+        # Loop over each connection in `connections`
+        for conn_label in labels:
+            if conn_label not in self.conn_params.keys():
+                print("[{:10}]: CONNECTION UNREGONISED -> "
+                      "{:25}".format("ERROR", conn_label))
+                continue
+            conns = np.asarray(connections[conn_label])[:, :2].astype(int)
+            no_synapses = conns.shape[0]
+            pre_pop = self.conn_params[conn_label]['pre']
+            post_pop = self.conn_params[conn_label]['post']
+            weight = self.conn_params[conn_label]['weight']
+            delay = self.conn_params[conn_label]['delay']
+            if (post_pop == "glomerulus" and pre_pop != "mossy_fibers"):
+                # Can't send projections to a spike source
+                print("Ignoring connection {:25} "
+                      "terminating at".format(conn_label), post_pop, "...")
+                continue
+            else:
+                print("Creating projection {:25} "
+                      "from {:10}".format(conn_label, pre_pop),
+                      "to {:10}".format(post_pop),
+                      "with a weight of {: 2.6f}".format(weight),
+                      "uS and a delay of", delay, "ms")
+
+            # Normalise the source and target neuron IDs
+            # Neurons IDs used here are np.arange(0, TOTAL_NUMBER_OF_NEURONS)
+            norm_ids = np.asarray([self.nid_offset[pre_pop],
+                                   self.nid_offset[post_pop]])
+            conns -= norm_ids
+
+            # Save the explicit connectivity for later
+            # (after scaling the weights)
+            stacked_weights = np.asarray([[np.abs(weight)]] * no_synapses) * \
+                              self.weight_scaling
+            stacked_delays = np.asarray([[delay]] * no_synapses)
+
+            # TODO remove this. do better.
+            if "io_to_basket" in conn_label:
+                conns[conns < 0] = 2 ** 32 - 1
+            else:
+                assert (np.max(conns[:, 0]) < self.number_of_neurons[pre_pop]), \
+                    "pre id max: {} vs. {} for {}".format(np.max(conns[:, 0]), self.number_of_neurons[pre_pop], conn_label)
+                assert (np.min(conns[:, 0]).astype(int) >= 0), \
+                    "pre id min: {} vs. {} for {}".format(np.min(conns[:, 0]), 0, conn_label)
+                assert (np.max(conns[:, 1]) < self.number_of_neurons[post_pop]), \
+                    "post id max: {} vs. {} for {}".format(np.max(conns[:, 0]), self.number_of_neurons[post_pop], conn_label)
+                assert (np.min(conns[:, 1]).astype(int) >= 0), \
+                    "post id min: {} vs. {} for {}".format(np.min(conns[:, 1]), 0, conn_label)
+            self.connections[conn_label] = np.concatenate(
+                [conns, stacked_weights, stacked_delays], axis=1)
 
     def get_circuit_inputs(self):
         """
