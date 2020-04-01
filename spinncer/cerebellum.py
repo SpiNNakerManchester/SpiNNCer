@@ -17,11 +17,12 @@ import numpy as np
 import h5py
 from spinncer.circuit import Circuit
 from spinncer.utilities.constants import *
-from spinncer.utilities.utils import flatten_dict, create_poisson_spikes
 from spinncer.utilities.reporting import (population_reporting,
                                           projection_reporting)
 from elephant.spike_train_generation import homogeneous_poisson_process
 import quantities as pq
+import sys
+from spinncer.utilities.utils import flatten_dict, create_poisson_spikes
 
 
 class Cerebellum(Circuit):
@@ -226,6 +227,7 @@ class Cerebellum(Circuit):
         for pop_name, pop_obj in self.populations.items():
             self.__setattr__(pop_name, pop_obj)
 
+
     def __compute_number_of_neurons(self):
         # compute number of neurons here if not done previously
         unique_ids = np.unique(self.cell_positions[:, 1]).astype(int)
@@ -271,7 +273,7 @@ class Cerebellum(Circuit):
             else:
                 # else for all other cells
                 additional_params = {"rb_left_shifts":
-                                     self.rb_shifts[cell_name]}
+                                         self.rb_shifts[cell_name]}
                 # add E_rev_I to all cells
                 capp_rev = -90.
                 if cell_model == "if_cond_exp":
@@ -301,33 +303,45 @@ class Cerebellum(Circuit):
                     cellparams=cell_param,
                     label=cell_name + " cells")
 
-    def __normalise_connections(self):
+
+    def build_projections(self):
+        """
+        Construct PyNN Projections between Populations
+        """
         connections = self._raw_connectivity_info
+        if self.reporting:
+            # Report statistics about the populations to be built
+            projection_reporting(self._raw_connectivity_info,
+                                 self.number_of_neurons,
+                                 self.conn_params)
         # Retrieve the Projection labels
         labels = connections.keys()
         # Loop over each connection in `connections`
         for conn_label in labels:
-            if conn_label not in self.conn_params.keys():
-                print("[{:10}]: CONNECTION UNREGONISED -> "
-                      "{:25}".format("ERROR", conn_label))
-                continue
+            # Retrieve saved connectivity and cast to np.ndarray
+            # [:, :2] -- the columns are
+            # 1. Unique NID for pre-synaptic neuron
+            # 2. Unique NID for post-synaptic neuron
+            # 3. 3D distance between somas
             conns = np.asarray(connections[conn_label])[:, :2].astype(int)
+
+            if conn_label in ["goc_glom"]:
+                print("Ignoring connection {:25} "
+                      "".format(conn_label), "...")
+                continue
             no_synapses = conns.shape[0]
             pre_pop = self.conn_params[conn_label]['pre']
             post_pop = self.conn_params[conn_label]['post']
             weight = self.conn_params[conn_label]['weight']
             delay = self.conn_params[conn_label]['delay']
-            if (post_pop == "glomerulus" and pre_pop != "mossy_fibers"):
+            print("Creating projection from {:10}".format(pre_pop),
+                  "to {:10}".format(post_pop),
+                  "with a weight of {: 2.6f}".format(weight),
+                  "uS and a delay of", delay, "ms")
+            if (post_pop == "glomerulus"):
                 # Can't send projections to a spike source
-                print("Ignoring connection {:25} "
-                      "terminating at".format(conn_label), post_pop, "...")
+                print("Ignoring connection terminating at", post_pop, "...")
                 continue
-            else:
-                print("Creating projection {:25} "
-                      "from {:10}".format(conn_label, pre_pop),
-                      "to {:10}".format(post_pop),
-                      "with a weight of {: 2.6f}".format(weight),
-                      "uS and a delay of", delay, "ms")
 
             # Normalise the source and target neuron IDs
             # Neurons IDs used here are np.arange(0, TOTAL_NUMBER_OF_NEURONS)
@@ -340,55 +354,10 @@ class Cerebellum(Circuit):
             stacked_weights = np.asarray([[np.abs(weight)]] * no_synapses) * \
                               self.weight_scaling
             stacked_delays = np.asarray([[delay]] * no_synapses)
-
-            # TODO remove this. do better.
-            if "io_to_basket" in conn_label:
-                conns[conns < 0] = 2 ** 32 - 1
-            else:
-                assert (np.max(conns[:, 0]) < self.number_of_neurons[pre_pop]), \
-                    "pre id max: {} vs. {} for {}".format(np.max(conns[:, 0]), self.number_of_neurons[pre_pop], conn_label)
-                assert (np.min(conns[:, 0]).astype(int) >= 0), \
-                    "pre id min: {} vs. {} for {}".format(np.min(conns[:, 0]), 0, conn_label)
-                assert (np.max(conns[:, 1]) < self.number_of_neurons[post_pop]), \
-                    "post id max: {} vs. {} for {}".format(np.max(conns[:, 0]), self.number_of_neurons[post_pop], conn_label)
-                assert (np.min(conns[:, 1]).astype(int) >= 0), \
-                    "post id min: {} vs. {} for {}".format(np.min(conns[:, 1]), 0, conn_label)
             self.connections[conn_label] = np.concatenate(
                 [conns, stacked_weights, stacked_delays], axis=1)
 
-    def build_projections(self):
-        """
-        Construct PyNN Projections between Populations
-        """
-        if self.reporting:
-            # Report statistics about the populations to be built
-            projection_reporting(self._raw_connectivity_info,
-                                 self.number_of_neurons,
-                                 self.conn_params)
-        # Retrieve the Projection labels
-        labels = self.connections.keys()
-        # Loop over each connection in `connections`
-        for conn_label in labels:
-            # Retrieve saved connectivity and cast to np.ndarray
-            # [:, :2] -- the columns are
-            # 1. Unique G(lobal)ID (!) for pre-synaptic neuron
-            # 2. Unique G(lobal)ID (!) for post-synaptic neuron
-            # 3. 3D distance between somas
-
-            pre_pop = self.conn_params[conn_label]['pre']
-            post_pop = self.conn_params[conn_label]['post']
-            weight = np.abs(self.conn_params[conn_label]['weight'])
-            delay = self.conn_params[conn_label]['delay']
-
-            if post_pop in ["glomerulus", "mossy_fibers"]:
-                print("Ignoring connection {:25} "
-                      "terminating at".format(conn_label), post_pop, "...")
-                continue
-
             # Adding the projection to the network
-
-            flc = self.sim.FromListConnector(self.connections[conn_label])
-            setattr(flc, 'label', conn_label)
             receptor_type = "inhibitory" if weight < 0 else "excitatory"
             self.projections[conn_label] = self.sim.Projection(
                 self.populations[pre_pop],  # pre-synaptic population
@@ -397,18 +366,6 @@ class Cerebellum(Circuit):
                 self.sim.FromListConnector(self.connections[conn_label]),
                 receptor_type=receptor_type,  # inh or exc
                 label=conn_label)  # label for connection
-
-
-            # flc = self.sim.FromListConnector(self.connections[conn_label][:, 0:2])
-            # setattr(flc, 'label', conn_label)
-            # self.projections[conn_label] = self.sim.Projection(
-            #     self.populations[pre_pop],  # pre-synaptic population
-            #     self.populations[post_pop],  # post-synaptic population
-            #     flc, # connector includes (source, target, weight, delay),
-            #     synapse_type=self.sim.StaticSynapse(weight=np.abs(weight),
-            #                                         delay=delay),
-            #     receptor_type=receptor_type,  # inh or exc
-            #     label=conn_label)  # label for connection
 
     def __compute_stimulus(self):
         # convert stimulation times to numpy array
@@ -555,6 +512,62 @@ class Cerebellum(Circuit):
                 'spike_times': spike_times
             }}
 
+
+    def __normalise_connections(self):
+        connections = self._raw_connectivity_info
+        # Retrieve the Projection labels
+        labels = connections.keys()
+        # Loop over each connection in `connections`
+        for conn_label in labels:
+            if conn_label not in self.conn_params.keys():
+                print("[{:10}]: CONNECTION UNREGONISED -> "
+                      "{:25}".format("ERROR", conn_label))
+                continue
+            conns = np.asarray(connections[conn_label])[:, :2].astype(int)
+            no_synapses = conns.shape[0]
+            pre_pop = self.conn_params[conn_label]['pre']
+            post_pop = self.conn_params[conn_label]['post']
+            weight = self.conn_params[conn_label]['weight']
+            delay = self.conn_params[conn_label]['delay']
+            if (post_pop == "glomerulus" and pre_pop != "mossy_fibers"):
+                # Can't send projections to a spike source
+                print("Ignoring connection {:25} "
+                      "terminating at".format(conn_label), post_pop, "...")
+                continue
+            else:
+                print("Creating projection {:25} "
+                      "from {:10}".format(conn_label, pre_pop),
+                      "to {:10}".format(post_pop),
+                      "with a weight of {: 2.6f}".format(weight),
+                      "uS and a delay of", delay, "ms")
+
+            # Normalise the source and target neuron IDs
+            # Neurons IDs used here are np.arange(0, TOTAL_NUMBER_OF_NEURONS)
+            norm_ids = np.asarray([self.nid_offset[pre_pop],
+                                   self.nid_offset[post_pop]])
+            conns -= norm_ids
+
+            # Save the explicit connectivity for later
+            # (after scaling the weights)
+            stacked_weights = np.asarray([[np.abs(weight)]] * no_synapses) * \
+                              self.weight_scaling
+            stacked_delays = np.asarray([[delay]] * no_synapses)
+
+            # TODO remove this. do better.
+            if "io_to_basket" in conn_label:
+                conns[conns < 0] = 2 ** 32 - 1
+            else:
+                assert (np.max(conns[:, 0]) < self.number_of_neurons[pre_pop]), \
+                    "pre id max: {} vs. {} for {}".format(np.max(conns[:, 0]), self.number_of_neurons[pre_pop], conn_label)
+                assert (np.min(conns[:, 0]).astype(int) >= 0), \
+                    "pre id min: {} vs. {} for {}".format(np.min(conns[:, 0]), 0, conn_label)
+                assert (np.max(conns[:, 1]) < self.number_of_neurons[post_pop]), \
+                    "post id max: {} vs. {} for {}".format(np.max(conns[:, 0]), self.number_of_neurons[post_pop], conn_label)
+                assert (np.min(conns[:, 1]).astype(int) >= 0), \
+                    "post id min: {} vs. {} for {}".format(np.min(conns[:, 1]), 0, conn_label)
+            self.connections[conn_label] = np.concatenate(
+                [conns, stacked_weights, stacked_delays], axis=1)
+
     def get_circuit_inputs(self):
         """
         Return a (copy) dictionary of INPUT populations in the Cerebellum
@@ -606,13 +619,12 @@ class Cerebellum(Circuit):
 
     def record_all_spikes(self):
         for label, pop in self.populations.items():
-            # if self.neuron_models[label] == "spikesourcearray":
-            #     print("NOT enabling recordings for ", label,
-            #           "(it's a Spike Source Array)")
-            #     continue
-            if pop:
-                print("Enabling recordings for ", label, "...")
-                pop.record(['spikes'])
+            if CELL_TYPES[label] == "SpikeSourceArray":
+                print("NOT enabling recordings for ", label,
+                      "(it's a Spike Source Array)")
+                continue
+            print("Enabling recordings for ", label, "...")
+            pop.record(['spikes'])
 
     def retrieve_all_recorded_spikes(self):
         """
@@ -623,7 +635,14 @@ class Cerebellum(Circuit):
         all_spikes = {}
         for label, pop in self.populations.items():
             print("Retrieving recordings for ", label, "...")
-            if pop:
+            if CELL_TYPES[label] == "SpikeSourceArray":
+                _spikes = []
+                for i, _times in enumerate(self.stimulus['spike_times']):
+                    for t in _times:
+                        _spikes.append(np.asarray([i, t]))
+                _spikes = np.asarray(_spikes)
+                all_spikes[label] = _spikes
+            else:
                 all_spikes[label] = pop.get_data(['spikes'])
         return all_spikes
 
@@ -633,20 +652,17 @@ class Cerebellum(Circuit):
         :return: spike times for all populations
         :rtype: list or Neo.Block
         """
-        _rec = {}
+        gsyn_rec = {}
         for label, pop in self.populations.items():
-            if not pop:
-                continue
-            if label in ["glomerulus", "mossy_fibers"]:
+            if label == "glomerulus":
                 print("Skipping selective recording for", label, "...")
                 continue
             print("Retrieving recordings for ", label, "...")
-            _rec[label] = {}
-            _rec[label]['gsyn_inh'] = pop.get_data(['gsyn_inh'])
-            _rec[label]['gsyn_exc'] = pop.get_data(['gsyn_exc'])
-            _rec[label]['v'] = pop.get_data(['v'])
-            _rec[label]['all'] = pop.get_data(['v', 'gsyn_exc', 'gsyn_inh'])
-        return _rec
+            gsyn_rec[label] = {}
+            gsyn_rec[label]['gsyn_inh'] = pop.get_data(['gsyn_inh'])
+            gsyn_rec[label]['gsyn_exc'] = pop.get_data(['gsyn_exc'])
+            gsyn_rec[label]['v'] = pop.get_data(['v'])
+        return gsyn_rec
 
     def selectively_record_all(self, number_of_neurons=None, every=None):
         if bool(number_of_neurons) == bool(every):
@@ -654,7 +670,7 @@ class Cerebellum(Circuit):
                              "to record from xor a linspace of neurons "
                              "(every nth).")
         for label, pop in self.populations.items():
-            if label in ["glomerulus", "mossy_fibers"]:
+            if label == "glomerulus":
                 print("Skipping selective recording for", label, "...")
             else:
                 print("Selectively recording gsyn and v for ", label)
@@ -677,17 +693,11 @@ class Cerebellum(Circuit):
                 all_connections[label] = \
                     np.array(p.get(('weight', 'delay'),
                                    format="list")._get_data_items())
-            except AttributeError as ae:
+            except Exception as e:
                 print("Careful! Something happened when retrieving the "
-                      "connectivity:", ae,
-                      "\nRetrying using standard PyNN syntax...")
+                      "connectivity:", e, "\nRetrying...")
                 all_connections[label] = \
                     np.array(p.get(('weight', 'delay'), format="list"))
-            except TypeError as te:
-                print("Connectivity is None (", te,
-                      ") for connection", label)
-                print("Connectivity as empty array.")
-                all_connections[label] = np.array([])
         return all_connections
 
     def retrieve_population_names(self):
