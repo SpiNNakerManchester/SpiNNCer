@@ -218,7 +218,7 @@ class Cerebellum(Circuit):
         self.build_populations(self.cell_positions)
         # Construct PyNN Projections
         if not skip_projections and force_number_of_neurons is None:
-            self.build_projections(self.connections)
+            self.build_projections()
         else:
             print("NOT GENERATING ANY CONNECTIVITY FOR THIS MODEL")
             print("skip_projections", skip_projections)
@@ -304,10 +304,11 @@ class Cerebellum(Circuit):
                     label=cell_name + " cells")
 
 
-    def build_projections(self, connections):
+    def build_projections(self):
         """
         Construct PyNN Projections between Populations
         """
+        connections = self._raw_connectivity_info
         if self.reporting:
             # Report statistics about the populations to be built
             projection_reporting(self._raw_connectivity_info,
@@ -329,10 +330,10 @@ class Cerebellum(Circuit):
                       "".format(conn_label), "...")
                 continue
             no_synapses = conns.shape[0]
-            pre_pop = CONNECTIVITY_MAP[conn_label]['pre']
-            post_pop = CONNECTIVITY_MAP[conn_label]['post']
-            weight = CONNECTIVITY_MAP[conn_label]['weight']
-            delay = CONNECTIVITY_MAP[conn_label]['delay']
+            pre_pop = self.conn_params[conn_label]['pre']
+            post_pop = self.conn_params[conn_label]['post']
+            weight = self.conn_params[conn_label]['weight']
+            delay = self.conn_params[conn_label]['delay']
             print("Creating projection from {:10}".format(pre_pop),
                   "to {:10}".format(post_pop),
                   "with a weight of {: 2.6f}".format(weight),
@@ -356,10 +357,6 @@ class Cerebellum(Circuit):
             self.connections[conn_label] = np.concatenate(
                 [conns, stacked_weights, stacked_delays], axis=1)
 
-            assert (np.max(conns[:, 0]) < self.number_of_neurons[pre_pop]), \
-                np.max(conns[:, 0])
-            assert (np.max(conns[:, 1]) < self.number_of_neurons[post_pop]), \
-                np.max(conns[:, 1])
             # Adding the projection to the network
             receptor_type = "inhibitory" if weight < 0 else "excitatory"
             self.projections[conn_label] = self.sim.Projection(
