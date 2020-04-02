@@ -849,10 +849,23 @@ def spike_analysis(results_file, fig_folder,
     # TODO plot centred connectivity
     print("=" * 80)
 
+def compare_results(file_1, file_2, dark_background):
+    if dark_background:
+        plt.style.use('dark_background')
+    pass
+
 
 if __name__ == "__main__":
     from spinncer.analysis_argparser import *
 
+    if analysis_args.compare and len(analysis_args.compare) > 0:
+        if len(analysis_args.compare) % 2 == 1:
+            raise ValueError("The number of archives to compare is meant to "
+                             "be a multiple of 2.")
+        for i in range(len(analysis_args.compare), 2):
+            compare_results(analysis_args.compare[i],
+                            analysis_args.compare[i+1],
+                            dark_background=analysis_args.dark_background)
     if analysis_args.input and len(analysis_args.input) > 0:
         for in_file in analysis_args.input:
             spike_analysis(in_file, analysis_args.figures_dir,
