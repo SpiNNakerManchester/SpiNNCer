@@ -124,7 +124,7 @@ def use_display_name(name):
         else capitalise(name)
 
 
-def save_figure(plt, name, extensions=(".png", ),**kwargs):
+def save_figure(plt, name, extensions=(".png", ), **kwargs):
     for ext in extensions:
         write_short_msg("Plotting", name+ext)
         plt.savefig(name + ext, **kwargs)

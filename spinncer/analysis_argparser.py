@@ -11,6 +11,14 @@ analysis_parser.add_argument('-i', '--input', type=str, nargs="*",
                                   "the results from running the simulations",
                              dest='input')
 
+analysis_parser.add_argument('-c', '--compare', type=str, nargs="*",
+                             help="name(s) of the npz archive storing "
+                                  "the results from running the simulations "
+                                  "that you want to compare. must be a "
+                                  "multiple of 2. Archive 2k is compared to "
+                                  "archive 2k+1.",
+                             dest='compare')
+
 analysis_parser.add_argument('--figures_dir', type=str,
                              help='directory into which to save figures',
                              default=DEFAULT_FIGURE_DIR)
