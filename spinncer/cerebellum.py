@@ -198,7 +198,7 @@ class Cerebellum(Circuit):
                         actual_ids.size
             print("[{:10}]: successfully retrieved connectivity for NEW style"
                   "of scaffold!".format("INFO"))
-        else:  # old scaffold
+        elif not force_number_of_neurons:  # old scaffold
             # Compute the number of neurons in each population
             self.__compute_number_of_neurons()
 
@@ -210,7 +210,7 @@ class Cerebellum(Circuit):
             # use passed in spikes
             print("USING SPIKES FROM FILE")
             self.stimulus = input_spikes
-        else:
+        elif not force_number_of_neurons:
             # generate necessary spikes
             self.stimulus = self.__compute_stimulus()
 
@@ -619,12 +619,13 @@ class Cerebellum(Circuit):
 
     def record_all_spikes(self):
         for label, pop in self.populations.items():
-            if CELL_TYPES[label] == "SpikeSourceArray":
-                print("NOT enabling recordings for ", label,
-                      "(it's a Spike Source Array)")
-                continue
-            print("Enabling recordings for ", label, "...")
-            pop.record(['spikes'])
+            if pop is not None:
+                if CELL_TYPES[label] == "SpikeSourceArray":
+                    print("NOT enabling recordings for ", label,
+                          "(it's a Spike Source Array)")
+                    continue
+                print("Enabling recordings for ", label, "...")
+                pop.record(['spikes'])
 
     def retrieve_all_recorded_spikes(self):
         """
@@ -634,16 +635,17 @@ class Cerebellum(Circuit):
         """
         all_spikes = {}
         for label, pop in self.populations.items():
-            print("Retrieving recordings for ", label, "...")
-            if CELL_TYPES[label] == "SpikeSourceArray":
-                _spikes = []
-                for i, _times in enumerate(self.stimulus['spike_times']):
-                    for t in _times:
-                        _spikes.append(np.asarray([i, t]))
-                _spikes = np.asarray(_spikes)
-                all_spikes[label] = _spikes
-            else:
-                all_spikes[label] = pop.get_data(['spikes'])
+            if pop is not None:
+                print("Retrieving recordings for ", label, "...")
+                if CELL_TYPES[label] == "SpikeSourceArray":
+                    _spikes = []
+                    for i, _times in enumerate(self.stimulus['spike_times']):
+                        for t in _times:
+                            _spikes.append(np.asarray([i, t]))
+                    _spikes = np.asarray(_spikes)
+                    all_spikes[label] = _spikes
+                else:
+                    all_spikes[label] = pop.get_data(['spikes'])
         return all_spikes
 
     def retrieve_selective_recordings(self):

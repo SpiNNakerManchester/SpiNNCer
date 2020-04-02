@@ -5,9 +5,9 @@ neurons and no connections. This script is meant for testing the behaviour
 of single cells using paramters to be used in the full-scale
 cerebellum_experiment.py
 """
-import json
-# argparser for easily running experiment from cli
 from spinncer.spinncer_argparser import *
+import sys
+import json
 
 # import sPyNNaker
 # import simulator
@@ -74,6 +74,12 @@ if args.param_json:
 else:
     json_data = None
 
+# read spikes from file
+input_spikes = None
+if args.stimulus_from_file is not None:
+    # Assembly the dictionary to pass to the cerebellum circuit
+    input_spikes = np.load(args.stimulus_from_file, allow_pickle=True)['input_spikes'].ravel()[0]
+
 # Instantiate a Cerebellum with *1 neuron per population without projections.*
 # We add those outside here.
 cerebellum_circuit = Cerebellum(
@@ -82,13 +88,36 @@ cerebellum_circuit = Cerebellum(
     reporting=args.no_reports,
     params=json_data,
     force_number_of_neurons=1,
+    skip_projections=True,
     weight_scaling=args.weight_scaling,
-    save_conversion_file=args.generate_conversion_constants,
-    neuron_model=args.neuron_model
+    neuron_model=args.neuron_model,
+    input_spikes=input_spikes,
+    rb_left_shifts=args.rb_left_shifts
 )
+
+if args.generate_conversion_constants:
+    np.savez_compressed("conversion_constants",
+                        nid_offsets=cerebellum_circuit.nid_offset,
+                        connectivity=cerebellum_circuit.connections,
+                        all_neurons=cerebellum_circuit.number_of_neurons,
+                        connectivity_file=connectivity_filename)
+    # expand to also save spikes
+    np.savez_compressed(
+        "stimulus",
+        details={
+            "argparser": vars(args),
+            "git_hash": retrieve_git_commit(),
+            "current_time": plt.datetime.datetime.now().strftime("%H:%M:%S_%d/%m/%Y"),
+            "n_neurons_per_core": n_neurons_per_core,
+            "ss_neurons_per_core": ss_neurons_per_core,
+        },
+        input_spikes=cerebellum_circuit.stimulus,
+        **cerebellum_circuit.stimulus)
+    print("Saved conversion_constants.npz. Exiting...")
+    sys.exit(0)
 # Assemble the stimulus
 # Copy-paste from cell.pptz
-stim_array = [100., 110., 120., 130., 140., 150., 160., 170., 180., 190., 200.]
+stim_array = [100., 110., 120., 130., 140., 150., 160., 170., 180., 190.]
 # Create the stimulus spike source array
 stimulus_pop = sim.Population(
     1,
@@ -105,7 +134,7 @@ WEIGHT = 0.01
 DELAY = 1.0
 stim_to_pop_proj = []
 for pop_name, pop in populations.items():
-    if pop:
+    if pop and 'glom' not in pop_name:
         stim_to_pop_proj.append(sim.Projection(
             stimulus_pop, pop, sim.OneToOneConnector(),
             sim.StaticSynapse(weight=WEIGHT, delay=DELAY),
