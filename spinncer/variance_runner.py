@@ -31,13 +31,20 @@ MAX_CONCURRENT_PROCESSES = args.max_processes or 10
 
 POISSON_PHASE = 0
 PERIODIC_PHASE = 1
-PHASES = [POISSON_PHASE, PERIODIC_PHASE]
 PHASES_NAMES = ["poisson", "periodic"]
 PHASES_ARGS = [None, "--periodic_stimulus"]
+# Both phases
+# PHASES = [POISSON_PHASE, PERIODIC_PHASE]
+
+# Only Poisson phase
+PHASES = [POISSON_PHASE]
+
+# Only PERIODIC phase
+# PHASES = [PERIODIC_PHASE]
 
 concurrently_active_processes = 0
 
-no_runs = np.arange(5)
+no_runs = np.arange(10)
 # Compute total number of runs
 total_runs = no_runs.size * len(PHASES)
 
@@ -51,7 +58,7 @@ dataset = "scaffold_full_dcn_400.0x400.0_v3.hdf5"
 log_calls = []
 
 # making a directory for this experiment
-dir_name = "variance_testing_w_reinjection_@{}".format(suffix)
+dir_name = "variance_testing_from_file_@{}".format(suffix)
 print("=" * 80)
 print("TOTAL RUNS", total_runs)
 if not os.path.isdir(dir_name):
@@ -100,6 +107,7 @@ for phase in PHASES:
                 '../../cerebellum_experiment.py',
                 '--input', dataset,
                 '-o', filename,
+                '-s', "../../400x400_stimulus_2.npz"
                 ]
 
         if PHASES_ARGS[phase] is not None:
