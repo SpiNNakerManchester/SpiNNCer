@@ -23,26 +23,17 @@ from colorama import Fore, Style, init as color_init
 from multiprocessing import Process, Pool
 from spinncer.analysis_common import *
 
-# mlib.use('Agg')
-# warnings.filterwarnings("ignore", category=UserWarning)
-# warnings.filterwarnings("ignore", category=RuntimeWarning)
-#
-# # ensure we use viridis as the default cmap
-# plt.viridis()
-#
-# # ensure we use the same rc parameters for all matplotlib outputs
-# mlib.rcParams.update({'font.size': 24})
-# mlib.rcParams.update({'errorbar.capsize': 5})
-# mlib.rcParams.update({'figure.autolayout': True})
-# viridis_cmap = mlib.cm.get_cmap('viridis')
 
+# The following LUT contains the delays for both excitation and inhibition to
+# reach that particular population in the case of DCN, or only excitation for
+# everything else
 DELAY_IN_EXCITATION = {
     'glomerulus': 0,
     'mossy_fibers': 0,
     'granule': 4,
     'granule_cell': 4,
-    'dcn': 4,
-    'dcn_cell': 4,
+    'dcn': max(4, 10),
+    'dcn_cell': max(4, 10),
     'dcn_interneuron': 4,
     'golgi': 4,
     'golgi_cell': 4,
@@ -614,7 +605,14 @@ def spike_analysis(results_file, fig_folder,
             print("{:20}-> neuron {:>8d} saw {:>6d}".format(
                 pop, int(nid), int(np.max(counts))),
                 "spikes in timestep #{:8d}".format(int(tstep)))
-            # Break down spikes in that timestep
+            # Print worst case statistic for the population
+            maxs = np.max(counts, axis=1)
+            assert maxs.size == all_neurons[pop]
+            print("\t# spikes: mean {:8.4f}, "
+                  "mode {:12.8f}, "
+                  "std {:8.4f}".format(
+                np.mean(maxs), scipy.stats.mode(maxs).mode[0], np.std(maxs)
+            ))
 
     print("=" * 80)
     print("Plotting figures...")
@@ -647,6 +645,30 @@ def spike_analysis(results_file, fig_folder,
                        ylabel="Membrane potential (mV)",
                        **common_values_for_plots)
 
+    # Plot distribution of worst case spikes per population
+    if conn_exists and worst_case:
+        print("Plotting histogram of worst spike counts")
+        for index, pop in enumerate(plot_order):
+            f = plt.figure(1, figsize=(9, 9), dpi=400)
+            counts = inc_spike_count[pop]
+            maxs = np.max(counts, axis=1)
+            assert maxs.size == all_neurons[pop]
+            plt.hist(maxs, bins=20, color=viridis_cmap(index / (n_plots + 1)),
+                     rasterized=True,
+                     edgecolor='k')
+
+            plt.title(use_display_name(pop))
+
+            plt.ylabel("Count")
+            plt.xlabel("Max # of spikes per neuron")
+            plt.tight_layout()
+            save_figure(
+                plt,
+                os.path.join(sim_fig_folder,
+                             "max_spikes_per_neuron_in_{}").format(pop),
+                extensions=[".png", ".pdf"])
+            plt.close(f)
+
     # raster plot including ALL populations
     print("Plotting spiking raster plot for all populations")
     f, axes = plt.subplots(len(all_spikes.keys()), 1,
@@ -665,7 +687,7 @@ def spike_analysis(results_file, fig_folder,
                         s=.5, rasterized=True)
         curr_ax.set_title(use_display_name(pop))
     plt.xlabel("Time (ms)")
-    # plt.suptitle(use_display_name(simulator))
+    # plt.suptitle((use_display_name(simulator)+"\n")
     f.tight_layout()
     save_figure(plt, os.path.join(sim_fig_folder, "raster_plots"),
                 extensions=['.png', '.pdf'])
@@ -697,7 +719,7 @@ def spike_analysis(results_file, fig_folder,
             curr_ax.set_ylabel("Count")
 
     plt.xlabel("Time (ms)")
-    # plt.suptitle(use_display_name(simulator))
+    # plt.suptitle((use_display_name(simulator) + "\n")
     f.tight_layout()
     save_figure(plt, os.path.join(sim_fig_folder, "raster_and_psth_plots"),
                 extensions=['.png', ])
@@ -796,7 +818,7 @@ def spike_analysis(results_file, fig_folder,
                         rasterized=True)
         axes[index].set_title(use_display_name(pop))
     plt.xticks(wanted_times * time_to_bin_conversion, wanted_times)
-    # plt.suptitle(use_display_name(simulator))
+    # plt.suptitle((use_display_name(simulator) + "\n")
 
     save_figure(plt, os.path.join(sim_fig_folder,
                                   "timestep_psth"),
@@ -814,7 +836,7 @@ def spike_analysis(results_file, fig_folder,
         axes[index].set_title(use_display_name(pop))
 
     plt.xticks(wanted_times * time_to_bin_conversion / bins_in_3ms, wanted_times)
-    # plt.suptitle(use_display_name(simulator))
+    # plt.suptitle((use_display_name(simulator) + "\n")
 
     save_figure(plt, os.path.join(sim_fig_folder,
                                   "timestep_psth_3ms"),
@@ -849,6 +871,7 @@ def spike_analysis(results_file, fig_folder,
     # TODO plot centred connectivity
     print("=" * 80)
 
+
 def compare_results(file_1, file_2, dark_background):
     if dark_background:
         plt.style.use('dark_background')
@@ -864,7 +887,7 @@ if __name__ == "__main__":
                              "be a multiple of 2.")
         for i in range(len(analysis_args.compare), 2):
             compare_results(analysis_args.compare[i],
-                            analysis_args.compare[i+1],
+                            analysis_args.compare[i + 1],
                             dark_background=analysis_args.dark_background)
     if analysis_args.input and len(analysis_args.input) > 0:
         for in_file in analysis_args.input:
