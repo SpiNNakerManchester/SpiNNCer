@@ -42,7 +42,8 @@ connectivity_filename = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
     'datasets', connectivity_filename)
 # Set up the simulation
-sim.setup(timestep=args.timestep, min_delay=args.timestep, max_delay=1,
+sim.setup(timestep=args.timestep, min_delay=args.timestep,
+          max_delay=args.timestep*6,
           timescale=args.timescale)
 
 # Compile stimulus information
@@ -153,7 +154,7 @@ glom_grc = sim.Projection(
     label="glom_grc")  # label for connection
 
 goc_grc = sim.Projection(
-    exc_inp,  # pre-synaptic population
+    inh_inp,  # pre-synaptic population
     granule,  # post-synaptic population
     # connector includes (source, target, weight, delay)
     sim.AllToAllConnector(),
