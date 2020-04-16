@@ -58,7 +58,8 @@ dataset = "scaffold_full_dcn_400.0x400.0_v3.hdf5"
 log_calls = []
 
 # making a directory for this experiment
-dir_name = "variance_testing_from_file_@{}".format(suffix)
+# dir_name = "variance_testing_grc_4_stim_3_PERIODIC_@{}".format(suffix)
+dir_name = "variance_testing_grc_4_stim_3_POISSON_@{}".format(suffix)
 print("=" * 80)
 print("TOTAL RUNS", total_runs)
 if not os.path.isdir(dir_name):
@@ -107,7 +108,7 @@ for phase in PHASES:
                 '../../cerebellum_experiment.py',
                 '--input', dataset,
                 '-o', filename,
-                '-s', "../../400x400_stimulus_2.npz"
+                '-s', "../../400x400_stimulus_3.npz"
                 ]
 
         if PHASES_ARGS[phase] is not None:
