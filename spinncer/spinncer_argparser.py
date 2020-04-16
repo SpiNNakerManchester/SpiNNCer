@@ -67,7 +67,7 @@ parser.add_argument('--periodic_stimulus', action="store_true",
                     help='if this flag is present the stimulus '
                          'is a spike source array with periodic stimulus')
 
-parser.add_argument('--generate_conversion_constants', action="store_true",
+parser.add_argument('-g', '--generate_conversion_constants', action="store_true",
                     help='if this flag is present the simulation is not run. '
                          'Instead, we generate a "conversion_constants.npz" '
                          'file to reduce chance of incorrectly translated '

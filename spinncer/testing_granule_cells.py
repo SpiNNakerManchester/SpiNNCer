@@ -83,7 +83,7 @@ if input_spikes is None:
     }
 
 # Create Spike Source Arrays
-exc_inp = sim.Population(
+glomerulus = sim.Population(
     n_neurons,
     cellclass=sim.SpikeSourceArray,
     cellparams={
@@ -91,7 +91,7 @@ exc_inp = sim.Population(
     },
     label="glomerulus")
 
-inh_inp = sim.Population(
+golgi = sim.Population(
     n_neurons,
     cellclass=sim.SpikeSourceArray,
     cellparams={
@@ -109,9 +109,9 @@ granule = sim.Population(
 
 # populations = cerebellum_circuit.get_all_populations()
 populations = {
-    'glomerulus': exc_inp,
+    'glomerulus': glomerulus,
     'granule': granule,
-    'golgi': inh_inp
+    'golgi': golgi
 }
 
 all_neurons = {
@@ -143,7 +143,7 @@ if args.generate_conversion_constants:
 
 # Create Projections
 glom_grc = sim.Projection(
-    exc_inp,  # pre-synaptic population
+    glomerulus,  # pre-synaptic population
     granule,  # post-synaptic population
     # connector includes (source, target, weight, delay)
     sim.AllToAllConnector(),
@@ -154,7 +154,7 @@ glom_grc = sim.Projection(
     label="glom_grc")  # label for connection
 
 goc_grc = sim.Projection(
-    inh_inp,  # pre-synaptic population
+    golgi,  # pre-synaptic population
     granule,  # post-synaptic population
     # connector includes (source, target, weight, delay)
     sim.AllToAllConnector(),
