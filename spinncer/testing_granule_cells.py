@@ -59,23 +59,34 @@ stimulus_information = {
 
 n_neurons = 10
 
-rates = [[0, args.f_peak, 0], ] * n_neurons
-inh_rates = [[0, args.f_base, 0], ] * n_neurons
-starts = [[0, 100, 200], ] * n_neurons
-durations = [[100, 100, 100], ] * n_neurons
+# read spikes from file
+input_spikes = None
+if args.stimulus_from_file is not None:
+    # Assembly the dictionary to pass to the cerebellum circuit
+    input_spikes = np.load(args.stimulus_from_file, allow_pickle=True)['input_spikes'].ravel()[0]
 
-exc_spike_times = create_poisson_spikes(
-    n_neurons, rates, starts, durations)
+if input_spikes is None:
+    rates = [[0, args.f_peak, 0], ] * n_neurons
+    inh_rates = [[0, args.f_base, 0], ] * n_neurons
+    starts = [[0, 100, 200], ] * n_neurons
+    durations = [[100, 100, 100], ] * n_neurons
 
-inh_spike_times = create_poisson_spikes(
-    n_neurons, inh_rates, starts, durations)
+    exc_spike_times = create_poisson_spikes(
+        n_neurons, rates, starts, durations)
+
+    inh_spike_times = create_poisson_spikes(
+        n_neurons, inh_rates, starts, durations)
+    input_spikes = {
+        'glomerulus': exc_spike_times,
+        'golgi': inh_spike_times
+    }
 
 # Create Spike Source Arrays
 exc_inp = sim.Population(
     n_neurons,
     cellclass=sim.SpikeSourceArray,
     cellparams={
-        'spike_times': exc_spike_times
+        'spike_times': input_spikes['glomerulus']
     },
     label="glomerulus")
 
@@ -83,7 +94,7 @@ inh_inp = sim.Population(
     n_neurons,
     cellclass=sim.SpikeSourceArray,
     cellparams={
-        'spike_times': inh_spike_times
+        'spike_times': input_spikes['golgi']
     },
     label="golgi")
 
@@ -108,6 +119,27 @@ all_neurons = {
     'golgi': n_neurons
 }
 
+if args.generate_conversion_constants:
+    np.savez_compressed("conversion_constants",
+                        nid_offsets={k: 0 for k in all_neurons.keys()},
+                        connectivity=None,
+                        all_neurons=all_neurons,
+                        connectivity_file=connectivity_filename)
+    # expand to also save spikes
+    np.savez_compressed(
+        "granule_test_stimulus",
+        details={
+            "argparser": vars(args),
+            "git_hash": retrieve_git_commit(),
+            "current_time": plt.datetime.datetime.now().strftime("%H:%M:%S_%d/%m/%Y"),
+            "n_neurons_per_core": 255,
+            "ss_neurons_per_core": 255,
+        },
+        input_spikes=input_spikes,
+        **input_spikes)
+    print("Saved conversion_constants.npz. Exiting...")
+    sys.exit(0)
+
 # Create Projections
 glom_grc = sim.Projection(
     exc_inp,  # pre-synaptic population
@@ -116,7 +148,7 @@ glom_grc = sim.Projection(
     sim.AllToAllConnector(),
     synapse_type=sim.StaticSynapse(
         weight=CONNECTIVITY_MAP['glom_grc']['weight'],
-        delay=CONNECTIVITY_MAP['glom_grc']['delay'] / 10.),
+        delay=args.timestep),
     receptor_type="excitatory",  # inh or exc
     label="glom_grc")  # label for connection
 
@@ -127,7 +159,7 @@ goc_grc = sim.Projection(
     sim.AllToAllConnector(),
     synapse_type=sim.StaticSynapse(
         weight=CONNECTIVITY_MAP['goc_grc']['weight'],
-        delay=CONNECTIVITY_MAP['goc_grc']['delay'] / 10.),
+        delay=args.timestep*6),
     receptor_type="inhibitory",  # inh or exc
     label="goc_grc")  # label for connection
 
@@ -186,7 +218,7 @@ for label, pop in populations.items():
     other_recordings[label]['gsyn_inh'] = pop.get_data(['gsyn_inh'])
     other_recordings[label]['gsyn_exc'] = pop.get_data(['gsyn_exc'])
     other_recordings[label]['v'] = pop.get_data(['v'])
-    
+
 # Retrieve final network connectivity
 try:
     # final_connectivity = cerebellum_circuit.retrieve_final_connectivity()
