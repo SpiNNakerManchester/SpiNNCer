@@ -165,7 +165,7 @@ goc_grc = sim.Projection(
     # connector includes (source, target, weight, delay)
     sim.AllToAllConnector(),
     synapse_type=sim.StaticSynapse(
-        weight=CONNECTIVITY_MAP['goc_grc']['weight'],
+        weight=-CONNECTIVITY_MAP['goc_grc']['weight'],  # NEST insists on the weight being negative, SpiNNaker does it behind the scenes
         delay=2),
     receptor_type="inhibitory",  # inh or exc
     label="goc_grc")  # label for connection
