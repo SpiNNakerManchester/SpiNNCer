@@ -100,13 +100,20 @@ golgi = sim.Population(
     label="golgi")
 
 # Create LIF population
-
-granule = sim.Population(
-    1,
-    cellclass=sim.IF_cond_exp,
-    cellparams=CELL_PARAMS['granule'],
-    label="granule")
-
+if str.lower(args.simulator) in ["spinnaker", "spynnaker"]:
+    additional_params = {"rb_left_shifts": [0, 0]}
+    granule = sim.Population(
+        1,
+        cellclass=sim.IF_cond_exp,
+        cellparams=CELL_PARAMS['granule'],
+        label="granule",
+        additional_parameters=additional_params)
+else:
+    granule = sim.Population(
+        1,
+        cellclass=sim.IF_cond_exp,
+        cellparams=CELL_PARAMS['granule'],
+        label="granule")
 # populations = cerebellum_circuit.get_all_populations()
 populations = {
     'glomerulus': glomerulus,
@@ -149,7 +156,7 @@ glom_grc = sim.Projection(
     sim.AllToAllConnector(),
     synapse_type=sim.StaticSynapse(
         weight=CONNECTIVITY_MAP['glom_grc']['weight'],
-        delay=args.timestep),
+        delay=1),
     receptor_type="excitatory",  # inh or exc
     label="glom_grc")  # label for connection
 
@@ -160,7 +167,7 @@ goc_grc = sim.Projection(
     sim.AllToAllConnector(),
     synapse_type=sim.StaticSynapse(
         weight=CONNECTIVITY_MAP['goc_grc']['weight'],
-        delay=args.timestep*6),
+        delay=2),
     receptor_type="inhibitory",  # inh or exc
     label="goc_grc")  # label for connection
 
