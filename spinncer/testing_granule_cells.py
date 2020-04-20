@@ -43,7 +43,6 @@ connectivity_filename = os.path.join(
     'datasets', connectivity_filename)
 # Set up the simulation
 sim.setup(timestep=args.timestep, min_delay=args.timestep,
-          max_delay=args.timestep*6,
           timescale=args.timescale)
 
 # Compile stimulus information
