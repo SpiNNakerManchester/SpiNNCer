@@ -1085,17 +1085,17 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
     # Plot side by side boxplots
     plot_sbs_boxplot_for_all_pops(all_isi, "isi",
                                   xlabel="Population",
-                                  ylabel="ISI (ms)",
+                                  ylabel="ISI (ms)",titles=simulators,
                                   **common_values_for_plots)
 
     plot_sbs_boxplot_for_all_pops(all_cv, "cv",
                                   xlabel="Population",
-                                  ylabel="CV",
+                                  ylabel="CV",titles=simulators,
                                   **common_values_for_plots)
 
     plot_sbs_boxplot_for_all_pops(all_cv2, "cv2",
                                   xlabel="Population",
-                                  ylabel="CV2",
+                                  ylabel="CV2",titles=simulators,
                                   **common_values_for_plots)
 
     # Plot side by side histograms
@@ -1241,7 +1241,8 @@ def plot_sbs_boxplot_for_all_pops(data, variable_name, xlabel, ylabel,
                                   plot_order,
                                   wanted_times, time_to_bin_conversion,
                                   fig_folder,
-                                  highlight_stim, common_highlight_values):
+                                  highlight_stim, common_highlight_values,
+                                  titles):
     print("Plotting SIDE BY SIDE boxplot for {} for all populations".format(
         variable_name))
     assembled_results = []
@@ -1253,16 +1254,19 @@ def plot_sbs_boxplot_for_all_pops(data, variable_name, xlabel, ylabel,
     f = plt.figure(figsize=(12, 8), dpi=600)
     for index, pop in enumerate(plot_order):
         curr_pop = data[pop]
-        plt.boxplot(np.asarray(curr_pop[0]).ravel(), notch=True,
+        bp0 = plt.boxplot(np.asarray(curr_pop[0]).ravel(), notch=True,
                     positions=[spacer * index + 1],
-                    medianprops=dict(color=color_for_index(index, n_plots),
+                    medianprops=dict(color=viridis_cmap(0.0),
                                      linewidth=1.5),
                     widths=bp_width)
-        plt.boxplot(np.asarray(curr_pop[1]).ravel(), notch=True,
+        bp1 = plt.boxplot(np.asarray(curr_pop[1]).ravel(), notch=True,
                     positions=[spacer * index + 2],
-                    medianprops=dict(color=color_for_index(index, n_plots),
+                    medianprops=dict(color=viridis_cmap(.9),
                                      linewidth=1.5),
                     widths=bp_width)
+    title_display_names = [use_display_name(x) for x in titles]
+    plt.legend([bp0["medians"][0], bp1["medians"][0]], title_display_names,
+               loc='best')
     plt.ylabel(ylabel)
     plt.xlim([0, spacer * n_plots])
     plt.grid(True, which="major", axis="y")
