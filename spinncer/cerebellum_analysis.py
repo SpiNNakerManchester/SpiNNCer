@@ -931,12 +931,12 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
         corr_coef_per_neuron = []
         spike_time_tiling_coef_per_neuron = []
         van_rossum_dists = []
-        isis = {0:[],
-                1:[]}
-        cvs = {0:[],
-               1:[]}
-        cv2s = {0:[],
-               1:[]}
+        isis = {0: [],
+                1: []}
+        cvs = {0: [],
+               1: []}
+        cv2s = {0: [],
+                1: []}
         # I guess we need to look at each neuron?
         for (p1, p2) in zip(pop_1_spikes, pop_2_spikes):
             cc_matrix = elephant.spike_train_correlation.corrcoef(
@@ -1004,6 +1004,7 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
         print("-" * 80)
         for signal in ['v', 'gsyn_exc', 'gsyn_inh']:
             all_coherence[signal] = {}
+            all_freqs[signal] = {}
             all_lags[signal] = {}
             for pop in plot_order:
                 if pop not in other_recordings_1.keys():
@@ -1052,25 +1053,56 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
     wanted_times = np.linspace(0, (simtime / ms), 6).astype(int)
 
     common_highlight_values = {
-        'start': None,  #stim_period_start,
-        'stop': None,  #stim_period_end,
+        'start': None,  # stim_period_start,
+        'stop': None,  # stim_period_end,
         'increment': timestep / ms,
     }
 
     common_values_for_plots = {
         'plot_order': plot_order,
-        'wanted_times': None,  #wanted_times,
-        'time_to_bin_conversion': None,  #time_to_bin_conversion,
+        'wanted_times': None,  # wanted_times,
+        'time_to_bin_conversion': None,  # time_to_bin_conversion,
         'fig_folder': sim_fig_folder,
         'highlight_stim': None,  # highlight_stim,
-        'common_highlight_values': None,  #common_highlight_values,
+        'common_highlight_values': None,  # common_highlight_values,
     }
 
+    # Plotting boxplots
+    plot_boxplot_for_all_pops(all_corr_coef, "corr_coeff",
+                              xlabel="Population",
+                              ylabel="Correlation Coefficient",
+                              **common_values_for_plots)
 
+    plot_boxplot_for_all_pops(all_distances, "van_rostum_dist",
+                              xlabel="Population",
+                              ylabel="van Rostum Distance",
+                              **common_values_for_plots)
+
+    plot_boxplot_for_all_pops(all_tiling_coef, "tiling_coeff",
+                              xlabel="Population",
+                              ylabel="Tiling Coefficient",
+                              **common_values_for_plots)
+    # Plot side by side boxplots
+    plot_sbs_boxplot_for_all_pops(all_isi, "isi",
+                                  xlabel="Population",
+                                  ylabel="ISI (ms)",
+                                  **common_values_for_plots)
+
+    plot_sbs_boxplot_for_all_pops(all_cv, "cv",
+                                  xlabel="Population",
+                                  ylabel="CV",
+                                  **common_values_for_plots)
+
+    plot_sbs_boxplot_for_all_pops(all_cv2, "cv2",
+                                  xlabel="Population",
+                                  ylabel="CV2",
+                                  **common_values_for_plots)
+
+    # Plot side by side histograms
     plot_sbs_histogram_for_all_pops(all_isi, "isi",
-                                xlabel="ISI",
-                                ylabel="count", titles=simulators,
-                                **common_values_for_plots)
+                                    xlabel="ISI",
+                                    ylabel="count", titles=simulators,
+                                    **common_values_for_plots)
 
     plot_sbs_histogram_for_all_pops(all_cv, "cv",
                                     xlabel="CV",
@@ -1082,6 +1114,7 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
                                     ylabel="count", titles=simulators,
                                     **common_values_for_plots)
 
+    # Plotting histograms
     plot_histogram_for_all_pops(all_corr_coef, "corr_coeff",
                                 xlabel="Correlation Coefficient",
                                 ylabel="count",
@@ -1097,16 +1130,17 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
                                 ylabel="count",
                                 **common_values_for_plots)
 
-
     print("=" * 80)
 
+
 def plot_sbs_histogram_for_all_pops(data, variable_name,
-                                xlabel, ylabel, plot_order,
-                                wanted_times, time_to_bin_conversion,
-                                fig_folder,
-                                highlight_stim, common_highlight_values,
-                                titles):
-    print("Plotting SIDE BY SIDE histogram for {} for all populations".format(variable_name))
+                                    xlabel, ylabel, plot_order,
+                                    wanted_times, time_to_bin_conversion,
+                                    fig_folder,
+                                    highlight_stim, common_highlight_values,
+                                    titles):
+    print("Plotting SIDE BY SIDE histogram for {} for all populations".format(
+        variable_name))
     f, axes = plt.subplots(len(data.keys()), 2,
                            figsize=(14, 20), sharex='row', sharey='row', dpi=400)
     n_plots = len(plot_order)
@@ -1120,9 +1154,9 @@ def plot_sbs_histogram_for_all_pops(data, variable_name,
                      color=color_for_index(index, n_plots),
                      rasterized=True, normed=True)
         curr_ax2.hist(np.asarray(curr_pop[1]).ravel(), bins=21, edgecolor='k',
-                     color=color_for_index(index, n_plots),
-                     rasterized=True, normed=True)
-        if index==0:
+                      color=color_for_index(index, n_plots),
+                      rasterized=True, normed=True)
+        if index == 0:
             curr_ax.set_title(use_display_name(titles[0]))
             curr_ax2.set_title(use_display_name(titles[1]))
         curr_ax.set_ylabel(use_display_name(pop) + "\n" + ylabel)
@@ -1137,8 +1171,9 @@ def plot_sbs_histogram_for_all_pops(data, variable_name,
     f.tight_layout()
     save_figure(plt, os.path.join(fig_folder,
                                   "sbs_all_pop_{}".format(variable_name)),
-                extensions=['.png', ])
+                extensions=['.png', '.pdf'])
     plt.close(f)
+
 
 def plot_histogram_for_all_pops(data, variable_name, xlabel, ylabel, plot_order,
                                 wanted_times, time_to_bin_conversion,
@@ -1166,38 +1201,82 @@ def plot_histogram_for_all_pops(data, variable_name, xlabel, ylabel, plot_order,
     f.tight_layout()
     save_figure(plt, os.path.join(fig_folder,
                                   "all_pop_{}".format(variable_name)),
-                extensions=['.png', ])
+                extensions=['.png', '.pdf'])
     plt.close(f)
 
 
 def plot_boxplot_for_all_pops(data, variable_name, xlabel, ylabel, plot_order,
-                                wanted_times, time_to_bin_conversion,
-                                fig_folder,
-                                highlight_stim, common_highlight_values):
+                              wanted_times, time_to_bin_conversion,
+                              fig_folder,
+                              highlight_stim, common_highlight_values):
     print("Plotting boxplot for {} for all populations".format(variable_name))
-    f, axes = plt.subplots(len(data.keys()), 1,
-                           figsize=(14, 20), sharex=True, dpi=400)
-    n_plots = len(plot_order)
-    minimus = 0
-    maximus = 0
+    assembled_results = []
     for index, pop in enumerate(plot_order):
-        curr_ax = axes[index]
-        curr_ax.hist(data[pop], bins=21, edgecolor='k',
-                     color=color_for_index(index, n_plots),
-                     rasterized=True, normed=True)
-        curr_ax.set_title(use_display_name(pop))
-        curr_ax.set_ylabel(ylabel)
-        curr_ax.grid(True, which="major", axis="both")
+        assembled_results.append(data[pop])
+    n_plots = len(plot_order)
+    # stlye the median of boxplots
+    medianprops = dict(color='#414C82', linewidth=1.5)
 
-        minimus = min(minimus, min(data[pop]))
-        maximus = max(maximus, max(data[pop]))
+    f = plt.figure(figsize=(12, 8), dpi=600)
+    for index, pop in enumerate(plot_order):
+        plt.boxplot(data[pop], notch=True, positions=[index + 1],
+                    medianprops=dict(color=color_for_index(index, n_plots), linewidth=1.5))
+    # plt.boxplot(assembled_results, notch=True, medianprops=medianprops)
+    # plt.title(use_display_name(pop))
+    plt.ylabel(ylabel)
+    plt.xlim([0, n_plots + 1])
+    plt.grid(True, which="major", axis="y")
     plt.xlabel(xlabel)
-    plt.xlim([minimus - (.1 * maximus), 1.1 * maximus])
+    xtick_display_names = [use_display_name(x) for x in plot_order]
+    _, labels = plt.xticks(np.arange(len(plot_order)) + 1, xtick_display_names)
+
     f.tight_layout()
     save_figure(plt, os.path.join(fig_folder,
-                                  "all_pop_{}".format(variable_name)),
-                extensions=['.png', ])
+                                  "bp_all_pop_{}".format(variable_name)),
+                extensions=['.png', '.pdf'])
     plt.close(f)
+
+
+def plot_sbs_boxplot_for_all_pops(data, variable_name, xlabel, ylabel,
+                                  plot_order,
+                                  wanted_times, time_to_bin_conversion,
+                                  fig_folder,
+                                  highlight_stim, common_highlight_values):
+    print("Plotting SIDE BY SIDE boxplot for {} for all populations".format(
+        variable_name))
+    assembled_results = []
+    for index, pop in enumerate(plot_order):
+        assembled_results.append(data[pop])
+    n_plots = len(plot_order)
+    spacer = 4
+    bp_width = 0.7
+    f = plt.figure(figsize=(12, 8), dpi=600)
+    for index, pop in enumerate(plot_order):
+        curr_pop = data[pop]
+        plt.boxplot(np.asarray(curr_pop[0]).ravel(), notch=True,
+                    positions=[spacer * index + 1],
+                    medianprops=dict(color=color_for_index(index, n_plots),
+                                     linewidth=1.5),
+                    widths=bp_width)
+        plt.boxplot(np.asarray(curr_pop[1]).ravel(), notch=True,
+                    positions=[spacer * index + 2],
+                    medianprops=dict(color=color_for_index(index, n_plots),
+                                     linewidth=1.5),
+                    widths=bp_width)
+    plt.ylabel(ylabel)
+    plt.xlim([0, spacer * n_plots])
+    plt.grid(True, which="major", axis="y")
+    plt.xlabel(xlabel)
+    xtick_display_names = [use_display_name(x) for x in plot_order]
+    _, labels = plt.xticks(spacer * np.arange(len(plot_order)) + 1.5,
+                           xtick_display_names)
+
+    f.tight_layout()
+    save_figure(plt, os.path.join(fig_folder,
+                                  "bp_sbs_all_pop_{}".format(variable_name)),
+                extensions=['.png', '.pdf'])
+    plt.close(f)
+
 
 if __name__ == "__main__":
     from spinncer.analysis_argparser import *
