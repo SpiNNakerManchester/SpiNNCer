@@ -23,6 +23,8 @@ from colorama import Fore, Style, init as color_init
 import pandas as pd
 import string
 from matplotlib.ticker import MultipleLocator
+import elephant
+import quantities as pq
 
 mlib.use('Agg')
 warnings.filterwarnings("ignore", category=UserWarning)

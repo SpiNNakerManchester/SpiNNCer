@@ -1,28 +1,4 @@
-import numpy as np
-import pylab as plt
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib import cm as cm_mlib
-from matplotlib.ticker import LinearLocator, FormatStrFormatter
-import scipy
-from matplotlib import animation, rc, colors
-from brian2.units import *
-import matplotlib as mlib
-from scipy import stats
-from pprint import pprint as pp
-from mpl_toolkits.axes_grid1 import make_axes_locatable, ImageGrid
-import traceback
-import os
-import copy
-import neo
-from datetime import datetime
-import warnings
-import ntpath
-from spinncer.utilities.constants import CONNECTIVITY_MAP, CELL_PARAMS
-from spinncer.utilities.neo_converter import convert_spikes
-from colorama import Fore, Style, init as color_init
-from multiprocessing import Process, Pool
 from spinncer.analysis_common import *
-
 
 # The following LUT contains the delays for both excitation and inhibition to
 # reach that particular population in the case of DCN, or only excitation for
@@ -872,11 +848,356 @@ def spike_analysis(results_file, fig_folder,
     print("=" * 80)
 
 
-def compare_results(file_1, file_2, dark_background):
+def compare_results(file_1, file_2, fig_folder, dark_background):
     if dark_background:
         plt.style.use('dark_background')
-    pass
 
+    # Retrieve results file
+    try:
+        data_1 = np.load(file_1, allow_pickle=True)
+    except FileNotFoundError:
+        data_1 = np.load(file_1 + ".npz", allow_pickle=True)
+        file_1 += ".npz"
+
+    # Retrieve results file
+    try:
+        data_2 = np.load(file_2, allow_pickle=True)
+    except FileNotFoundError:
+        data_2 = np.load(file_2 + ".npz", allow_pickle=True)
+        file_2 += ".npz"
+
+    # Check if the folders exist
+    if not os.path.isdir(fig_folder) and not os.path.exists(fig_folder):
+        os.mkdir(fig_folder)
+
+    # Create figures folder for this results_file
+    base_name_file_1 = str(ntpath.basename(file_1))[:-4]
+    base_name_file_2 = str(ntpath.basename(file_2))[:-4]
+
+    sim_fig_folder = os.path.join(fig_folder,
+                                  base_name_file_1 + "_vs_" + base_name_file_2)
+    if not os.path.isdir(sim_fig_folder) and not os.path.exists(sim_fig_folder):
+        os.mkdir(sim_fig_folder)
+
+    # Set up colours
+    color_init(strip=False)
+
+    # Plotting results for ...
+    print("=" * 80)
+    print("Plotting comaprison results between", file_1, "and", file_2)
+    print("-" * 80)
+
+    all_spikes_1 = data_1['all_spikes'].ravel()[0]
+    all_spikes_2 = data_2['all_spikes'].ravel()[0]
+
+    other_recordings_1 = data_1['other_recordings'].ravel()[0]
+    other_recordings_2 = data_2['other_recordings'].ravel()[0]
+
+    # Compute plot order
+    plot_order = get_plot_order(all_spikes_1.keys())
+    n_plots = float(len(plot_order))
+
+    sim_params_1 = data_1['simulation_parameters'].ravel()[0]
+    sim_params_2 = data_2['simulation_parameters'].ravel()[0]
+    timestep = sim_params_1['argparser']['timestep'] * ms
+
+    # TODO assert that parameters are the same between the simulations
+
+    simtime = data_1['simtime'] * pq.ms
+    assert (simtime == (data_2['simtime'] * pq.ms))
+
+    simulators = [sim_params_1['argparser']['simulator'],
+                  sim_params_2['argparser']['simulator']]
+
+    reporting_format_string = "{:30}-{:30}:{:6.3f}+-{:6.3f}"
+
+    f = plt.figure(1, figsize=(9, 9), dpi=400)
+    plt.close(f)
+
+    all_corr_coef = {}
+    all_distances = {}
+    all_tiling_coef = {}
+    all_isi = {}
+    all_cv = {}
+    all_cv2 = {}
+    print("=" * 80)
+    print("Spike train analysis (avg +- std)")
+    # https://elephant.readthedocs.io/en/latest/modules.html
+    print("-" * 80)
+    for pop in plot_order:
+        pop_1_spikes = all_spikes_1[pop].segments[0].spiketrains
+        pop_2_spikes = all_spikes_2[pop].segments[0].spiketrains
+
+        corr_coef_per_neuron = []
+        spike_time_tiling_coef_per_neuron = []
+        van_rossum_dists = []
+        isis = {0:[],
+                1:[]}
+        cvs = {0:[],
+               1:[]}
+        cv2s = {0:[],
+               1:[]}
+        # I guess we need to look at each neuron?
+        for (p1, p2) in zip(pop_1_spikes, pop_2_spikes):
+            cc_matrix = elephant.spike_train_correlation.corrcoef(
+                elephant.conversion.BinnedSpikeTrain([p1, p2], binsize=5 * pq.ms),
+                fast=True)
+            corr_coef_per_neuron.append(cc_matrix[0, 1])
+
+            tiling = elephant.spike_train_correlation.spike_time_tiling_coefficient(
+                p1, p2, dt=1 * pq.ms)
+            spike_time_tiling_coef_per_neuron.append(tiling)
+
+            dist = elephant.spike_train_dissimilarity.van_rossum_dist(
+                [p1, p2], tau=1 * pq.ms)[0, 1]
+            van_rossum_dists.append(dist)
+
+            # Inter spike intervals
+            isis[0].append(np.array(elephant.statistics.isi(p1 / pq.ms)))
+            isis[1].append(np.array(elephant.statistics.isi(p2 / pq.ms)))
+
+            # Coefficient of variation
+            cvs[0].append(elephant.statistics.cv(p1))
+            cvs[1].append(elephant.statistics.cv(p2))
+
+            # CV2 https://elephant.readthedocs.io/en/latest/reference/toctree/statistics/elephant.statistics.cv2.html#elephant.statistics.cv2
+            cv2s[0].append(elephant.statistics.cv2(p1, with_nan=True))
+            cv2s[1].append(elephant.statistics.cv2(p2, with_nan=True))
+
+        print(reporting_format_string.format(
+            pop, "corr coef",
+            np.nanmean(corr_coef_per_neuron),
+            np.nanstd(corr_coef_per_neuron)))
+        print(reporting_format_string.format(
+            "", "tiling coef",
+            np.nanmean(spike_time_tiling_coef_per_neuron),
+            np.nanstd(spike_time_tiling_coef_per_neuron)))
+        print(reporting_format_string.format(
+            "", "van rossum dist",
+            np.nanmean(van_rossum_dists),
+            np.nanstd(van_rossum_dists)))
+
+        all_corr_coef[pop] = corr_coef_per_neuron
+        all_distances[pop] = van_rossum_dists
+        all_tiling_coef[pop] = spike_time_tiling_coef_per_neuron
+
+        all_isi[pop] = isis
+        all_cv[pop] = cvs
+        all_cv2[pop] = cv2s
+
+    for k, v in all_isi.items():
+        for dk, dv in v.items():
+            np_of_dv = np.array(dv)
+            try:
+                flatten_list = np.hstack(np_of_dv).ravel()
+                all_isi[k][dk] = flatten_list
+            except:
+                pass
+
+    all_coherence = {}
+    all_freqs = {}
+    all_lags = {}
+    if other_recordings_1 is not None and other_recordings_2 is not None:
+        print("=" * 80)
+        print("Analogue value analysis (avg +- std)")
+        # https://elephant.readthedocs.io/en/latest/reference/spectral.html
+        print("-" * 80)
+        for signal in ['v', 'gsyn_exc', 'gsyn_inh']:
+            all_coherence[signal] = {}
+            all_lags[signal] = {}
+            for pop in plot_order:
+                if pop not in other_recordings_1.keys():
+                    continue
+                pop_1_v = other_recordings_1[pop][signal].segments[0].analogsignals
+                pop_2_v = other_recordings_2[pop][signal].segments[0].analogsignals
+
+                welch_cohere_freqs_per_neuron = []
+                welch_cohere_lags_per_neuron = []
+                welch_cohere_coher_per_neuron = []
+                # I guess we need to look at each neuron?
+                for (p1, p2) in zip(pop_1_v, pop_2_v):
+                    if len(p1) != len(p2):
+                        min_len = min(len(p1), len(p2))
+                        p1 = p1[:min_len]
+                        p2 = p2[:min_len]
+                    f, c, l = elephant.spectral.welch_cohere(
+                        p1, p2)
+                    welch_cohere_freqs_per_neuron.append(f)
+                    welch_cohere_lags_per_neuron.append(l)
+                    welch_cohere_coher_per_neuron.append(c)
+
+                welch_cohere_freqs_per_neuron = np.asarray(welch_cohere_freqs_per_neuron)
+                welch_cohere_lags_per_neuron = np.asarray(welch_cohere_lags_per_neuron)
+                welch_cohere_coher_per_neuron = np.asarray(welch_cohere_coher_per_neuron)
+                print(reporting_format_string.format(
+                    pop + " " + signal, "coherence ([0, 1])",
+                    np.nanmean(welch_cohere_coher_per_neuron),
+                    np.nanstd(welch_cohere_coher_per_neuron))
+                )
+                print("{:30}-{:30}:{:6.3f}+-{:6.3f}".format(
+                    "", "lag (phase, [-pi, +pi])",
+                    np.nanmean(welch_cohere_lags_per_neuron),
+                    np.nanstd(welch_cohere_lags_per_neuron)))
+                all_coherence[signal][pop] = welch_cohere_coher_per_neuron
+                all_lags[signal][pop] = welch_cohere_coher_per_neuron
+                all_freqs[signal][pop] = welch_cohere_freqs_per_neuron
+
+    print("=" * 80)
+    print("Plotting figures...")
+    print("-" * 80)
+
+    # raster plot including ALL populations
+    print("Plotting spiking raster plot for all populations")
+
+    wanted_times = np.linspace(0, (simtime / ms), 6).astype(int)
+
+    common_highlight_values = {
+        'start': None,  #stim_period_start,
+        'stop': None,  #stim_period_end,
+        'increment': timestep / ms,
+    }
+
+    common_values_for_plots = {
+        'plot_order': plot_order,
+        'wanted_times': None,  #wanted_times,
+        'time_to_bin_conversion': None,  #time_to_bin_conversion,
+        'fig_folder': sim_fig_folder,
+        'highlight_stim': None,  # highlight_stim,
+        'common_highlight_values': None,  #common_highlight_values,
+    }
+
+
+    plot_sbs_histogram_for_all_pops(all_isi, "isi",
+                                xlabel="ISI",
+                                ylabel="count", titles=simulators,
+                                **common_values_for_plots)
+
+    plot_sbs_histogram_for_all_pops(all_cv, "cv",
+                                    xlabel="CV",
+                                    ylabel="count", titles=simulators,
+                                    **common_values_for_plots)
+
+    plot_sbs_histogram_for_all_pops(all_cv2, "cv2",
+                                    xlabel="CV2",
+                                    ylabel="count", titles=simulators,
+                                    **common_values_for_plots)
+
+    plot_histogram_for_all_pops(all_corr_coef, "corr_coeff",
+                                xlabel="Correlation Coefficient",
+                                ylabel="count",
+                                **common_values_for_plots)
+
+    plot_histogram_for_all_pops(all_distances, "van_rostum_dist",
+                                xlabel="van Rostum Distance",
+                                ylabel="count",
+                                **common_values_for_plots)
+
+    plot_histogram_for_all_pops(all_tiling_coef, "tiling_coeff",
+                                xlabel="Tiling Coefficient",
+                                ylabel="count",
+                                **common_values_for_plots)
+
+
+    print("=" * 80)
+
+def plot_sbs_histogram_for_all_pops(data, variable_name,
+                                xlabel, ylabel, plot_order,
+                                wanted_times, time_to_bin_conversion,
+                                fig_folder,
+                                highlight_stim, common_highlight_values,
+                                titles):
+    print("Plotting SIDE BY SIDE histogram for {} for all populations".format(variable_name))
+    f, axes = plt.subplots(len(data.keys()), 2,
+                           figsize=(14, 20), sharex='row', sharey='row', dpi=400)
+    n_plots = len(plot_order)
+    minimus = 0
+    maximus = 0
+    for index, pop in enumerate(plot_order):
+        curr_ax = axes[index][0]
+        curr_ax2 = axes[index][1]
+        curr_pop = data[pop]
+        curr_ax.hist(np.asarray(curr_pop[0]).ravel(), bins=21, edgecolor='k',
+                     color=color_for_index(index, n_plots),
+                     rasterized=True, normed=True)
+        curr_ax2.hist(np.asarray(curr_pop[1]).ravel(), bins=21, edgecolor='k',
+                     color=color_for_index(index, n_plots),
+                     rasterized=True, normed=True)
+        if index==0:
+            curr_ax.set_title(use_display_name(titles[0]))
+            curr_ax2.set_title(use_display_name(titles[1]))
+        curr_ax.set_ylabel(use_display_name(pop) + "\n" + ylabel)
+        curr_ax.grid(True, which="major", axis="both")
+        curr_ax2.grid(True, which="major", axis="both")
+
+        minimus = min(minimus, min(data[pop][0]), min(data[pop][1]))
+        maximus = max(maximus, max(data[pop][0]), max(data[pop][1]))
+
+    plt.xlabel(xlabel)
+    plt.xlim([minimus - (.1 * maximus), 1.1 * maximus])
+    f.tight_layout()
+    save_figure(plt, os.path.join(fig_folder,
+                                  "sbs_all_pop_{}".format(variable_name)),
+                extensions=['.png', ])
+    plt.close(f)
+
+def plot_histogram_for_all_pops(data, variable_name, xlabel, ylabel, plot_order,
+                                wanted_times, time_to_bin_conversion,
+                                fig_folder,
+                                highlight_stim, common_highlight_values):
+    print("Plotting histogram for {} for all populations".format(variable_name))
+    f, axes = plt.subplots(len(data.keys()), 1,
+                           figsize=(14, 20), sharex=True, dpi=400)
+    n_plots = len(plot_order)
+    minimus = 0
+    maximus = 0
+    for index, pop in enumerate(plot_order):
+        curr_ax = axes[index]
+        curr_ax.hist(data[pop], bins=21, edgecolor='k',
+                     color=color_for_index(index, n_plots),
+                     rasterized=True, normed=True)
+        curr_ax.set_title(use_display_name(pop))
+        curr_ax.set_ylabel(ylabel)
+        curr_ax.grid(True, which="major", axis="both")
+
+        minimus = min(minimus, min(data[pop]))
+        maximus = max(maximus, max(data[pop]))
+    plt.xlabel(xlabel)
+    plt.xlim([minimus - (.1 * maximus), 1.1 * maximus])
+    f.tight_layout()
+    save_figure(plt, os.path.join(fig_folder,
+                                  "all_pop_{}".format(variable_name)),
+                extensions=['.png', ])
+    plt.close(f)
+
+
+def plot_boxplot_for_all_pops(data, variable_name, xlabel, ylabel, plot_order,
+                                wanted_times, time_to_bin_conversion,
+                                fig_folder,
+                                highlight_stim, common_highlight_values):
+    print("Plotting boxplot for {} for all populations".format(variable_name))
+    f, axes = plt.subplots(len(data.keys()), 1,
+                           figsize=(14, 20), sharex=True, dpi=400)
+    n_plots = len(plot_order)
+    minimus = 0
+    maximus = 0
+    for index, pop in enumerate(plot_order):
+        curr_ax = axes[index]
+        curr_ax.hist(data[pop], bins=21, edgecolor='k',
+                     color=color_for_index(index, n_plots),
+                     rasterized=True, normed=True)
+        curr_ax.set_title(use_display_name(pop))
+        curr_ax.set_ylabel(ylabel)
+        curr_ax.grid(True, which="major", axis="both")
+
+        minimus = min(minimus, min(data[pop]))
+        maximus = max(maximus, max(data[pop]))
+    plt.xlabel(xlabel)
+    plt.xlim([minimus - (.1 * maximus), 1.1 * maximus])
+    f.tight_layout()
+    save_figure(plt, os.path.join(fig_folder,
+                                  "all_pop_{}".format(variable_name)),
+                extensions=['.png', ])
+    plt.close(f)
 
 if __name__ == "__main__":
     from spinncer.analysis_argparser import *
@@ -885,9 +1206,10 @@ if __name__ == "__main__":
         if len(analysis_args.compare) % 2 == 1:
             raise ValueError("The number of archives to compare is meant to "
                              "be a multiple of 2.")
-        for i in range(len(analysis_args.compare), 2):
+        for i in range(0, len(analysis_args.compare), 2):
             compare_results(analysis_args.compare[i],
                             analysis_args.compare[i + 1],
+                            analysis_args.figures_dir,
                             dark_background=analysis_args.dark_background)
     if analysis_args.input and len(analysis_args.input) > 0:
         for in_file in analysis_args.input:
@@ -896,12 +1218,3 @@ if __name__ == "__main__":
                            delay_sensitive=analysis_args.consider_delays,
                            dark_background=analysis_args.dark_background,
                            highlight_stim=analysis_args.highlight_stim)
-    else:
-        # Constants
-        fig_folder = "figures"
-
-        res = "results/gold_standards/gold_standard_results_400_stim_radius_140"
-        spike_analysis(res, fig_folder)
-
-        res = "results/gold_standards/gold_standard_results_400_stim_radius_70"
-        spike_analysis(res, fig_folder)
