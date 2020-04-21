@@ -904,7 +904,10 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
     # TODO assert that parameters are the same between the simulations
 
     simtime = data_1['simtime'] * pq.ms
+    useful_simtime = data_1['simtime'] * ms  # Use brian units as they are more usable
     assert (simtime == (data_2['simtime'] * pq.ms))
+
+    same_sampling_rate = timestep == sim_params_2['argparser']['timestep'] * ms
 
     simulators = [sim_params_1['argparser']['simulator'],
                   sim_params_2['argparser']['simulator']]
@@ -997,6 +1000,8 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
     all_coherence = {}
     all_freqs = {}
     all_lags = {}
+
+    all_diff_error = {}
     if other_recordings_1 is not None and other_recordings_2 is not None:
         print("=" * 80)
         print("Analogue value analysis (avg +- std)")
@@ -1006,6 +1011,8 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
             all_coherence[signal] = {}
             all_freqs[signal] = {}
             all_lags[signal] = {}
+
+            all_diff_error[signal] = {}
             for pop in plot_order:
                 if pop not in other_recordings_1.keys():
                     continue
@@ -1015,6 +1022,8 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
                 welch_cohere_freqs_per_neuron = []
                 welch_cohere_lags_per_neuron = []
                 welch_cohere_coher_per_neuron = []
+
+                diff_per_neuron = []
                 # I guess we need to look at each neuron?
                 for (p1, p2) in zip(pop_1_v, pop_2_v):
                     if len(p1) != len(p2):
@@ -1026,6 +1035,9 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
                     welch_cohere_freqs_per_neuron.append(f)
                     welch_cohere_lags_per_neuron.append(l)
                     welch_cohere_coher_per_neuron.append(c)
+
+                    if same_sampling_rate:
+                        diff_per_neuron.append(p1 - p2)
 
                 welch_cohere_freqs_per_neuron = np.asarray(welch_cohere_freqs_per_neuron)
                 welch_cohere_lags_per_neuron = np.asarray(welch_cohere_lags_per_neuron)
@@ -1040,8 +1052,11 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
                     np.nanmean(welch_cohere_lags_per_neuron),
                     np.nanstd(welch_cohere_lags_per_neuron)))
                 all_coherence[signal][pop] = welch_cohere_coher_per_neuron
-                all_lags[signal][pop] = welch_cohere_coher_per_neuron
+                all_lags[signal][pop] = welch_cohere_lags_per_neuron
                 all_freqs[signal][pop] = welch_cohere_freqs_per_neuron
+
+                if same_sampling_rate:
+                    all_diff_error[signal][pop] = np.asarray(diff_per_neuron)
 
     print("=" * 80)
     print("Plotting figures...")
@@ -1050,7 +1065,11 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
     # raster plot including ALL populations
     print("Plotting spiking raster plot for all populations")
 
-    wanted_times = np.linspace(0, (simtime / ms), 6).astype(int)
+    # Pre-compute conversions
+    time_to_bin_conversion = 1. / (timestep / ms)
+    bins_in_3ms = int(3 * time_to_bin_conversion)
+    no_timesteps = int(simtime / ms * time_to_bin_conversion)
+    wanted_times = np.linspace(0, (useful_simtime / ms), 6).astype(int)
 
     common_highlight_values = {
         'start': None,  # stim_period_start,
@@ -1060,13 +1079,34 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
 
     common_values_for_plots = {
         'plot_order': plot_order,
-        'wanted_times': None,  # wanted_times,
-        'time_to_bin_conversion': None,  # time_to_bin_conversion,
+        'wanted_times': wanted_times,  # wanted_times,
+        'time_to_bin_conversion': time_to_bin_conversion,  # time_to_bin_conversion,
         'fig_folder': sim_fig_folder,
         'highlight_stim': None,  # highlight_stim,
         'common_highlight_values': None,  # common_highlight_values,
     }
 
+    # Plot various analog variables
+    for signal in all_coherence.keys():
+        if same_sampling_rate:
+            plot_analog_signal_with_error(all_diff_error[signal], signal + "_diff_error",
+                                          xlabel="Time (ms)",
+                                          ylabel="Difference (mV)",
+                                          **common_values_for_plots)
+
+        plot_analog_signal_with_error(all_coherence[signal], signal + "_coherence",
+                                      xlabel="Frequency (Hz)",
+                                      ylabel="Coherence",
+                                      xticks=all_freqs[signal],
+                                      errorbars=False,
+                                      **common_values_for_plots)
+
+        plot_analog_signal_with_error(all_lags[signal], signal + "_lag",
+                                      xlabel="Frequency (Hz)",
+                                      ylabel="Lag (ms)",
+                                      xticks=all_freqs[signal],
+                                      errorbars=False,
+                                      **common_values_for_plots)
     # Plotting boxplots
     plot_boxplot_for_all_pops(all_corr_coef, "corr_coeff",
                               xlabel="Population",
@@ -1085,17 +1125,17 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
     # Plot side by side boxplots
     plot_sbs_boxplot_for_all_pops(all_isi, "isi",
                                   xlabel="Population",
-                                  ylabel="ISI (ms)",titles=simulators,
+                                  ylabel="ISI (ms)", titles=simulators,
                                   **common_values_for_plots)
 
     plot_sbs_boxplot_for_all_pops(all_cv, "cv",
                                   xlabel="Population",
-                                  ylabel="CV",titles=simulators,
+                                  ylabel="CV", titles=simulators,
                                   **common_values_for_plots)
 
     plot_sbs_boxplot_for_all_pops(all_cv2, "cv2",
                                   xlabel="Population",
-                                  ylabel="CV2",titles=simulators,
+                                  ylabel="CV2", titles=simulators,
                                   **common_values_for_plots)
 
     # Plot side by side histograms
@@ -1131,6 +1171,58 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
                                 **common_values_for_plots)
 
     print("=" * 80)
+
+
+def plot_analog_signal_with_error(data, variable_name,
+                                  xlabel, ylabel, plot_order,
+                                  wanted_times, time_to_bin_conversion,
+                                  fig_folder,
+                                  highlight_stim, common_highlight_values,
+                                  errorbars=True,
+                                  xticks=None):
+    print("Plotting {} traces for each population with errors".format(variable_name))
+    n_plots = len(plot_order)
+    for index, pop in enumerate(plot_order):
+        if pop in ["glomerulus"]:
+            f = plt.figure(1, figsize=(9, 9), dpi=400)
+            plt.close(f)
+            continue
+        try:
+            values_for_pop = data[pop]
+            if xticks is not None:
+                xticks = xticks[pop].ravel()
+                argsorted_ticks = np.argsort(
+                    xticks[np.logical_and(xticks > 0, xticks < 2000)])
+                xticks = xticks[argsorted_ticks]
+                passed_in_ticks = True
+            else:
+                xticks = np.arange(values_for_pop.shape[1])
+                passed_in_ticks = False
+                argsorted_ticks = xticks
+            f = plt.figure(1, figsize=(9, 9), dpi=400)
+            if errorbars:
+                plt.errorbar(xticks,
+                             np.nanmean(values_for_pop, axis=0).ravel()[argsorted_ticks],
+                             yerr=np.nanstd(values_for_pop, axis=0).ravel()[argsorted_ticks],
+                             color=color_for_index(index, n_plots),
+                             rasterized=True)
+            else:
+                plt.plot(xticks,
+                         np.nanmean(values_for_pop, axis=0).ravel()[argsorted_ticks],
+                         color=color_for_index(index, n_plots),
+                         rasterized=True)
+
+            if not passed_in_ticks:
+                plt.xticks(wanted_times * time_to_bin_conversion, wanted_times)
+            plt.xlabel(xlabel)
+            plt.ylabel(ylabel)
+
+            save_figure(plt, os.path.join(fig_folder,
+                                          "{}_{}".format(pop, variable_name)),
+                        extensions=['.png', '.pdf'])
+            plt.close(f)
+        except Exception as e:
+            print(e)
 
 
 def plot_sbs_histogram_for_all_pops(data, variable_name,
@@ -1214,15 +1306,10 @@ def plot_boxplot_for_all_pops(data, variable_name, xlabel, ylabel, plot_order,
     for index, pop in enumerate(plot_order):
         assembled_results.append(data[pop])
     n_plots = len(plot_order)
-    # stlye the median of boxplots
-    medianprops = dict(color='#414C82', linewidth=1.5)
-
     f = plt.figure(figsize=(12, 8), dpi=600)
     for index, pop in enumerate(plot_order):
         plt.boxplot(data[pop], notch=True, positions=[index + 1],
                     medianprops=dict(color=color_for_index(index, n_plots), linewidth=1.5))
-    # plt.boxplot(assembled_results, notch=True, medianprops=medianprops)
-    # plt.title(use_display_name(pop))
     plt.ylabel(ylabel)
     plt.xlim([0, n_plots + 1])
     plt.grid(True, which="major", axis="y")
@@ -1255,15 +1342,15 @@ def plot_sbs_boxplot_for_all_pops(data, variable_name, xlabel, ylabel,
     for index, pop in enumerate(plot_order):
         curr_pop = data[pop]
         bp0 = plt.boxplot(np.asarray(curr_pop[0]).ravel(), notch=True,
-                    positions=[spacer * index + 1],
-                    medianprops=dict(color=viridis_cmap(0.0),
-                                     linewidth=1.5),
-                    widths=bp_width)
+                          positions=[spacer * index + 1],
+                          medianprops=dict(color=viridis_cmap(0.0),
+                                           linewidth=1.5),
+                          widths=bp_width)
         bp1 = plt.boxplot(np.asarray(curr_pop[1]).ravel(), notch=True,
-                    positions=[spacer * index + 2],
-                    medianprops=dict(color=viridis_cmap(.9),
-                                     linewidth=1.5),
-                    widths=bp_width)
+                          positions=[spacer * index + 2],
+                          medianprops=dict(color=viridis_cmap(.9),
+                                           linewidth=1.5),
+                          widths=bp_width)
     title_display_names = [use_display_name(x) for x in titles]
     plt.legend([bp0["medians"][0], bp1["medians"][0]], title_display_names,
                loc='best')
