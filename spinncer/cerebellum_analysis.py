@@ -178,6 +178,33 @@ def spike_analysis(results_file, fig_folder,
     print("Maximum number of generated spikes per timestep")
     print("-" * 80)
 
+    # Elephant computed metrics
+    elephant_psths = {}
+    elephant_instantaneous_rates = {}
+    elephant_timestep = sim_params['argparser']['timestep'] * pq.ms
+    elephant_simtime = data['simtime'] * pq.ms
+    for pop in plot_order:
+        curr_spikes = neo_all_spikes[pop].segments[0].spiketrains
+        # curr_psths = []
+        # curr_inst_rates = []
+        # for p1 in curr_spikes:
+        curr_inst_rates = \
+            elephant.statistics.instantaneous_rate(
+                curr_spikes,
+                sampling_period=elephant_timestep,
+                t_start=0*pq.ms,
+                t_stop=elephant_simtime
+            )
+        curr_psths = \
+            elephant.statistics.time_histogram(
+                curr_spikes,
+                binsize=elephant_timestep,
+                t_start=0*pq.ms,
+                t_stop=elephant_simtime
+            )
+        elephant_psths[pop] = curr_psths
+        elephant_instantaneous_rates[pop] = curr_inst_rates
+
     stim_period_start = {}
     stim_period_end = {}
     per_pop_stim_durations = {k: [] for k in plot_order}
@@ -353,8 +380,8 @@ def spike_analysis(results_file, fig_folder,
               "{:>8.2f}$\pm${:>4.1f} & "
               "{:>8.2f}$\pm${:>4.1f} & "
               "{:>8.2f}$\pm${:>4.1f}".format(
-            no_excited, no_excited / all_neurons[pop],
             pop,
+            int(no_excited), no_excited / all_neurons[pop],
             excited_before, excited_before_std,
             excited_during, excited_during_std,
             excited_after, excited_after_std))
@@ -363,8 +390,8 @@ def spike_analysis(results_file, fig_folder,
               "{:>8.2f}$\pm${:>4.1f} & "
               "{:>8.2f}$\pm${:>4.1f} & "
               "{:>8.2f}$\pm${:>4.1f}".format(
-            no_inhibited, no_inhibited / all_neurons[pop],
             pop,
+            int(no_inhibited), no_inhibited / all_neurons[pop],
             inhibited_before, inhibited_before_std,
             inhibited_during, inhibited_during_std,
             inhibited_after, inhibited_after_std))
