@@ -1090,17 +1090,17 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
         plot_analog_signal_with_error(all_diff_error['v'],
                                       "v_diff_error",
                                       xlabel="Time (ms)",
-                                      ylabel="Difference (mV)",
+                                      ylabel="Error (mV)",
                                       **common_values_for_plots)
         plot_analog_signal_with_error(all_diff_error['gsyn_exc'],
                                       "gsyn_exc_diff_error",
                                       xlabel="Time (ms)",
-                                      ylabel="Difference (mV)",
+                                      ylabel="Error ($\mu S$)",
                                       **common_values_for_plots)
         plot_analog_signal_with_error(all_diff_error['gsyn_inh'],
                                       "gsyn_inh_diff_error",
                                       xlabel="Time (ms)",
-                                      ylabel="Difference (mV)",
+                                      ylabel="Error ($\mu S$)",
                                       **common_values_for_plots)
 
     # Plot various analog variables
