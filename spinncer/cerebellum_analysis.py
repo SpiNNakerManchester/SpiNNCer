@@ -1,4 +1,5 @@
 from spinncer.analysis_common import *
+import traceback
 
 # The following LUT contains the delays for both excitation and inhibition to
 # reach that particular population in the case of DCN, or only excitation for
@@ -348,26 +349,25 @@ def spike_analysis(results_file, fig_folder,
         print("\t{:10} neurons didn't fire at all".format(
             np.count_nonzero(np.invert(_neurons_that_fire))))
         print("<(LaTeX formatting)>")
-        print("{:15} EXCITED  & "
+        print("{:15} EXCITED {:6d} ({:7.2%}) & "
               "{:>8.2f}$\pm${:>4.1f} & "
               "{:>8.2f}$\pm${:>4.1f} & "
               "{:>8.2f}$\pm${:>4.1f}".format(
+            no_excited, no_excited / all_neurons[pop],
             pop,
             excited_before, excited_before_std,
             excited_during, excited_during_std,
             excited_after, excited_after_std))
-        print("\t {:6d} ({:7.2%})".format(
-            no_excited, no_excited / all_neurons[pop]))
-        print("{:15} INHIBITED  & "
+
+        print("{:15} INHIBITED {:6d} ({:7.2%} & "
               "{:>8.2f}$\pm${:>4.1f} & "
               "{:>8.2f}$\pm${:>4.1f} & "
               "{:>8.2f}$\pm${:>4.1f}".format(
+            no_inhibited, no_inhibited / all_neurons[pop],
             pop,
             inhibited_before, inhibited_before_std,
             inhibited_during, inhibited_during_std,
             inhibited_after, inhibited_after_std))
-        print("\t {:6d} ({:7.2%})".format(
-            no_inhibited, no_inhibited / all_neurons[pop]))
         print("</(LaTeX formatting)>")
         print("-" * 80)
     print("=" * 80)
@@ -1086,14 +1086,25 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
         'common_highlight_values': None,  # common_highlight_values,
     }
 
+    if same_sampling_rate:
+        plot_analog_signal_with_error(all_diff_error['v'],
+                                      "v_diff_error",
+                                      xlabel="Time (ms)",
+                                      ylabel="Difference (mV)",
+                                      **common_values_for_plots)
+        plot_analog_signal_with_error(all_diff_error['gsyn_exc'],
+                                      "gsyn_exc_diff_error",
+                                      xlabel="Time (ms)",
+                                      ylabel="Difference (mV)",
+                                      **common_values_for_plots)
+        plot_analog_signal_with_error(all_diff_error['gsyn_inh'],
+                                      "gsyn_inh_diff_error",
+                                      xlabel="Time (ms)",
+                                      ylabel="Difference (mV)",
+                                      **common_values_for_plots)
+
     # Plot various analog variables
     for signal in all_coherence.keys():
-        if same_sampling_rate:
-            plot_analog_signal_with_error(all_diff_error[signal], signal + "_diff_error",
-                                          xlabel="Time (ms)",
-                                          ylabel="Difference (mV)",
-                                          **common_values_for_plots)
-
         plot_analog_signal_with_error(all_coherence[signal], signal + "_coherence",
                                       xlabel="Frequency (Hz)",
                                       ylabel="Coherence",
@@ -1188,26 +1199,26 @@ def plot_analog_signal_with_error(data, variable_name,
             plt.close(f)
             continue
         try:
-            values_for_pop = data[pop]
+            values_for_pop = np.squeeze(data[pop])
             if xticks is not None:
-                xticks = xticks[pop].ravel()
+                adjusted_xticks = adjusted_xticks[pop].ravel()
                 argsorted_ticks = np.argsort(
-                    xticks[np.logical_and(xticks > 0, xticks < 2000)])
-                xticks = xticks[argsorted_ticks]
+                    adjusted_xticks[np.logical_and(adjusted_xticks > 0, adjusted_xticks < 2000)])
+                adjusted_xticks = adjusted_xticks[argsorted_ticks]
                 passed_in_ticks = True
             else:
-                xticks = np.arange(values_for_pop.shape[1])
+                adjusted_xticks = np.arange(values_for_pop.shape[1])
                 passed_in_ticks = False
-                argsorted_ticks = xticks
+                argsorted_ticks = adjusted_xticks
             f = plt.figure(1, figsize=(9, 9), dpi=400)
             if errorbars:
-                plt.errorbar(xticks,
+                plt.errorbar(adjusted_xticks,
                              np.nanmean(values_for_pop, axis=0).ravel()[argsorted_ticks],
                              yerr=np.nanstd(values_for_pop, axis=0).ravel()[argsorted_ticks],
                              color=color_for_index(index, n_plots),
                              rasterized=True)
             else:
-                plt.plot(xticks,
+                plt.plot(adjusted_xticks,
                          np.nanmean(values_for_pop, axis=0).ravel()[argsorted_ticks],
                          color=color_for_index(index, n_plots),
                          rasterized=True)
@@ -1216,13 +1227,37 @@ def plot_analog_signal_with_error(data, variable_name,
                 plt.xticks(wanted_times * time_to_bin_conversion, wanted_times)
             plt.xlabel(xlabel)
             plt.ylabel(ylabel)
-
             save_figure(plt, os.path.join(fig_folder,
                                           "{}_{}".format(pop, variable_name)),
                         extensions=['.png', '.pdf'])
             plt.close(f)
+
+            # Also plot using matshow
+            if not passed_in_ticks:
+                extent_xticks = [np.min(wanted_times), np.max(wanted_times)]
+
+            values_for_pop = np.squeeze(values_for_pop)
+            f = plt.figure(1, figsize=(18, 9), dpi=500)
+            im = plt.imshow(values_for_pop,
+                            interpolation='none',
+                            extent=[extent_xticks[0], extent_xticks[1],
+                                    0, values_for_pop.shape[0]],
+                            origin='lower')
+            ax = plt.gca()
+            ax.set_aspect('auto')
+            divider = make_axes_locatable(ax)
+            cax = divider.append_axes("right", "5%", pad="3%")
+            cbar = plt.colorbar(im, cax=cax)
+            cbar.set_label(ylabel)
+
+            ax.set_xlabel(xlabel)
+            ax.set_ylabel("Neuron ID")
+            save_figure(plt, os.path.join(fig_folder,
+                                          "imshow_{}_{}".format(pop, variable_name)),
+                        extensions=['.png', '.pdf'])
+            plt.close(f)
         except Exception as e:
-            print(e)
+            traceback.print_exc()
 
 
 def plot_sbs_histogram_for_all_pops(data, variable_name,
@@ -1302,14 +1337,20 @@ def plot_boxplot_for_all_pops(data, variable_name, xlabel, ylabel, plot_order,
                               fig_folder,
                               highlight_stim, common_highlight_values):
     print("Plotting boxplot for {} for all populations".format(variable_name))
-    assembled_results = []
-    for index, pop in enumerate(plot_order):
-        assembled_results.append(data[pop])
     n_plots = len(plot_order)
+
+    bp_width = 0.7
     f = plt.figure(figsize=(12, 8), dpi=600)
     for index, pop in enumerate(plot_order):
-        plt.boxplot(data[pop], notch=True, positions=[index + 1],
-                    medianprops=dict(color=color_for_index(index, n_plots), linewidth=1.5))
+        print(index, pop)
+        curr_data = np.asarray(data[pop])
+        curr_data = curr_data[np.isfinite(curr_data)]
+        plt.boxplot(curr_data, notch=True, positions=[index + 1],
+                    medianprops=dict(
+                        color=color_for_index(index, n_plots),
+                        linewidth=1.5),
+                    widths=bp_width
+                    )
     plt.ylabel(ylabel)
     plt.xlim([0, n_plots + 1])
     plt.grid(True, which="major", axis="y")
@@ -1332,21 +1373,23 @@ def plot_sbs_boxplot_for_all_pops(data, variable_name, xlabel, ylabel,
                                   titles):
     print("Plotting SIDE BY SIDE boxplot for {} for all populations".format(
         variable_name))
-    assembled_results = []
-    for index, pop in enumerate(plot_order):
-        assembled_results.append(data[pop])
     n_plots = len(plot_order)
     spacer = 4
     bp_width = 0.7
     f = plt.figure(figsize=(12, 8), dpi=600)
     for index, pop in enumerate(plot_order):
         curr_pop = data[pop]
-        bp0 = plt.boxplot(np.asarray(curr_pop[0]).ravel(), notch=True,
+        curr_res_0 = np.asarray(curr_pop[0])
+        curr_res_1 = np.asarray(curr_pop[1])
+        # Filter NaNs
+        curr_res_0 = curr_res_0[np.isfinite(curr_res_0)]
+        curr_res_1 = curr_res_1[np.isfinite(curr_res_1)]
+        bp0 = plt.boxplot(curr_res_0.ravel(), notch=True,
                           positions=[spacer * index + 1],
                           medianprops=dict(color=viridis_cmap(0.0),
                                            linewidth=1.5),
                           widths=bp_width)
-        bp1 = plt.boxplot(np.asarray(curr_pop[1]).ravel(), notch=True,
+        bp1 = plt.boxplot(curr_res_1.ravel(), notch=True,
                           positions=[spacer * index + 2],
                           medianprops=dict(color=viridis_cmap(.9),
                                            linewidth=1.5),
