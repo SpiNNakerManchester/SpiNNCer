@@ -1,6 +1,9 @@
+import itertools
+
 from spinncer.analysis_common import *
 from os.path import join as join
 from numpy.polynomial.polynomial import Polynomial
+import traceback
 
 
 def extract_per_pop_placements(df, pops):
@@ -406,7 +409,7 @@ def plot_per_population_provenance_of_interest(
             for type_of_prov in prov:
                 # Now we need to start collecting values
                 # match curr_poi value with collated_results.keys() via calls
-                curr_mapping = {}
+                curr_mapping = {val: None for val in curr_poi}
                 for curr_poi_val in curr_poi:
                     for call in calls:
                         if call[2][curr_g] == curr_poi_val:
@@ -433,22 +436,54 @@ def plot_per_population_provenance_of_interest(
                                         {x: None for x in filtered_collated_results.keys()
                                          if "cell" in x}
                             for vp in _max_values_per_pop.keys():
-                                _max_values_per_pop[vp] = filtered_collated_results[vp]['max']
-                            curr_mapping[curr_poi_val] = _max_values_per_pop
-                            break
+                                _max_values_per_pop[vp] = [list(filtered_collated_results[vp]['all'].values)]
+
+                            # Need to create a list of entries per pop
+                            if curr_mapping[curr_poi_val] is None:
+                                curr_mapping[curr_poi_val] = _max_values_per_pop
+                            else:
+                                for k, v in _max_values_per_pop.items():
+                                    curr_mapping[curr_poi_val][k].extend(v)
+                            _max_values_per_pop
                 # Plotting bit
                 plot_order = get_plot_order(_max_values_per_pop.keys())
                 n_plots = float(len(plot_order))
 
+                # Convert all 2D arrays of results to numpy arrays
+                # Can report intra-trial and inter-trial variability here
+                for k in curr_mapping.keys():
+                    for p in curr_mapping[k].keys():
+                        curr_mapping[k][p] = np.array(curr_mapping[k][p])
+                        # print("POI:", k)
+                        # print("\t {:20}".format(p),
+                        #       "intra-trial mean {:6.2f} std {:6.2f}".format(
+                        #           np.nanmean(curr_mapping[k][p], axis=1),
+                        #           np.nanstd(curr_mapping[k][p], axis=1)),
+                        #       )
+                        # print("\t {:20}".format(""),
+                        #       "inter-trial mean {:6.2f} std {:6.2f}".format(
+                        #           np.nanmean(curr_mapping[k][p], axis=0),
+                        #           np.nanstd(curr_mapping[k][p], axis=0)),
+                        #       )
+
                 f = plt.figure(1, figsize=(9, 9), dpi=400)
                 for index, pop in enumerate(plot_order):
                     vals = []
+                    avgs= []
                     for k in curr_poi:
-                        vals.append(curr_mapping[k][pop])
+                        if curr_mapping[k][pop].size > 0:
+                            merged = np.array(
+                                list(itertools.chain.from_iterable(curr_mapping[k][pop])))
+                            vals.append(np.nanmean(merged))
+                            avgs.append(np.nanstd(merged))
+                        else:
+                            vals.append(np.nan)
+                            avgs.append(np.nan)
                     # vals = np.sort(np.asarray(vals).view('i8,i8'), order=['f1'], axis=0).view(np.int)
                     vals = np.array(vals)
                     if np.any(np.isfinite(vals)):
-                        plt.plot(curr_poi, vals,
+                        plt.errorbar(curr_poi, vals,
+                                     yerr=avgs,
                                  color=color_for_index(index, n_plots),
                                  marker='o',
                                  label=use_display_name(pop),
@@ -479,6 +514,7 @@ def plot_per_population_provenance_of_interest(
                                 extensions=['.png', '.pdf'])
                 plt.close(f)
 
+
 # Polynomial Regression
 def polyfit(x, y, degree):
     results = {}
@@ -491,22 +527,26 @@ def polyfit(x, y, degree):
     # r-squared
     p = np.poly1d(coeffs)
     # fit values, and mean
-    yhat = p(x)                         # or [p(z) for z in x]
-    ybar = np.sum(y)/len(y)          # or sum(y)/len(y)
-    ssreg = np.sum((yhat-ybar)**2)   # or sum([ (yihat - ybar)**2 for yihat in yhat])
-    sstot = np.sum((y - ybar)**2)    # or sum([ (yi - ybar)**2 for yi in y])
+    yhat = p(x)  # or [p(z) for z in x]
+    ybar = np.sum(y) / len(y)  # or sum(y)/len(y)
+    ssreg = np.sum((yhat - ybar) ** 2)  # or sum([ (yihat - ybar)**2 for yihat in yhat])
+    sstot = np.sum((y - ybar) ** 2)  # or sum([ (yi - ybar)**2 for yi in y])
     results['determination'] = ssreg / sstot
 
     return results
+
 
 if __name__ == "__main__":
     from spinncer.analysis_argparser import *
 
     if analysis_args.input and len(analysis_args.input) > 0:
         for in_folder in analysis_args.input:
+            # try:
             sweep_provenance_analysis(in_folder, analysis_args.figures_dir,
                                       group_on=analysis_args.group_on,
                                       group_on_name=analysis_args.group_on_name)
+            # except Exception as e:
+            #     traceback.print_exc()
     else:
         # Constants
         fig_folder = "figures"

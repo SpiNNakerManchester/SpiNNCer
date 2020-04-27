@@ -23,6 +23,7 @@ from elephant.spike_train_generation import homogeneous_poisson_process
 import quantities as pq
 import sys
 from spinncer.utilities.utils import flatten_dict, create_poisson_spikes
+import traceback
 
 
 class Cerebellum(Circuit):
@@ -274,6 +275,8 @@ class Cerebellum(Circuit):
                 # else for all other cells
                 additional_params = {"rb_left_shifts":
                                          self.rb_shifts[cell_name]}
+                if cell_name in ["granule"]:
+                    additional_params["n_steps_per_timestep"] = 3
                 # add E_rev_I to all cells
                 capp_rev = -90.
                 if cell_model == "if_cond_exp":
@@ -296,7 +299,9 @@ class Cerebellum(Circuit):
                     cellparams=cell_param,
                     label=cell_name + " cells",
                     additional_parameters=additional_params)
+                print("ADDITIONAL PARAMETERS:", additional_params)
             except TypeError as te:
+                traceback.print_exc()
                 self.populations[cell_name] = self.sim.Population(
                     no_cells,
                     cellclass=cell_model,

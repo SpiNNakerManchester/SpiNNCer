@@ -34,11 +34,9 @@ PHASES_ARGS = [None, "--periodic_stimulus"]
 # Both phases
 # PHASES = [POISSON_PHASE, PERIODIC_PHASE]
 
-# Only Poisson phase
-# PHASES = [POISSON_PHASE]
 
-# Only PERIODIC phase
-PHASES = [PERIODIC_PHASE]
+# PHASES = [POISSON_PHASE] # Only Poisson phase
+PHASES = [PERIODIC_PHASE] # Only PERIODIC phase
 
 concurrently_active_processes = 0
 Result = namedtuple('Result', 'call filename parameters')
@@ -64,10 +62,9 @@ dataset = "scaffold_full_dcn_400.0x400.0_v3.hdf5"
 log_calls = []
 
 # making a directory for this experiment
-# dir_name = "activity_sweep_PERIODIC_@{}".format(suffix)
-# dir_name = "activity_sweep_stim_radius_POISSON_@{}".format(suffix)
-dir_name = "activity_sweep_no_reinjection_stim_radius_PERIODIC_@{}".format(suffix)
-# dir_name = "activity_sweep_no_reinjection_f_peak_POISSON_@{}".format(suffix)
+dir_name = "activity_sweep_stim_radius_3_loops_10x_PERIODIC_@{}".format(suffix)
+# dir_name = "activity_sweep_f_peak_3_loops_10x_PERIODIC_@{}".format(suffix)
+
 print("=" * 80)
 print("TOTAL RUNS", total_runs)
 print("MKDIR", dir_name)
@@ -78,64 +75,67 @@ print("GETCWD", os.getcwd())
 print("-" * 80)
 
 params = {}
+no_runs = np.arange(10)
 
 for phase in PHASES:
-    for f_peak in f_peaks:
-        for stim_radius in radii:
-            curr_params = {'stim_radius': stim_radius,
-                           'f_peak': f_peak,
-                           'phase': phase}
-            filename = "spinn_400x400" \
-                       "_f_peak_{}" \
-                       "_stim_radius_{}" \
-                       "_{}" \
-                       "_@{}".format(f_peak,
-                                     stim_radius,
-                                     PHASES_NAMES[phase],
-                                     suffix)
+    for n_run in no_runs:
+        for f_peak in f_peaks:
+            for stim_radius in radii:
+                curr_params = {'stim_radius': stim_radius,
+                               'f_peak': f_peak,
+                               'n_run': n_run,
+                               'phase': phase}
+                filename = "spinn_400x400" \
+                           "_f_peak_{}" \
+                           "_run_{}" \
+                           "_stim_radius_{}" \
+                           "_{}" \
+                           "_@{}".format(f_peak,
+                                         n_run,
+                                         stim_radius,
+                                         PHASES_NAMES[phase],
+                                         suffix)
 
-            params[filename] = {'phase': phase,
-                                'f_peak': f_peak,
-                                'stim_radius': stim_radius}
+                params[filename] = curr_params
 
-            # making a directory for this individual experiment
-            os.mkdir(filename)
-            os.chdir(filename)
-            print("GETCWD", os.getcwd())
-            shutil.copyfile("../../spynnaker.cfg", "spynnaker.cfg")
+                # making a directory for this individual experiment
+                os.mkdir(filename)
+                os.chdir(filename)
+                print("GETCWD", os.getcwd())
+                shutil.copyfile("../../spynnaker.cfg", "spynnaker.cfg")
 
-            concurrently_active_processes += 1
-            null = open(os.devnull, 'w')
-            print("Run ", concurrently_active_processes, "...")
+                concurrently_active_processes += 1
+                null = open(os.devnull, 'w')
+                print("Run ", concurrently_active_processes, "...")
 
-            call = [sys.executable,
-                    '../../cerebellum_experiment.py',
-                    '--input', dataset,
-                    '-o', filename,
-                    '--f_peak', str(f_peak),
-                    '--stim_radius', str(stim_radius)
-                    ]
-            if RB_LEFT_SHIFT is not None:
-                call.append('--rb_left_shifts')
-                for rbls in RB_LEFT_SHIFT:
-                    call.append(str(rbls))
+                call = [sys.executable,
+                        '../../cerebellum_experiment.py',
+                        '--input', dataset,
+                        '-o', filename,
+                        '--f_peak', str(f_peak),
+                        '--stim_radius', str(stim_radius)
+                        ]
+                if RB_LEFT_SHIFT is not None:
+                    call.append('--rb_left_shifts')
+                    for rbls in RB_LEFT_SHIFT:
+                        call.append(str(rbls))
 
-            if PHASES_ARGS[phase] is not None:
-                call.append(PHASES_ARGS[phase])
-            print("CALL", call)
-            log_calls.append(Result(call, filename, curr_params))
-            if concurrently_active_processes % MAX_CONCURRENT_PROCESSES == 0 \
-                    or concurrently_active_processes == total_runs:
-                # Blocking
-                with open("results.out", "wb") as out, open("results.err", "wb") as err:
-                    subprocess.call(call, stdout=out, stderr=err)
-                print("{} sims done".format(concurrently_active_processes))
-            else:
-                # Non-blocking
-                with open("results.out", "wb") as out, open("results.err", "wb") as err:
-                    subprocess.Popen(call, stdout=out, stderr=err)
-            os.chdir("..")
-            print("=" * 80)
+                if PHASES_ARGS[phase] is not None:
+                    call.append(PHASES_ARGS[phase])
+                print("CALL", call)
+                log_calls.append(Result(call, filename, curr_params))
+                if concurrently_active_processes % MAX_CONCURRENT_PROCESSES == 0 \
+                        or concurrently_active_processes == total_runs:
+                    # Blocking
+                    with open("results.out", "wb") as out, open("results.err", "wb") as err:
+                        subprocess.call(call, stdout=out, stderr=err)
+                    print("{} sims done".format(concurrently_active_processes))
+                else:
+                    # Non-blocking
+                    with open("results.out", "wb") as out, open("results.err", "wb") as err:
+                        subprocess.Popen(call, stdout=out, stderr=err)
+                os.chdir("..")
+                print("=" * 80)
 print("All done!")
 
 end_time = plt.datetime.datetime.now()

@@ -36,11 +36,9 @@ PHASES_ARGS = [None, "--periodic_stimulus"]
 # Both phases
 # PHASES = [POISSON_PHASE, PERIODIC_PHASE]
 
-# Only Poisson phase
-PHASES = [POISSON_PHASE]
 
-# Only PERIODIC phase
-# PHASES = [PERIODIC_PHASE]
+PHASES = [POISSON_PHASE]  # Only Poisson phase
+# PHASES = [PERIODIC_PHASE]  # Only PERIODIC phase
 
 concurrently_active_processes = 0
 
@@ -58,8 +56,8 @@ dataset = "scaffold_full_dcn_400.0x400.0_v3.hdf5"
 log_calls = []
 
 # making a directory for this experiment
-# dir_name = "variance_testing_grc_4_stim_3_PERIODIC_@{}".format(suffix)
-dir_name = "variance_testing_grc_4_stim_3_POISSON_@{}".format(suffix)
+dir_name = "variance_testing_3_loop_POISSON_@{}".format(suffix)
+# dir_name = "variance_testing_3_loop_PERIODIC_@{}".format(suffix)
 print("=" * 80)
 print("TOTAL RUNS", total_runs)
 if not os.path.isdir(dir_name):
@@ -108,7 +106,7 @@ for phase in PHASES:
                 '../../cerebellum_experiment.py',
                 '--input', dataset,
                 '-o', filename,
-                '-s', "../../400x400_stimulus_3.npz"
+                # '-s', "../../400x400_stimulus_3.npz"
                 ]
 
         if PHASES_ARGS[phase] is not None:

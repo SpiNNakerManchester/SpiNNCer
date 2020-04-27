@@ -183,27 +183,28 @@ def spike_analysis(results_file, fig_folder,
     elephant_instantaneous_rates = {}
     elephant_timestep = sim_params['argparser']['timestep'] * pq.ms
     elephant_simtime = data['simtime'] * pq.ms
-    for pop in plot_order:
-        curr_spikes = neo_all_spikes[pop].segments[0].spiketrains
-        # curr_psths = []
-        # curr_inst_rates = []
-        # for p1 in curr_spikes:
-        curr_inst_rates = \
-            elephant.statistics.instantaneous_rate(
-                curr_spikes,
-                sampling_period=elephant_timestep,
-                t_start=0*pq.ms,
-                t_stop=elephant_simtime
-            )
-        curr_psths = \
-            elephant.statistics.time_histogram(
-                curr_spikes,
-                binsize=elephant_timestep,
-                t_start=0*pq.ms,
-                t_stop=elephant_simtime
-            )
-        elephant_psths[pop] = curr_psths
-        elephant_instantaneous_rates[pop] = curr_inst_rates
+    try:
+        for pop in plot_order:
+            curr_spikes = neo_all_spikes[pop].segments[0].spiketrains
+            curr_inst_rates = \
+                elephant.statistics.instantaneous_rate(
+                    curr_spikes,
+                    sampling_period=elephant_timestep,
+                    t_start=0*pq.ms,
+                    t_stop=elephant_simtime
+                )
+            curr_psths = \
+                elephant.statistics.time_histogram(
+                    curr_spikes,
+                    binsize=elephant_timestep,
+                    t_start=0*pq.ms,
+                    t_stop=elephant_simtime
+                )
+            elephant_psths[pop] = curr_psths.ravel()
+            # Save the average instantaneous rate
+            elephant_instantaneous_rates[pop] = curr_inst_rates.ravel() / all_neurons[pop]
+    except:
+        pass
 
     stim_period_start = {}
     stim_period_end = {}
@@ -638,6 +639,53 @@ def spike_analysis(results_file, fig_folder,
         'common_highlight_values': common_highlight_values,
     }
 
+    # plot .1 ms PSTH
+    print("Plotting elephant PSTH")
+    try:
+        f, axes = plt.subplots(len(spikes_per_timestep.keys()), 1,
+                               figsize=(14, 20), sharex=True, dpi=400)
+        for index, pop in enumerate(plot_order):
+            if highlight_stim:
+                highlight_area(axes[index], pop, **common_highlight_values)
+            curr_psth = elephant_psths[pop]
+            axes[index].bar(np.arange(curr_psth.size),
+                            curr_psth,
+                            color=viridis_cmap(index / (n_plots + 1)),
+                            rasterized=True)
+            axes[index].set_title(use_display_name(pop))
+            axes[index].set_ylabel("Count")
+        plt.xticks(wanted_times * time_to_bin_conversion, wanted_times)
+        save_figure(plt, os.path.join(sim_fig_folder,
+                                      "elephant_timestep_psth"),
+                    extensions=['.png', ])
+        plt.close(f)
+    except:
+        traceback.print_exc()
+
+    # plot .1 ms PSTH
+    print("Plotting elephant Instantaneous rates")
+    try:
+        f, axes = plt.subplots(len(spikes_per_timestep.keys()), 1,
+                               figsize=(14, 20), sharex=True, dpi=400)
+        for index, pop in enumerate(plot_order):
+            if highlight_stim:
+                highlight_area(axes[index], pop, **common_highlight_values)
+            curr_psth = elephant_instantaneous_rates[pop]
+            axes[index].bar(np.arange(curr_psth.size),
+                            curr_psth,
+                            color=viridis_cmap(index / (n_plots + 1)),
+                            rasterized=True)
+            axes[index].set_title(use_display_name(pop))
+            axes[index].set_ylabel("Hz")
+        plt.xticks(wanted_times * time_to_bin_conversion, wanted_times)
+        plt.xlabel("Time (ms)")
+        save_figure(plt, os.path.join(sim_fig_folder,
+                                      "elephant_instantaneous_firing_rate"),
+                    extensions=['.png', ])
+        plt.close(f)
+    except:
+        traceback.print_exc()
+
     plot_analog_signal(all_exc_gsyn, variable_name="gsyn_exc",
                        ylabel="Exc synaptic conductance ($\mu S$)",
                        **common_values_for_plots)
@@ -945,6 +993,7 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
     plt.close(f)
 
     all_corr_coef = {}
+    all_covariances = {}
     all_distances = {}
     all_tiling_coef = {}
     all_isi = {}
@@ -959,6 +1008,7 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
         pop_2_spikes = all_spikes_2[pop].segments[0].spiketrains
 
         corr_coef_per_neuron = []
+        cov_per_neuron = []
         spike_time_tiling_coef_per_neuron = []
         van_rossum_dists = []
         isis = {0: [],
@@ -970,16 +1020,21 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
         # I guess we need to look at each neuron?
         for (p1, p2) in zip(pop_1_spikes, pop_2_spikes):
             cc_matrix = elephant.spike_train_correlation.corrcoef(
-                elephant.conversion.BinnedSpikeTrain([p1, p2], binsize=5 * pq.ms),
+                elephant.conversion.BinnedSpikeTrain([p1, p2], binsize=1 * pq.ms),
                 fast=True)
             corr_coef_per_neuron.append(cc_matrix[0, 1])
 
+            cov_matrix = elephant.spike_train_correlation.covariance(
+                elephant.conversion.BinnedSpikeTrain([p1, p2], binsize=1 * pq.ms),
+                fast=True)
+            cov_per_neuron.append(cov_matrix[0, 1])
+
             tiling = elephant.spike_train_correlation.spike_time_tiling_coefficient(
-                p1, p2, dt=1 * pq.ms)
+                p1, p2, dt=0.5 * pq.ms)
             spike_time_tiling_coef_per_neuron.append(tiling)
 
             dist = elephant.spike_train_dissimilarity.van_rossum_dist(
-                [p1, p2], tau=1 * pq.ms)[0, 1]
+                [p1, p2], tau=0.5 * pq.ms)[0, 1]
             van_rossum_dists.append(dist)
 
             # Inter spike intervals
@@ -998,6 +1053,12 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
             pop, "corr coef",
             np.nanmean(corr_coef_per_neuron),
             np.nanstd(corr_coef_per_neuron)))
+
+        print(reporting_format_string.format(
+            "", "covariance",
+            np.nanmean(cov_per_neuron),
+            np.nanstd(cov_per_neuron)))
+
         print(reporting_format_string.format(
             "", "tiling coef",
             np.nanmean(spike_time_tiling_coef_per_neuron),
@@ -1008,6 +1069,7 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
             np.nanstd(van_rossum_dists)))
 
         all_corr_coef[pop] = corr_coef_per_neuron
+        all_covariances[pop] = cov_per_neuron
         all_distances[pop] = van_rossum_dists
         all_tiling_coef[pop] = spike_time_tiling_coef_per_neuron
 
@@ -1151,6 +1213,11 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
                               ylabel="Correlation Coefficient",
                               **common_values_for_plots)
 
+    plot_boxplot_for_all_pops(all_covariances, "covariance",
+                              xlabel="Population",
+                              ylabel="Covariance",
+                              **common_values_for_plots)
+
     plot_boxplot_for_all_pops(all_distances, "van_rostum_dist",
                               xlabel="Population",
                               ylabel="van Rostum Distance",
@@ -1228,7 +1295,7 @@ def plot_analog_signal_with_error(data, variable_name,
         try:
             values_for_pop = np.squeeze(data[pop])
             if xticks is not None:
-                adjusted_xticks = adjusted_xticks[pop].ravel()
+                adjusted_xticks = xticks[pop].ravel()
                 argsorted_ticks = np.argsort(
                     adjusted_xticks[np.logical_and(adjusted_xticks > 0, adjusted_xticks < 2000)])
                 adjusted_xticks = adjusted_xticks[argsorted_ticks]
@@ -1262,6 +1329,8 @@ def plot_analog_signal_with_error(data, variable_name,
             # Also plot using matshow
             if not passed_in_ticks:
                 extent_xticks = [np.min(wanted_times), np.max(wanted_times)]
+            else:
+                extent_xticks = [np.min(xticks), np.max(xticks)]
 
             values_for_pop = np.squeeze(values_for_pop)
             f = plt.figure(1, figsize=(18, 9), dpi=500)
@@ -1369,7 +1438,6 @@ def plot_boxplot_for_all_pops(data, variable_name, xlabel, ylabel, plot_order,
     bp_width = 0.7
     f = plt.figure(figsize=(12, 8), dpi=600)
     for index, pop in enumerate(plot_order):
-        print(index, pop)
         curr_data = np.asarray(data[pop])
         curr_data = curr_data[np.isfinite(curr_data)]
         plt.boxplot(curr_data, notch=True, positions=[index + 1],

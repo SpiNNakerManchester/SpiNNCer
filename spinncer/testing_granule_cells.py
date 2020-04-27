@@ -42,7 +42,7 @@ connectivity_filename = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
     'datasets', connectivity_filename)
 # Set up the simulation
-sim.setup(timestep=args.timestep, min_delay=args.timestep,
+sim.setup(timestep=args.timestep, min_delay=args.timestep, max_delay=2,
           timescale=args.timescale)
 
 # Compile stimulus information
@@ -100,7 +100,12 @@ golgi = sim.Population(
 
 # Create LIF population
 if str.lower(args.simulator) in ["spinnaker", "spynnaker"]:
-    additional_params = {"rb_left_shifts": [0, 0]}
+    # additional_params = {"rb_left_shifts": [0, 0]}
+    additional_params = {
+        "rb_left_shifts": [0, 0],
+        "n_steps_per_timestep": 20
+    }
+    print("ADDITIONAL PARAMETERS:", additional_params)
     granule = sim.Population(
         1,
         cellclass=sim.IF_cond_exp,
