@@ -268,6 +268,9 @@ class Cerebellum(Circuit):
                 continue
             if cell_name in ["glomerulus", "mossy_fibers"]:
                 cell_param = self.stimulus[cell_name]
+                for index, row in enumerate(cell_param['spike_times']):
+                    # Round spike times to nearest timestep (this assumes .1 ms timestep)
+                    cell_param['spike_times'][index] = np.around(row, 1)
                 cell_model = self.sim.SpikeSourceArray
                 CELL_TYPES[cell_name] = cell_model
                 additional_params = {}

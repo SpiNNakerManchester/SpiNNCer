@@ -987,12 +987,22 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
     simulators = [sim_params_1['argparser']['simulator'],
                   sim_params_2['argparser']['simulator']]
 
+
+    stimulus_params = data_1['stimulus_params'].ravel()[0]
+    starts = np.cumsum(np.concatenate(([0], stimulus_params['stim_times']))) * pq.ms
+
+    bin_size = 5 * pq.ms
+    no_bins = int(simtime / bin_size)
+    stimulus_no_bins = int((starts[2]-starts[1])/bin_size)
+
     reporting_format_string = "{:30}-{:30}:{:6.3f}+-{:6.3f}"
 
     f = plt.figure(1, figsize=(9, 9), dpi=400)
     plt.close(f)
 
+    all_spike_time_diff = {}
     all_corr_coef = {}
+    all_cross_corr = {}
     all_covariances = {}
     all_distances = {}
     all_tiling_coef = {}
@@ -1008,9 +1018,11 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
         pop_2_spikes = all_spikes_2[pop].segments[0].spiketrains
 
         corr_coef_per_neuron = []
+        cross_corr_per_neuron = []
         cov_per_neuron = []
         spike_time_tiling_coef_per_neuron = []
         van_rossum_dists = []
+        spike_diff = []
         isis = {0: [],
                 1: []}
         cvs = {0: [],
@@ -1019,27 +1031,59 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
                 1: []}
         # I guess we need to look at each neuron?
         for (p1, p2) in zip(pop_1_spikes, pop_2_spikes):
+            # p1 = np.around(p1, 1) * pq.ms
+            # p2 = np.around(p2, 1) * pq.ms
+            try:
+                spike_diff = p1 - p2
+                print("{:35} spike diff".format(pop), spike_diff)
+            except:
+                spike_diff = np.asarray([np.nan])
+
+            np_bin_p1, np_bin_p1_edges = np.histogram(p1, bins=np.arange(no_bins) * bin_size)
+            np_bin_p2, np_bin_p2_edges = np.histogram(p2, bins=np.arange(no_bins) * bin_size)
+
+            bin_p1 = elephant.conversion.BinnedSpikeTrain(
+                p1, binsize=bin_size, num_bins=stimulus_no_bins,
+                t_start=starts[1], t_stop=starts[2])
+            bin_p2 = elephant.conversion.BinnedSpikeTrain(
+                p2, binsize=bin_size, num_bins=stimulus_no_bins,
+                t_start=starts[1], t_stop=starts[2])
+            combined_binned = elephant.conversion.BinnedSpikeTrain(
+                [p1, p2], binsize=bin_size, num_bins=stimulus_no_bins,
+                t_start=starts[1], t_stop=starts[2])
+
             cc_matrix = elephant.spike_train_correlation.corrcoef(
-                elephant.conversion.BinnedSpikeTrain([p1, p2], binsize=1 * pq.ms),
+                combined_binned,
                 fast=True)
             corr_coef_per_neuron.append(cc_matrix[0, 1])
 
             cov_matrix = elephant.spike_train_correlation.covariance(
-                elephant.conversion.BinnedSpikeTrain([p1, p2], binsize=1 * pq.ms),
+                combined_binned,
                 fast=True)
             cov_per_neuron.append(cov_matrix[0, 1])
 
             tiling = elephant.spike_train_correlation.spike_time_tiling_coefficient(
-                p1, p2, dt=0.5 * pq.ms)
+                p1, p2, dt=bin_size)
             spike_time_tiling_coef_per_neuron.append(tiling)
 
             dist = elephant.spike_train_dissimilarity.van_rossum_dist(
-                [p1, p2], tau=0.5 * pq.ms)[0, 1]
+                [p1, p2], tau=bin_size)[0, 1]
             van_rossum_dists.append(dist)
 
+            cross_corr = elephant.spike_train_correlation.cross_correlation_histogram(
+                bin_p1, bin_p2,
+                border_correction=False,
+                binary=False, kernel=None, method='speed',
+                cross_corr_coef=True)
+            cross_corr_per_neuron.append(cross_corr)
+
             # Inter spike intervals
-            isis[0].append(np.array(elephant.statistics.isi(p1 / pq.ms)))
-            isis[1].append(np.array(elephant.statistics.isi(p2 / pq.ms)))
+            isis[0].append(np.array(elephant.statistics.isi(
+                p1 / pq.ms
+            )))
+            isis[1].append(np.array(elephant.statistics.isi(
+                p2 / pq.ms
+            )))
 
             # Coefficient of variation
             cvs[0].append(elephant.statistics.cv(p1))
@@ -1069,9 +1113,11 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
             np.nanstd(van_rossum_dists)))
 
         all_corr_coef[pop] = corr_coef_per_neuron
+        all_cross_corr[pop] = cross_corr_per_neuron
         all_covariances[pop] = cov_per_neuron
         all_distances[pop] = van_rossum_dists
         all_tiling_coef[pop] = spike_time_tiling_coef_per_neuron
+        all_spike_time_diff[pop] = spike_diff
 
         all_isi[pop] = isis
         all_cv[pop] = cvs
@@ -1175,6 +1221,9 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
         'common_highlight_values': None,  # common_highlight_values,
     }
 
+    # TODO PLOT THE DIFFERENCE BETWEEN np_bin_p1 and np_bin_p2
+    # TODO
+
     if same_sampling_rate:
         plot_analog_signal_with_error(all_diff_error['v'],
                                       "v_diff_error",
@@ -1213,6 +1262,14 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
                               ylabel="Correlation Coefficient",
                               **common_values_for_plots)
 
+    try:
+        plot_boxplot_for_all_pops(all_cross_corr, "cross_corr",
+                                  xlabel="Population",
+                                  ylabel="Cross Correlation",
+                                  **common_values_for_plots)
+    except:
+        pass
+
     plot_boxplot_for_all_pops(all_covariances, "covariance",
                               xlabel="Population",
                               ylabel="Covariance",
@@ -1231,6 +1288,7 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
     plot_sbs_boxplot_for_all_pops(all_isi, "isi",
                                   xlabel="Population",
                                   ylabel="ISI (ms)", titles=simulators,
+                                  yscale='log',
                                   **common_values_for_plots)
 
     plot_sbs_boxplot_for_all_pops(all_cv, "cv",
@@ -1244,39 +1302,80 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
                                   **common_values_for_plots)
 
     # Plot side by side histograms
-    plot_sbs_histogram_for_all_pops(all_isi, "isi",
-                                    xlabel="ISI",
-                                    ylabel="count", titles=simulators,
-                                    **common_values_for_plots)
-
-    plot_sbs_histogram_for_all_pops(all_cv, "cv",
-                                    xlabel="CV",
-                                    ylabel="count", titles=simulators,
-                                    **common_values_for_plots)
-
-    plot_sbs_histogram_for_all_pops(all_cv2, "cv2",
-                                    xlabel="CV2",
-                                    ylabel="count", titles=simulators,
-                                    **common_values_for_plots)
+    # plot_sbs_histogram_for_all_pops(all_isi, "isi",
+    #                                 xlabel="ISI",
+    #                                 ylabel="count", titles=simulators,
+    #                                 **common_values_for_plots)
+    #
+    # plot_sbs_histogram_for_all_pops(all_cv, "cv",
+    #                                 xlabel="CV",
+    #                                 ylabel="count", titles=simulators,
+    #                                 **common_values_for_plots)
+    #
+    # plot_sbs_histogram_for_all_pops(all_cv2, "cv2",
+    #                                 xlabel="CV2",
+    #                                 ylabel="count", titles=simulators,
+    #                                 **common_values_for_plots)
 
     # Plotting histograms
-    plot_histogram_for_all_pops(all_corr_coef, "corr_coeff",
-                                xlabel="Correlation Coefficient",
-                                ylabel="count",
-                                **common_values_for_plots)
+    # plot_histogram_for_all_pops(all_cross_corr, "cross_corr",
+    #                             xlabel="Cross Correlation",
+    #                             ylabel="count",
+    #                             **common_values_for_plots)
 
-    plot_histogram_for_all_pops(all_distances, "van_rostum_dist",
-                                xlabel="van Rostum Distance",
-                                ylabel="count",
-                                **common_values_for_plots)
-
-    plot_histogram_for_all_pops(all_tiling_coef, "tiling_coeff",
-                                xlabel="Tiling Coefficient",
-                                ylabel="count",
-                                **common_values_for_plots)
+    # plot_histogram_for_all_pops(all_corr_coef, "corr_coeff",
+    #                             xlabel="Correlation Coefficient",
+    #                             ylabel="count",
+    #                             **common_values_for_plots)
+    #
+    # plot_histogram_for_all_pops(all_distances, "van_rostum_dist",
+    #                             xlabel="van Rostum Distance",
+    #                             ylabel="count",
+    #                             **common_values_for_plots)
+    #
+    # plot_histogram_for_all_pops(all_tiling_coef, "tiling_coeff",
+    #                             xlabel="Tiling Coefficient",
+    #                             ylabel="count",
+    #                             **common_values_for_plots)
 
     print("=" * 80)
 
+
+def scatter_plot(data, variable_name,
+                 xlabel, ylabel, plot_order,
+                 wanted_times, time_to_bin_conversion,
+                 fig_folder,
+                 highlight_stim, common_highlight_values,
+                 titles):
+    print("Scatter plot -- {} for all populations".format(
+        variable_name))
+    f, axes = plt.subplots(len(data.keys()), 1,
+                           figsize=(14, 20), sharex=True, dpi=400)
+    n_plots = len(plot_order)
+    minimus = 0
+    maximus = 0
+    for index, pop in enumerate(plot_order):
+        curr_ax = axes[index]
+        curr_pop = data[pop]
+        curr_ax.scatter(np.asarray(curr_pop[0]).ravel(),
+                        np.asarray(curr_pop[1]).ravel(),
+                     color=color_for_index(index, n_plots),
+                     rasterized=True)
+        if index == 0:
+            curr_ax.set_title(use_display_name(titles[0]))
+        curr_ax.set_ylabel(use_display_name(pop) + "\n" + ylabel)
+        curr_ax.grid(True, which="major", axis="both")
+
+        minimus = min(minimus, min(data[pop][0]), min(data[pop][1]))
+        maximus = max(maximus, max(data[pop][0]), max(data[pop][1]))
+
+    plt.xlabel(xlabel)
+    plt.xlim([minimus - (.1 * maximus), 1.1 * maximus])
+    f.tight_layout()
+    save_figure(plt, os.path.join(fig_folder,
+                                  "scatter_plot_{}".format(variable_name)),
+                extensions=['.png', '.pdf'])
+    plt.close(f)
 
 def plot_analog_signal_with_error(data, variable_name,
                                   xlabel, ylabel, plot_order,
@@ -1465,7 +1564,7 @@ def plot_sbs_boxplot_for_all_pops(data, variable_name, xlabel, ylabel,
                                   wanted_times, time_to_bin_conversion,
                                   fig_folder,
                                   highlight_stim, common_highlight_values,
-                                  titles):
+                                  titles, yscale='linear'):
     print("Plotting SIDE BY SIDE boxplot for {} for all populations".format(
         variable_name))
     n_plots = len(plot_order)
@@ -1496,13 +1595,18 @@ def plot_sbs_boxplot_for_all_pops(data, variable_name, xlabel, ylabel,
     plt.xlim([0, spacer * n_plots])
     plt.grid(True, which="major", axis="y")
     plt.xlabel(xlabel)
+    plt.yscale(yscale)
+    if yscale != 'linear':
+        suffix = "_" + yscale
+    else:
+        suffix = ""
     xtick_display_names = [use_display_name(x) for x in plot_order]
     _, labels = plt.xticks(spacer * np.arange(len(plot_order)) + 1.5,
                            xtick_display_names)
 
     f.tight_layout()
     save_figure(plt, os.path.join(fig_folder,
-                                  "bp_sbs_all_pop_{}".format(variable_name)),
+                                  "bp_sbs_all_pop_{}".format(variable_name + suffix)),
                 extensions=['.png', '.pdf'])
     plt.close(f)
 
