@@ -482,17 +482,23 @@ def spike_analysis(results_file, fig_folder,
         mean = np.mean(conn[:, 2])
         # replace with percentage of difference
         original_conn = np.abs(conn_params[key]["weight"])
+        orig_conn_sign = np.sign(conn_params[key]["weight"])
         if mean < original_conn:
             proportion = mean / original_conn
         else:
             proportion = original_conn / mean
+        diff = original_conn - mean
+        prop_diff = orig_conn_sign * diff / original_conn
         # assert (0 <= proportion <= 1), proportion
         is_close = proportion >= .95
         _c = Fore.GREEN if is_close else Fore.RED
 
-        print("{:27} & {:4.6f} &".format(key, mean),
+        # print("{:27} & {:4.6f} &".format(key, mean),
+        #       "{: 4.6f} ({:>7.2%})".format(
+        #           conn_params[key]["weight"], proportion))
+        print("{:27} & {:4.6f} &".format(key, conn_params[key]["weight"]),
               "{: 4.6f} ({:>7.2%})".format(
-                  conn_params[key]["weight"], proportion))
+                  mean, prop_diff))
 
     # Check voltage information
     all_voltages = {}
@@ -975,6 +981,7 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
     sim_params_1 = data_1['simulation_parameters'].ravel()[0]
     sim_params_2 = data_2['simulation_parameters'].ravel()[0]
     timestep = sim_params_1['argparser']['timestep'] * ms
+    elephant_timestep = sim_params_1['argparser']['timestep'] * pq.ms
 
     # TODO assert that parameters are the same between the simulations
 
@@ -1001,6 +1008,8 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
     plt.close(f)
 
     all_spike_time_diff = {}
+    all_spike_hist_diff = {}
+    all_instantenous_rate_diff = {}
     all_corr_coef = {}
     all_cross_corr = {}
     all_covariances = {}
@@ -1023,24 +1032,51 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
         spike_time_tiling_coef_per_neuron = []
         van_rossum_dists = []
         spike_diff = []
+        spike_hist_diff = []
         isis = {0: [],
                 1: []}
         cvs = {0: [],
                1: []}
         cv2s = {0: [],
                 1: []}
+
+        # Comptue instantaneous rates for sim 1 and 2 and take the difference
+        curr_inst_rates_1 = \
+            elephant.statistics.instantaneous_rate(
+                pop_1_spikes,
+                sampling_period=elephant_timestep,
+                t_start=0 * pq.ms,
+                t_stop=simtime
+            )
+
+        curr_inst_rates_2 = \
+            elephant.statistics.instantaneous_rate(
+                pop_2_spikes,
+                sampling_period=elephant_timestep,
+                t_start=0 * pq.ms,
+                t_stop=simtime
+            )
+
+        all_instantenous_rate_diff[pop] = np.squeeze(
+            curr_inst_rates_1 - curr_inst_rates_2)
+
         # I guess we need to look at each neuron?
         for (p1, p2) in zip(pop_1_spikes, pop_2_spikes):
             # p1 = np.around(p1, 1) * pq.ms
             # p2 = np.around(p2, 1) * pq.ms
             try:
                 spike_diff = p1 - p2
-                print("{:35} spike diff".format(pop), spike_diff)
+                # print("{:35} spike diff".format(pop), spike_diff)
             except:
                 spike_diff = np.asarray([np.nan])
 
-            np_bin_p1, np_bin_p1_edges = np.histogram(p1, bins=np.arange(no_bins) * bin_size)
-            np_bin_p2, np_bin_p2_edges = np.histogram(p2, bins=np.arange(no_bins) * bin_size)
+            np_bin_p1, np_bin_p1_edges = np.histogram(
+                p1, bins=np.arange(no_bins) * bin_size)
+            np_bin_p2, np_bin_p2_edges = np.histogram(
+                p2, bins=np.arange(no_bins) * bin_size)
+
+            spike_hist_diff = np_bin_p1 - np_bin_p2
+
 
             bin_p1 = elephant.conversion.BinnedSpikeTrain(
                 p1, binsize=bin_size, num_bins=stimulus_no_bins,
@@ -1118,10 +1154,31 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
         all_distances[pop] = van_rossum_dists
         all_tiling_coef[pop] = spike_time_tiling_coef_per_neuron
         all_spike_time_diff[pop] = spike_diff
+        all_spike_hist_diff[pop] = spike_hist_diff
 
         all_isi[pop] = isis
         all_cv[pop] = cvs
         all_cv2[pop] = cv2s
+
+        # Log isis
+        try:
+            log_isi_1 = np.log(np.concatenate(all_isi[pop][0]))
+            log_isi_2 = np.log(np.concatenate(all_isi[pop][1]))
+
+            log_isi_1 = log_isi_1[np.isfinite(log_isi_1)]
+            log_isi_2 = log_isi_2[np.isfinite(log_isi_2)]
+
+            print("{:45}".format("log_isi_1 distribution normality"),
+                  stats.normaltest(log_isi_1))
+            print("{:45}".format("log_isi_2 distribution normality"),
+                  stats.normaltest(log_isi_2))
+            ttest_for_pop = stats.ttest_ind(log_isi_1, log_isi_2, equal_var=False)
+
+            print("{:30}-{:30}:".format(
+                "", "ttest on log ISI (pvalue, statistic)"),
+                ttest_for_pop.pvalue, ttest_for_pop.statistic)
+        except:
+            traceback.print_exc()
 
     for k, v in all_isi.items():
         for dk, dv in v.items():
@@ -1224,20 +1281,22 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
     # TODO PLOT THE DIFFERENCE BETWEEN np_bin_p1 and np_bin_p2
     # TODO
 
+    plot_analog_signal(all_instantenous_rate_diff,
+                                  "instantaneous_rate_diff",
+                                  ylabel="Difference (Hz)",
+                                  **common_values_for_plots)
+
     if same_sampling_rate:
-        plot_analog_signal_with_error(all_diff_error['v'],
+        plot_analog_signal(all_diff_error['v'],
                                       "v_diff_error",
-                                      xlabel="Time (ms)",
                                       ylabel="Error (mV)",
                                       **common_values_for_plots)
-        plot_analog_signal_with_error(all_diff_error['gsyn_exc'],
+        plot_analog_signal(all_diff_error['gsyn_exc'],
                                       "gsyn_exc_diff_error",
-                                      xlabel="Time (ms)",
                                       ylabel="Error ($\mu S$)",
                                       **common_values_for_plots)
-        plot_analog_signal_with_error(all_diff_error['gsyn_inh'],
+        plot_analog_signal(all_diff_error['gsyn_inh'],
                                       "gsyn_inh_diff_error",
-                                      xlabel="Time (ms)",
                                       ylabel="Error ($\mu S$)",
                                       **common_values_for_plots)
 
@@ -1257,12 +1316,18 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
                                       errorbars=False,
                                       **common_values_for_plots)
     # Plotting boxplots
+    print("PLOTTING", "all_corr_coef")
     plot_boxplot_for_all_pops(all_corr_coef, "corr_coeff",
                               xlabel="Population",
                               ylabel="Correlation Coefficient",
                               **common_values_for_plots)
 
     try:
+
+        plot_histogram_for_all_pops(all_cross_corr, "cross_corr",
+                                  xlabel="Population",
+                                  ylabel="Cross Correlation",
+                                  **common_values_for_plots)
         plot_boxplot_for_all_pops(all_cross_corr, "cross_corr",
                                   xlabel="Population",
                                   ylabel="Cross Correlation",
@@ -1275,9 +1340,9 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
                               ylabel="Covariance",
                               **common_values_for_plots)
 
-    plot_boxplot_for_all_pops(all_distances, "van_rostum_dist",
+    plot_boxplot_for_all_pops(all_distances, "van_rossum_dist",
                               xlabel="Population",
-                              ylabel="van Rostum Distance",
+                              ylabel="van Rossum Distance",
                               **common_values_for_plots)
 
     plot_boxplot_for_all_pops(all_tiling_coef, "tiling_coeff",
@@ -1387,72 +1452,70 @@ def plot_analog_signal_with_error(data, variable_name,
     print("Plotting {} traces for each population with errors".format(variable_name))
     n_plots = len(plot_order)
     for index, pop in enumerate(plot_order):
-        if pop in ["glomerulus"]:
+        if pop in ["glomerulus"] or pop not in data.keys():
             f = plt.figure(1, figsize=(9, 9), dpi=400)
             plt.close(f)
             continue
-        try:
-            values_for_pop = np.squeeze(data[pop])
-            if xticks is not None:
-                adjusted_xticks = xticks[pop].ravel()
-                argsorted_ticks = np.argsort(
-                    adjusted_xticks[np.logical_and(adjusted_xticks > 0, adjusted_xticks < 2000)])
-                adjusted_xticks = adjusted_xticks[argsorted_ticks]
-                passed_in_ticks = True
-            else:
-                adjusted_xticks = np.arange(values_for_pop.shape[1])
-                passed_in_ticks = False
-                argsorted_ticks = adjusted_xticks
-            f = plt.figure(1, figsize=(9, 9), dpi=400)
-            if errorbars:
-                plt.errorbar(adjusted_xticks,
-                             np.nanmean(values_for_pop, axis=0).ravel()[argsorted_ticks],
-                             yerr=np.nanstd(values_for_pop, axis=0).ravel()[argsorted_ticks],
-                             color=color_for_index(index, n_plots),
-                             rasterized=True)
-            else:
-                plt.plot(adjusted_xticks,
-                         np.nanmean(values_for_pop, axis=0).ravel()[argsorted_ticks],
+
+        values_for_pop = np.squeeze(data[pop])
+        if len(values_for_pop.shape) == 1:
+            values_for_pop = np.expand_dims(values_for_pop, 1)
+        if xticks is not None:
+            adjusted_xticks = xticks[pop].ravel()
+            argsorted_ticks = np.argsort(
+                adjusted_xticks[np.logical_and(adjusted_xticks > 0, adjusted_xticks < 2000)])
+            adjusted_xticks = adjusted_xticks[argsorted_ticks]
+            passed_in_ticks = True
+        else:
+            adjusted_xticks = np.arange(values_for_pop.shape[1])
+            passed_in_ticks = False
+            argsorted_ticks = adjusted_xticks
+        f = plt.figure(1, figsize=(9, 9), dpi=400)
+        if errorbars:
+            plt.errorbar(adjusted_xticks,
+                         np.nanmean(values_for_pop, axis=1).ravel()[argsorted_ticks],
+                         yerr=np.nanstd(values_for_pop, axis=1).ravel(),
                          color=color_for_index(index, n_plots),
                          rasterized=True)
+        else:
+            plt.plot(adjusted_xticks,
+                     np.nanmean(values_for_pop, axis=1).ravel()[argsorted_ticks],
+                     color=color_for_index(index, n_plots),
+                     rasterized=True)
 
-            if not passed_in_ticks:
-                plt.xticks(wanted_times * time_to_bin_conversion, wanted_times)
-            plt.xlabel(xlabel)
-            plt.ylabel(ylabel)
-            save_figure(plt, os.path.join(fig_folder,
-                                          "{}_{}".format(pop, variable_name)),
-                        extensions=['.png', '.pdf'])
-            plt.close(f)
+        plt.xlabel(xlabel)
+        plt.ylabel(ylabel)
+        save_figure(plt, os.path.join(fig_folder,
+                                      "{}_{}".format(pop, variable_name)),
+                    extensions=['.png', '.pdf'])
+        plt.close(f)
 
-            # Also plot using matshow
-            if not passed_in_ticks:
-                extent_xticks = [np.min(wanted_times), np.max(wanted_times)]
-            else:
-                extent_xticks = [np.min(xticks), np.max(xticks)]
+        # Also plot using matshow
+        if not passed_in_ticks:
+            extent_xticks = [np.min(wanted_times), np.max(wanted_times)]
+        else:
+            extent_xticks = [np.min(adjusted_xticks), np.max(adjusted_xticks)]
 
-            values_for_pop = np.squeeze(values_for_pop)
-            f = plt.figure(1, figsize=(18, 9), dpi=500)
-            im = plt.imshow(values_for_pop,
-                            interpolation='none',
-                            extent=[extent_xticks[0], extent_xticks[1],
-                                    0, values_for_pop.shape[0]],
-                            origin='lower')
-            ax = plt.gca()
-            ax.set_aspect('auto')
-            divider = make_axes_locatable(ax)
-            cax = divider.append_axes("right", "5%", pad="3%")
-            cbar = plt.colorbar(im, cax=cax)
-            cbar.set_label(ylabel)
+        # values_for_pop = np.squeeze(values_for_pop)
+        f = plt.figure(1, figsize=(18, 9), dpi=500)
+        im = plt.imshow(values_for_pop.T,
+                        interpolation='none',
+                        extent=[extent_xticks[0], extent_xticks[1],
+                                0, values_for_pop.shape[1]],
+                        origin='lower')
+        ax = plt.gca()
+        ax.set_aspect('auto')
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", "5%", pad="3%")
+        cbar = plt.colorbar(im, cax=cax)
+        cbar.set_label(ylabel)
 
-            ax.set_xlabel(xlabel)
-            ax.set_ylabel("Neuron ID")
-            save_figure(plt, os.path.join(fig_folder,
-                                          "imshow_{}_{}".format(pop, variable_name)),
-                        extensions=['.png', '.pdf'])
-            plt.close(f)
-        except Exception as e:
-            traceback.print_exc()
+        ax.set_xlabel(xlabel)
+        ax.set_ylabel("Neuron ID")
+        save_figure(plt, os.path.join(fig_folder,
+                                      "imshow_{}_{}".format(pop, variable_name)),
+                    extensions=['.pdf', ])
+        plt.close(f)
 
 
 def plot_sbs_histogram_for_all_pops(data, variable_name,

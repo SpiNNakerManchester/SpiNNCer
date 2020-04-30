@@ -29,6 +29,7 @@ import quantities as pq
 mlib.use('Agg')
 warnings.filterwarnings("ignore", category=UserWarning)
 warnings.filterwarnings("ignore", category=RuntimeWarning)
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 # ensure we use viridis as the default cmap
 plt.viridis()
