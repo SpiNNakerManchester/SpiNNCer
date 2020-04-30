@@ -81,10 +81,13 @@ if input_spikes is None:
         'golgi': inh_spike_times
     }
 
-for key in input_spikes.keys():
-    for index, row in enumerate(input_spikes[key]):
-        # Round spike times to nearest timestep (this assumes .1 ms timestep)
-        input_spikes[key][index] = np.around(row, 1)
+if args.disable_around:
+    for key in input_spikes.keys():
+        for index, row in enumerate(input_spikes[key]):
+            # Round spike times to nearest timestep
+            input_spikes[key][index] = np.around(
+                row,
+                int(np.ceil(np.log10((1/1.0) / 10))+1))
 
 # Create Spike Source Arrays
 glomerulus = sim.Population(

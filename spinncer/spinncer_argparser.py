@@ -123,6 +123,10 @@ parser.add_argument('--skip_projections', action="store_true",
                     help='if this flag is present suppress the '
                          'creation of projections in the network')
 
+parser.add_argument('--disable_around', action="store_true",
+                    help='if this flag is present disable the rounding of '
+                         'input spike times to nearest time step')
+
 parser.add_argument('--figures_dir', type=str,
                     help='directory into which to save figures',
                     default=DEFAULT_FIGURE_DIR)
