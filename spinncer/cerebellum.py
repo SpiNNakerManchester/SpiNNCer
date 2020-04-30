@@ -32,7 +32,10 @@ class Cerebellum(Circuit):
                  params=None, skip_projections=False,
                  weight_scaling=None,
                  neuron_model="IF_cond_exp", force_number_of_neurons=None,
-                 input_spikes=None, rb_left_shifts=None):
+                 input_spikes=None,
+                 rb_left_shifts=None,
+                 no_loops=3,
+                 ):
         """
         Cerebellum Circuit
         """
@@ -136,6 +139,7 @@ class Cerebellum(Circuit):
         #         self.rb_shifts[k] = np.asarray(rb_left_shifts).astype(int)
         #     else:
         #         self.rb_shifts[k] = None
+        self.no_loops = no_loops
         for k in self.rb_shifts.keys():
             if "purkinje" in k:
                 self.rb_shifts[k] = np.asarray([5, 5]).astype(int)
@@ -292,7 +296,7 @@ class Cerebellum(Circuit):
                 additional_params = {"rb_left_shifts":
                                          self.rb_shifts[cell_name]}
                 if cell_name in ["granule"]:
-                    additional_params["n_steps_per_timestep"] = 3
+                    additional_params["n_steps_per_timestep"] = self.no_loops
                 # add E_rev_I to all cells
                 capp_rev = -90.
                 if cell_model == "if_cond_exp":
@@ -315,7 +319,8 @@ class Cerebellum(Circuit):
                     cellparams=cell_param,
                     label=cell_name + " cells",
                     additional_parameters=additional_params)
-                print("ADDITIONAL PARAMETERS:", additional_params)
+                print("ADDITIONAL PARAMETERS FOR POP", cell_names,
+                      ":", additional_params)
             except TypeError as te:
                 traceback.print_exc()
                 self.populations[cell_name] = self.sim.Population(

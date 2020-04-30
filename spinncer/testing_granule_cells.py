@@ -108,7 +108,7 @@ if str.lower(args.simulator) in ["spinnaker", "spynnaker"]:
     # additional_params = {"rb_left_shifts": [0, 0]}
     additional_params = {
         "rb_left_shifts": [0, 0],
-        "n_steps_per_timestep": 3
+        "n_steps_per_timestep": args.loops_grc
     }
     print("ADDITIONAL PARAMETERS:", additional_params)
     granule = sim.Population(

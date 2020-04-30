@@ -33,6 +33,8 @@ DEFAULT_TIMESCALE = None
 
 DEFAULT_RB_LEFT_SHIFTS = None
 
+DEFAULT_NO_LOOPS_GRC = 3
+
 parser = argparse.ArgumentParser(
     description='Run a cerebellar simulation written in PyNN '
                 'using sPyNNaker on SpiNNaker or using NEST on (H)PC.',
@@ -137,6 +139,10 @@ parser.add_argument('--rb_left_shifts', type=float, nargs="+",
 parser.add_argument('--timescale', type=int,
                     help='set the slowdown factor of the simulation',
                     default=DEFAULT_TIMESCALE)
+
+parser.add_argument('--loops_grc', type=int,
+                    help='number of times around the neuron update loop for grc',
+                    default=DEFAULT_NO_LOOPS_GRC)
 
 parser.add_argument('-s', '--stimulus', type=str,
                     help="name of the file storing "

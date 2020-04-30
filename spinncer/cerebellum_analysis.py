@@ -1034,24 +1034,28 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
                 1: []}
 
         # Comptue instantaneous rates for sim 1 and 2 and take the difference
-        curr_inst_rates_1 = \
-            elephant.statistics.instantaneous_rate(
-                pop_1_spikes,
-                sampling_period=elephant_timestep,
-                t_start=0 * pq.ms,
-                t_stop=simtime
-            )
+        try:
+            curr_inst_rates_1 = \
+                elephant.statistics.instantaneous_rate(
+                    pop_1_spikes,
+                    sampling_period=elephant_timestep,
+                    t_start=0 * pq.ms,
+                    t_stop=simtime
+                )
 
-        curr_inst_rates_2 = \
-            elephant.statistics.instantaneous_rate(
-                pop_2_spikes,
-                sampling_period=elephant_timestep,
-                t_start=0 * pq.ms,
-                t_stop=simtime
-            )
+            curr_inst_rates_2 = \
+                elephant.statistics.instantaneous_rate(
+                    pop_2_spikes,
+                    sampling_period=elephant_timestep,
+                    t_start=0 * pq.ms,
+                    t_stop=simtime
+                )
 
-        all_instantenous_rate_diff[pop] = np.expand_dims(np.squeeze(
-            curr_inst_rates_1 - curr_inst_rates_2), 0)
+            all_instantenous_rate_diff[pop] = np.expand_dims(np.squeeze(
+                curr_inst_rates_1 - curr_inst_rates_2), 0)
+        except ValueError as ve:
+            traceback.print_exc()
+            all_instantenous_rate_diff[pop] = [[np.nan]]
 
         # I guess we need to look at each neuron?
         for (p1, p2) in zip(pop_1_spikes, pop_2_spikes):
@@ -1641,7 +1645,7 @@ def plot_sbs_boxplot_for_all_pops(data, variable_name, xlabel, ylabel,
                           widths=bp_width)
         bp1 = plt.boxplot(curr_res_1.ravel(), notch=True,
                           positions=[spacer * index + 2],
-                          medianprops=dict(color=viridis_cmap(.9),
+                          medianprops=dict(color=viridis_cmap(.7),
                                            linewidth=1.5),
                           widths=bp_width)
     title_display_names = [use_display_name(x) for x in titles]
