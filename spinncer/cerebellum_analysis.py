@@ -34,16 +34,9 @@ def plot_analog_signal(data, variable_name, ylabel, plot_order,
                        highlight_stim, common_highlight_values):
     print("Plotting {} traces for each population".format(variable_name))
     for index, pop in enumerate(plot_order):
-        if pop == "glomerulus":
-            f = plt.figure(1, figsize=(9, 9), dpi=400)
-            plt.close(f)
-            continue
         try:
             values_for_pop = data[pop]
             f = plt.figure(1, figsize=(9, 9), dpi=400)
-            # if highlight_stim:
-            #     ax = plt.gca()
-            #     highlight_area(ax, **common_highlight_values)
             for _ind, _trace in enumerate(values_for_pop):
                 plt.plot(_trace,
                          color=color_for_index(_ind, values_for_pop.shape[0]),
@@ -1057,8 +1050,8 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
                 t_stop=simtime
             )
 
-        all_instantenous_rate_diff[pop] = np.squeeze(
-            curr_inst_rates_1 - curr_inst_rates_2)
+        all_instantenous_rate_diff[pop] = np.expand_dims(np.squeeze(
+            curr_inst_rates_1 - curr_inst_rates_2), 0)
 
         # I guess we need to look at each neuron?
         for (p1, p2) in zip(pop_1_spikes, pop_2_spikes):
