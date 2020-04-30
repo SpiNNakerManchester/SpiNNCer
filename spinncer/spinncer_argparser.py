@@ -123,7 +123,7 @@ parser.add_argument('--skip_projections', action="store_true",
                     help='if this flag is present suppress the '
                          'creation of projections in the network')
 
-parser.add_argument('--disable_around', action="store_true",
+parser.add_argument('--disable_around', action="store_false",
                     help='if this flag is present disable the rounding of '
                          'input spike times to nearest time step')
 

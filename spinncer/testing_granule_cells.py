@@ -82,12 +82,17 @@ if input_spikes is None:
     }
 
 if args.disable_around:
+    number_of_decimals_to_round = int(np.ceil(np.log10((1 / 1.0) / 10)) + 1)
+    print(
+        "args.disable_around=", args.disable_around,
+        "so the number_of_decimals_to_round is ", number_of_decimals_to_round)
     for key in input_spikes.keys():
         for index, row in enumerate(input_spikes[key]):
             # Round spike times to nearest timestep
             input_spikes[key][index] = np.around(
                 row,
-                int(np.ceil(np.log10((1/1.0) / 10))+1))
+                number_of_decimals_to_round
+            )
 
 # Create Spike Source Arrays
 glomerulus = sim.Population(
