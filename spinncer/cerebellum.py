@@ -288,7 +288,7 @@ class Cerebellum(Circuit):
                                 t_stop=np.max(row)+self.round_input_spike_times
                             )
                         else:
-                            rounded_spike_times = []
+                            rounded_spike_times = np.asarray([])
 
                         # DEALING WITH nest.lib.hl_api_exceptions.NESTErrors.BadProperty:
                         # ("BadProperty in SetStatus_id: Setting status of a
@@ -297,7 +297,7 @@ class Cerebellum(Circuit):
                         # <SLILiteral: SetStatus_id>, ": Setting status of a
                         # 'spike_generator' with GID 855: spike time cannot be set to 0.")
                         # Which means IT CAN'T BE 0.1, NOT 0
-                        # rounded_spike_times[rounded_spike_times < 0.2] = 0.2
+                        rounded_spike_times[rounded_spike_times < 0.2] = 0.2
                         if len(rounded_spike_times) > 0:
                             min_spike_time = min(min_spike_time, np.min(rounded_spike_times))
                         cell_param['spike_times'][index] = rounded_spike_times
