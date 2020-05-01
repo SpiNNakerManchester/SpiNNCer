@@ -298,7 +298,7 @@ class Cerebellum(Circuit):
                         # 'spike_generator' with GID 855: spike time cannot be set to 0.")
                         # Which means IT CAN'T BE 0.1, NOT 0
                         # rounded_spike_times[rounded_spike_times < 0.2] = 0.2
-                        if rounded_spike_times.size > 0:
+                        if len(rounded_spike_times) > 0:
                             min_spike_time = min(min_spike_time, np.min(rounded_spike_times))
                         cell_param['spike_times'][index] = rounded_spike_times
                     print("MIN SPIKE TIME FOR", cell_name, "IS", min_spike_time)
