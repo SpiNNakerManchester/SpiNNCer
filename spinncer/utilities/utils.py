@@ -29,3 +29,18 @@ def create_poisson_spikes(n_inputs, rates, starts, durations):
                 as_array=True))
         spike_times[i] = np.concatenate(curr_spikes)
     return spike_times
+
+
+# Originally wanted to use something like this:
+# https://stackoverflow.com/questions/58065055/floor-and-ceil-with-number-of-decimals
+# but the solution is wrong: e.g.
+# x = 0.5 * pq.ms
+# my_floor(x, 1)
+# result: array(0.4) * ms
+# def floor_spike_time(a, precision=0, dtype=1 * pq.ms):
+#     return np.round(a - 0.5 * 10**(-precision) * dtype, precision)
+def floor_spike_time(times, dt=0.1, t_start=0, t_stop=1000.0):
+    bins = np.arange(t_start, t_stop + dt, dt)
+    count, bin_edges = np.histogram(times , bins=bins)
+    return (bin_edges[:-1])[count > 0]
+

@@ -77,10 +77,7 @@ if args.stimulus_from_file is not None:
 
 round_spike_times = None
 if args.disable_around:
-    round_spike_times = int(np.ceil(np.log10((1 / args.timestep) / 10)) + 1)
-    print(
-        "args.disable_around=", args.disable_around,
-        "so the number_of_decimals_to_round is ", round_spike_times)
+    round_spike_times = args.timestep
 
 # Instantiate a Cerebellum
 cerebellum_circuit = Cerebellum(

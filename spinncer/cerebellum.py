@@ -22,7 +22,7 @@ from spinncer.utilities.reporting import (population_reporting,
 from elephant.spike_train_generation import homogeneous_poisson_process
 import quantities as pq
 import sys
-from spinncer.utilities.utils import flatten_dict, create_poisson_spikes
+from spinncer.utilities.utils import flatten_dict, create_poisson_spikes, floor_spike_time
 import traceback
 
 
@@ -275,13 +275,18 @@ class Cerebellum(Circuit):
                 continue
             if cell_name in ["glomerulus", "mossy_fibers"]:
                 cell_param = self.stimulus[cell_name]
-
                 if self.round_input_spike_times is not None:
                     min_spike_time = 357893.
                     for index, row in enumerate(cell_param['spike_times']):
                         # Round spike times to nearest timestep (this assumes .1 ms timestep)
-                        rounded_spike_times = np.around(
-                            row, self.round_input_spike_times)
+                        # The following does round to nearest, which is wrong
+                        # rounded_spike_times = np.around(
+                        #     row, self.round_input_spike_times)
+                        rounded_spike_times = floor_spike_time(
+                            row, dt=self.round_input_spike_times,
+                            t_stop=np.max(row)+self.round_input_spike_times
+                        )
+
                         # DEALING WITH nest.lib.hl_api_exceptions.NESTErrors.BadProperty:
                         # ("BadProperty in SetStatus_id: Setting status of a
                         # 'spike_generator' with GID 855: spike time cannot be
@@ -289,7 +294,7 @@ class Cerebellum(Circuit):
                         # <SLILiteral: SetStatus_id>, ": Setting status of a
                         # 'spike_generator' with GID 855: spike time cannot be set to 0.")
                         # Which means IT CAN'T BE 0.1, NOT 0
-                        rounded_spike_times[rounded_spike_times < 0.2] = 0.2
+                        # rounded_spike_times[rounded_spike_times < 0.2] = 0.2
                         if rounded_spike_times.size > 0:
                             min_spike_time = min(min_spike_time, np.min(rounded_spike_times))
                         cell_param['spike_times'][index] = rounded_spike_times

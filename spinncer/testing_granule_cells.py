@@ -8,6 +8,7 @@ import json
 from spinncer.spinncer_argparser import *
 from spinncer.utilities.constants import *
 import sys
+from spinncer.utilities.utils import floor_spike_time
 
 # import sPyNNaker
 # import simulator
@@ -89,10 +90,8 @@ if args.disable_around:
     for key in input_spikes.keys():
         for index, row in enumerate(input_spikes[key]):
             # Round spike times to nearest timestep
-            input_spikes[key][index] = np.around(
-                row,
-                number_of_decimals_to_round
-            )
+            input_spikes[key][index] = floor_spike_time(
+                row, dt=args.timestep, t_stop=args.simtime)
 
 # Create Spike Source Arrays
 glomerulus = sim.Population(
