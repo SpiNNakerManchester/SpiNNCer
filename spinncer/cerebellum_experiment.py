@@ -75,6 +75,12 @@ if args.stimulus_from_file is not None:
     # Assembly the dictionary to pass to the cerebellum circuit
     input_spikes = np.load(args.stimulus_from_file, allow_pickle=True)['input_spikes'].ravel()[0]
 
+round_spike_times = None
+if args.disable_around:
+    round_spike_times = int(np.ceil(np.log10((1 / args.timestep) / 10)) + 1)
+    print(
+        "args.disable_around=", args.disable_around,
+        "so the number_of_decimals_to_round is ", round_spike_times)
 
 # Instantiate a Cerebellum
 cerebellum_circuit = Cerebellum(
@@ -87,7 +93,8 @@ cerebellum_circuit = Cerebellum(
     neuron_model=args.neuron_model,
     input_spikes=input_spikes,
     rb_left_shifts=args.rb_left_shifts,
-    no_loops=args.loops_grc
+    no_loops=args.loops_grc,
+    round_input_spike_times=round_spike_times
 )
 
 if args.generate_conversion_constants:

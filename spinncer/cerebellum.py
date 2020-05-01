@@ -35,6 +35,7 @@ class Cerebellum(Circuit):
                  input_spikes=None,
                  rb_left_shifts=None,
                  no_loops=3,
+                 round_input_spike_times=None
                  ):
         """
         Cerebellum Circuit
@@ -45,6 +46,8 @@ class Cerebellum(Circuit):
         # Flag that controls whether reports are printed as the  network is
         # being generated
         self.reporting = reporting
+
+        self.round_input_spike_times = round_input_spike_times
 
         # flag to be used when building the connectivity from hdf5 files
         self.new_scaffold = False
@@ -275,7 +278,9 @@ class Cerebellum(Circuit):
                 min_spike_time = 357893.
                 for index, row in enumerate(cell_param['spike_times']):
                     # Round spike times to nearest timestep (this assumes .1 ms timestep)
-                    rounded_spike_times = np.around(row, 1)
+                    if self.round_input_spike_times is not None:
+                        rounded_spike_times = np.around(
+                            row, self.round_input_spike_times)
                     # DEALING WITH nest.lib.hl_api_exceptions.NESTErrors.BadProperty:
                     # ("BadProperty in SetStatus_id: Setting status of a
                     # 'spike_generator' with GID 855: spike time cannot be
