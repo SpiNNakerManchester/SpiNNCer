@@ -82,7 +82,7 @@ if input_spikes is None:
     }
 
 if args.disable_around:
-    number_of_decimals_to_round = int(np.ceil(np.log10((1 / 1.0) / 10)) + 1)
+    number_of_decimals_to_round = int(np.ceil(np.log10((1 / args.timestep) / 10)) + 1)
     print(
         "args.disable_around=", args.disable_around,
         "so the number_of_decimals_to_round is ", number_of_decimals_to_round)
