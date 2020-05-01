@@ -282,10 +282,13 @@ class Cerebellum(Circuit):
                         # The following does round to nearest, which is wrong
                         # rounded_spike_times = np.around(
                         #     row, self.round_input_spike_times)
-                        rounded_spike_times = floor_spike_time(
-                            row, dt=self.round_input_spike_times,
-                            t_stop=np.max(row)+self.round_input_spike_times
-                        )
+                        if len(row) > 0:
+                            rounded_spike_times = floor_spike_time(
+                                row, dt=self.round_input_spike_times,
+                                t_stop=np.max(row)+self.round_input_spike_times
+                            )
+                        else:
+                            rounded_spike_times = []
 
                         # DEALING WITH nest.lib.hl_api_exceptions.NESTErrors.BadProperty:
                         # ("BadProperty in SetStatus_id: Setting status of a
@@ -330,7 +333,7 @@ class Cerebellum(Circuit):
                     cellparams=cell_param,
                     label=cell_name + " cells",
                     additional_parameters=additional_params)
-                print("ADDITIONAL PARAMETERS FOR POP", cell_names,
+                print("ADDITIONAL PARAMETERS FOR POP", cell_name,
                       ":", additional_params)
             except TypeError as te:
                 traceback.print_exc()
