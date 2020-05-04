@@ -41,6 +41,11 @@ def create_poisson_spikes(n_inputs, rates, starts, durations):
 #     return np.round(a - 0.5 * 10**(-precision) * dtype, precision)
 def floor_spike_time(times, dt=0.1, t_start=0, t_stop=1000.0):
     bins = np.arange(t_start, t_stop + dt, dt)
-    count, bin_edges = np.histogram(times , bins=bins)
-    return (bin_edges[:-1])[count > 0]
-
+    count, bin_edges = np.histogram(times, bins=bins)
+    present_times_filter = count > 0
+    selected_spike_times = (bin_edges[:-1])[present_times_filter]
+    # Allow for multiple spikes in a timestep if that's how spike times get rounded
+    rounded_spike_times = np.repeat(selected_spike_times, repeats=count[present_times_filter])
+    # Check that there are the same number of spikes out as spikes in
+    assert (len(rounded_spike_times) == len(times))
+    return rounded_spike_times
