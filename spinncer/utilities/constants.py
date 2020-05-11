@@ -43,6 +43,8 @@ CELL_NAME_FOR_ID = {v: k for k, v in POPULATION_ID.items()}
 # values check on 16.10.2019
 # Checked against:
 # https://www.frontiersin.org/files/Articles/444802/fninf-13-00037-HTML-r1/image_m/fninf-13-00037-t002.jpg
+# 11.05.2020 Updating reversal potentials here so that testing individual cells
+# yields correct results
 CELL_PARAMS = {
     'golgi': {'tau_refrac': 2.0,  # ms
               'cm': 0.076,  # nF
@@ -52,7 +54,10 @@ CELL_PARAMS = {
               'tau_m': 21,  # ms, changed from 21.1 on 16.10.2019
               'i_offset': 36.8e-3,  # pA, changed from 36.75 on 16.10.2019
               'tau_syn_E': 0.5,  # ms
-              'tau_syn_I': 10.0  # ms
+              'tau_syn_I': 10.0,  # ms
+
+              'e_rev_I': -90.0,  # mV
+              'e_rev_E': 0.0,  # mV
               },
     'glomerulus': {  # TODO figure out how to make this passthrough
 
@@ -65,7 +70,11 @@ CELL_PARAMS = {
                 'tau_m': 2,  # ms, changed from 20 on 16.10.2019
                 'i_offset': 0e-3,  # pA
                 'tau_syn_E': 0.5,
-                'tau_syn_I': 10.0},
+                'tau_syn_I': 10.0,  # ms
+
+                'e_rev_I': -90.0,  # mV
+                'e_rev_E': 0.0,  # mV
+                },
     'purkinje': {'tau_refrac': 0.8,  # ms
                  'cm': 0.62,  # nF, changed from 0.062 on 16.10.2019
                  'v_thresh': -47.0,  # mV
@@ -74,7 +83,10 @@ CELL_PARAMS = {
                  'tau_m': 88.0,  # ms, changed from 88.6
                  'i_offset': 600e-3,  # pA, changed from 700
                  'tau_syn_E': 0.5,  # ms
-                 'tau_syn_I': 1.6  # ms, changed from 10
+                 'tau_syn_I': 1.6,  # ms, changed from 10
+
+                 'e_rev_I': -90.0,  # mV
+                 'e_rev_E': 0.0,  # mV
                  },
     'basket': {'tau_refrac': 1.6,  # ms, changed from 1.59 on 16.10.2019
                'cm': 0.0146,  # nF
@@ -84,7 +96,10 @@ CELL_PARAMS = {
                'tau_m': 14.6,  # ms
                'i_offset': 15.6e-3,  # pA
                'tau_syn_E': 0.64,  # ms, changed from 0.5 on 16.10.2019
-               'tau_syn_I': 2  # ms, changed from 10.0 on 16.10.2019
+               'tau_syn_I': 2,  # ms, changed from 10.0 on 16.10.2019
+
+               'e_rev_I': -90.0,  # mV
+               'e_rev_E': 0.0,  # mV
                },
     'stellate': {'tau_refrac': 1.6,  # ms, changed from 1.59 on 16.10.2019
                  'cm': 0.0146,  # nF
@@ -94,7 +109,10 @@ CELL_PARAMS = {
                  'tau_m': 14.6,  # ms
                  'i_offset': 15.6e-3,  # pA
                  'tau_syn_E': 0.64,  # ms, changed from 0.5 on 16.10.2019
-                 'tau_syn_I': 2  # ms, changed from 10.0 on 16.10.2019
+                 'tau_syn_I': 2, # ms, changed from 10.0 on 16.10.2019
+
+                 'e_rev_I': -90.0,  # mV
+                 'e_rev_E': 0.0,  # mV
                  },
     'dcn': {'tau_refrac': 3.7,  # ms
             'cm': 0.089,  # nF
@@ -104,7 +122,10 @@ CELL_PARAMS = {
             'tau_m': 57,  # ms, changed from 57.1
             'i_offset': 55.8e-3,  # pA
             'tau_syn_E': 7.1,  # ms, changed from 0.5
-            'tau_syn_I': 13.6  # ms, changed from 10.0
+            'tau_syn_I': 13.6,  # ms, changed from 10.0
+
+            'e_rev_I': -90.0,  # mV
+            'e_rev_E': 0.0,  # mV
             }
 }
 

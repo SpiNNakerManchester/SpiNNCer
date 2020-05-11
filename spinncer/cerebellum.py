@@ -311,20 +311,14 @@ class Cerebellum(Circuit):
                                          self.rb_shifts[cell_name]}
                 if cell_name in ["granule"]:
                     additional_params["n_steps_per_timestep"] = self.no_loops
-                # add E_rev_I to all cells
-                capp_rev = -90.
                 if cell_model == "if_cond_exp":
                     cell_model = self.sim.IF_cond_exp
-                    cell_param['e_rev_I'] = capp_rev  # mV
-                    cell_param['e_rev_E'] = 0.  # mV
                 elif cell_model == "if_curr_exp":
                     cell_model = self.sim.IF_curr_exp
                 elif cell_model == "if_curr_alpha":
                     cell_model = self.sim.IF_curr_alpha
                 elif cell_model == "if_cond_alpha":
                     cell_model = self.sim.IF_cond_alpha
-                    cell_param['e_rev_I'] = capp_rev  # mV
-                    cell_param['e_rev_E'] = 0.  # mV
             # Adding the population to the network
             try:
                 self.populations[cell_name] = self.sim.Population(
