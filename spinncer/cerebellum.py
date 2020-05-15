@@ -15,6 +15,8 @@ this script.
 # imports
 import numpy as np
 import h5py
+
+from spinncer.analysis_common import get_plot_order
 from spinncer.circuit import Circuit
 from spinncer.utilities.constants import *
 from spinncer.utilities.reporting import (population_reporting,
@@ -263,7 +265,11 @@ class Cerebellum(Circuit):
             # Report statistics about the populations to be built
             population_reporting(positions, self.number_of_neurons)
 
-        for cell_name, cell_param in self.cell_params.items():
+        plot_order = get_plot_order(self.cell_params.keys())
+        n_plots = float(len(plot_order))
+
+        for cell_name in plot_order:
+            cell_param = self.cell_params[cell_name]
             # Retrieve correct cell parameters for the current cell
             cell_model = self.neuron_models[cell_name]
             no_cells = self.number_of_neurons[cell_name]
