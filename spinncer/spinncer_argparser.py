@@ -35,6 +35,8 @@ DEFAULT_RB_LEFT_SHIFTS = None
 
 DEFAULT_NO_LOOPS_GRC = 3
 
+DEFAULT_SINGLE_CELL_TEST = 'granule'
+
 parser = argparse.ArgumentParser(
     description='Run a cerebellar simulation written in PyNN '
                 'using sPyNNaker on SpiNNaker or using NEST on (H)PC.',
@@ -152,5 +154,13 @@ parser.add_argument('-s', '--stimulus', type=str,
                     help="name of the file storing "
                          "input spikes",
                     dest='stimulus_from_file')
+
+parser.add_argument('--single_spike_exp', action="store_true",
+                    help='if this flag is present the input consists of a '
+                         'single spike at time = 10 ms')
+
+parser.add_argument('--population', type=str,
+                    help="name of the population to test single cell from",
+                    default=DEFAULT_SINGLE_CELL_TEST)
 
 args = parser.parse_args()

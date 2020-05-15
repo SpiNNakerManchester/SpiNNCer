@@ -62,21 +62,39 @@ n_neurons = 10
 
 # read spikes from file
 input_spikes = None
-if args.stimulus_from_file is not None:
-    # Assembly the dictionary to pass to the cerebellum circuit
-    input_spikes = np.load(args.stimulus_from_file, allow_pickle=True)['input_spikes'].ravel()[0]
 
-if input_spikes is None:
-    rates = [[0, args.f_peak, 0], ] * n_neurons
-    inh_rates = [[0, args.f_base, 0], ] * n_neurons
-    starts = [[0, 100, 200], ] * n_neurons
-    durations = [[100, 100, 100], ] * n_neurons
+if not args.single_spike_exp:
+    if args.stimulus_from_file is not None:
+        # Assembly the dictionary to pass to the cerebellum circuit
+        input_spikes = np.load(args.stimulus_from_file, allow_pickle=True)['input_spikes'].ravel()[0]
 
-    exc_spike_times = create_poisson_spikes(
-        n_neurons, rates, starts, durations)
+    if input_spikes is None:
+        rates = [[0, args.f_peak, 0], ] * n_neurons
+        inh_rates = [[0, args.f_base, 0], ] * n_neurons
+        starts = [[0, 100, 200], ] * n_neurons
+        durations = [[100, 100, 100], ] * n_neurons
 
-    inh_spike_times = create_poisson_spikes(
-        n_neurons, inh_rates, starts, durations)
+        exc_spike_times = create_poisson_spikes(
+            n_neurons, rates, starts, durations)
+
+        inh_spike_times = create_poisson_spikes(
+            n_neurons, inh_rates, starts, durations)
+        input_spikes = {
+            'glomerulus': exc_spike_times,
+            'golgi': inh_spike_times
+        }
+else:  # args.single_spike_exp
+    exc_spike_times = []
+    inh_spike_times = []
+    for i in range(n_neurons):
+        if i == 0:
+            # Generate excitatory spike
+            exc_spike_times.append([10])
+            # Generate inhibitory spike
+            inh_spike_times.append([110])
+        else:
+            exc_spike_times.append([])
+            inh_spike_times.append([])
     input_spikes = {
         'glomerulus': exc_spike_times,
         'golgi': inh_spike_times
@@ -118,28 +136,28 @@ if str.lower(args.simulator) in ["spinnaker", "spynnaker"]:
         "n_steps_per_timestep": args.loops_grc
     }
     print("ADDITIONAL PARAMETERS:", additional_params)
-    granule = sim.Population(
+    cell_to_test = sim.Population(
         1,
         cellclass=sim.IF_cond_exp,
-        cellparams=CELL_PARAMS['granule'],
-        label="granule",
+        cellparams=CELL_PARAMS[args.population],
+        label=args.population,
         additional_parameters=additional_params)
 else:
-    granule = sim.Population(
+    cell_to_test = sim.Population(
         1,
         cellclass=sim.IF_cond_exp,
-        cellparams=CELL_PARAMS['granule'],
-        label="granule")
+        cellparams=CELL_PARAMS[args.population],
+        label=args.population)
 # populations = cerebellum_circuit.get_all_populations()
 populations = {
     'glomerulus': glomerulus,
-    'granule': granule,
+    args.population: cell_to_test,
     'golgi': golgi
 }
 
 all_neurons = {
     'glomerulus': n_neurons,
-    'granule': 1,
+    args.population: 1,
     'golgi': n_neurons
 }
 
@@ -167,7 +185,7 @@ if args.generate_conversion_constants:
 # Create Projections
 glom_grc = sim.Projection(
     glomerulus,  # pre-synaptic population
-    granule,  # post-synaptic population
+    cell_to_test,  # post-synaptic population
     # connector includes (source, target, weight, delay)
     sim.AllToAllConnector(),
     synapse_type=sim.StaticSynapse(
@@ -178,7 +196,7 @@ glom_grc = sim.Projection(
 
 goc_grc = sim.Projection(
     golgi,  # pre-synaptic population
-    granule,  # post-synaptic population
+    cell_to_test,  # post-synaptic population
     # connector includes (source, target, weight, delay)
     sim.AllToAllConnector(),
     synapse_type=sim.StaticSynapse(
@@ -272,7 +290,7 @@ suffix = end_time.strftime("_%H%M%S_%d%m%Y")
 if args.filename:
     filename = args.filename
 else:
-    filename = "granule_cell_test" + str(suffix)
+    filename = args.population + "_cell_test" + str(suffix)
 
 if current_error:
     filename = "error_" + filename
