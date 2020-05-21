@@ -169,6 +169,10 @@ def spike_analysis(results_file, fig_folder,
     # Per neuron firing rate in each stimulus period
     per_neuron_firing = {}
     per_neuron_spike_count = {}
+    # Number of post-synaptic hits in each timestep
+    all_post_hits = {}
+    all_exc_spike_counts = {}
+    all_inh_spikes_counts = {}
     print("=" * 80)
     print("Maximum number of generated spikes per timestep")
     print("-" * 80)
@@ -539,6 +543,16 @@ def spike_analysis(results_file, fig_folder,
             print("{:20}-> neuron {:>8d} received {:>6d}".format(
                 key, int(nid), int(np.max(v))),
                 "nA in timestep #{:8d}".format(int(tstep)))
+            # Also treat voltage as if it's a piggybacked value packaging
+            # counts of number of post-synaptic hits for spikes
+            max_v = np.max(v, axis=0)
+            abcd_view = max_v.astype(np.uint32).view(dtype=[('d', np.uint8),
+                                          ('c', np.uint8),
+                                          ('b', np.uint8),
+                                          ('a', np.uint8)])
+            pd_view = pd.DataFrame(abcd_view)
+            pd_view.describe()
+            all_post_hits[key] = pd_view
         # Looking at gsyn
         for pop in plot_order:
             try:
@@ -629,13 +643,13 @@ def spike_analysis(results_file, fig_folder,
                     conn_key, int(curr_nid_inc_spikes[tstep])
                 ))
 
-
     print("=" * 80)
     print("Plotting figures...")
     print("-" * 80)
 
     wanted_times = np.linspace(0, (simtime / ms), 6).astype(int)
-
+    stim_wanted_times = np.linspace(time_filter[1] - 50,
+                                    time_filter[2] + 50, 4).astype(int)
     common_highlight_values = {
         'start': stim_period_start,
         'stop': stim_period_end,
@@ -684,6 +698,53 @@ def spike_analysis(results_file, fig_folder,
     plot_analog_signal(all_voltages, variable_name="v",
                        ylabel="Membrane potential (mV)",
                        **common_values_for_plots)
+    print("Plotting a b c d post-synaptic hits")
+    l = 13
+    transparency_lvl = .7
+    for index, pop in enumerate(plot_order):
+        if pop not in all_post_hits.keys():
+            f = plt.figure(1, figsize=(l, l), dpi=400)
+            plt.close(f)
+            continue
+        counts = all_post_hits[pop]
+        f, axes = plt.subplots(2, 2, figsize=(l, l), dpi=400,
+                               sharey=True, sharex=True)
+        ax_a = axes[0, 0]
+        ax_b = axes[0, 1]
+        ax_c = axes[1, 0]
+        ax_d = axes[1, 1]
+
+        ax_a.plot(counts.a, c="C0", alpha=transparency_lvl)
+        ax_b.plot(counts.b, c="C1", alpha=transparency_lvl)
+        ax_c.plot(counts.c, c="C2", alpha=transparency_lvl)
+        ax_d.plot(counts.d, c="C3", alpha=transparency_lvl)
+        # counts.plot(alpha=transparency_lvl)
+        ax_a.set_title("a")
+        ax_b.set_title("b")
+        ax_c.set_title("c")
+        ax_d.set_title("d")
+
+        ax_a.set_ylabel("# cases")
+        ax_c.set_ylabel("# cases")
+
+        ax_c.set_ylabel("Time (ms)")
+        ax_d.set_ylabel("Time (ms)")
+
+        plt.suptitle(use_display_name(pop))
+
+        plt.xlim(stim_wanted_times.min() * time_to_bin_conversion,
+                 stim_wanted_times.max() * time_to_bin_conversion)
+        plt.xticks(stim_wanted_times * time_to_bin_conversion, stim_wanted_times)
+        # plt.legend(loc="best")
+        # plt.xlabel("Time (ms)")
+
+        plt.tight_layout()
+        save_figure(
+            plt,
+            os.path.join(sim_fig_folder,
+                         "post_hits_{}").format(pop),
+            extensions=[".pdf", ])
+        plt.close(f)
 
     # Plot distribution of worst case spikes per population
     if conn_exists and worst_case:
@@ -728,8 +789,7 @@ def spike_analysis(results_file, fig_folder,
             for i, row in enumerate(maxs):
                 plt.plot(row, rasterized=True, label=labels[i], alpha=.7)
             plt.title(use_display_name(pop))
-            stim_wanted_times = np.linspace(time_filter[1] - 50,
-                                            time_filter[2] + 50, 4).astype(int)
+
             plt.xlim(stim_wanted_times.min() * time_to_bin_conversion,
                      stim_wanted_times.max() * time_to_bin_conversion)
             plt.xticks(stim_wanted_times * time_to_bin_conversion, stim_wanted_times)
@@ -774,7 +834,6 @@ def spike_analysis(results_file, fig_folder,
                              "worst_neuron_only_spikes_per_pop_{}").format(pop),
                 extensions=[".pdf", ])
             plt.close(f)
-
 
     # raster plot including ALL populations
     print("Plotting spiking raster plot for all populations")
@@ -1151,13 +1210,13 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
             # This section looks at the entire simulation (from start to end
             full_bin_p1 = elephant.conversion.BinnedSpikeTrain(
                 p1, binsize=bin_size, num_bins=no_bins,
-                t_start=0*pq.ms, t_stop=simtime)
+                t_start=0 * pq.ms, t_stop=simtime)
             full_bin_p2 = elephant.conversion.BinnedSpikeTrain(
                 p2, binsize=bin_size, num_bins=no_bins,
-                t_start=0*pq.ms, t_stop=simtime)
+                t_start=0 * pq.ms, t_stop=simtime)
             full_combined_binned = elephant.conversion.BinnedSpikeTrain(
                 [p1, p2], binsize=bin_size, num_bins=no_bins,
-                t_start=0*pq.ms, t_stop=simtime)
+                t_start=0 * pq.ms, t_stop=simtime)
 
             cc_matrix = elephant.spike_train_correlation.corrcoef(
                 combined_binned,
@@ -1364,7 +1423,7 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
     plot_analog_signal(all_spike_hist_diff,
                        "spike_hist_diff",
                        ylabel="Difference (Count)",
-                       scale_xticks=1/(10 * np_bin_size/pq.ms),
+                       scale_xticks=1 / (10 * np_bin_size / pq.ms),
                        **common_values_for_plots)
 
     if same_sampling_rate:
