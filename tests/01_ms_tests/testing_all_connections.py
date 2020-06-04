@@ -52,7 +52,7 @@ sim.setup(timestep=args.timestep, min_delay=args.timestep, max_delay=1,
 RB_LEFT_SHIFTS = {
     'golgi': [0, 0],
     'granule': [0, 0],
-    'purkinje': [-3, 0],
+    'purkinje': [4, 0],
     'basket': [-2, 0],
     'stellate': [-2, 0],
     'dcn': [-5, 0]
@@ -88,7 +88,7 @@ for conn_name, conn_params in CONNECTIVITY_MAP.items():
                 "n_steps_per_timestep": args.loops_grc
             }
         }
-    print("ADDITIONAL PARAMETERS:", additional_parameters)
+    print("ADDITIONAL PARAMETERS:", conn_params['post'], additional_parameters)
     # Create population
     if args.disable_i_offset and "i_offset" in cell_params.keys():
         del cell_params['i_offset']
