@@ -106,7 +106,7 @@ for conn_name, conn_params in CONNECTIVITY_MAP.items():
     conn_to_test = sim.Projection(single_spike_source, cell_to_test,
                                   sim.OneToOneConnector(),
                                   synapse_type=sim.StaticSynapse(
-                                      weight=conn_params['weight'],
+                                      weight=np.abs(conn_params['weight']),
                                       delay=args.timestep),
                                   receptor_type="excitatory" if conn_params['weight'] > 0 else "inhibitory",
                                   label=conn_name)
