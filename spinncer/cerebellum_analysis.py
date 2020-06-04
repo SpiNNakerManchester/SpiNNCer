@@ -171,6 +171,8 @@ def spike_analysis(results_file, fig_folder,
     per_neuron_spike_count = {}
     # Number of post-synaptic hits in each timestep
     all_post_hits = {}
+    all_max_exc_spikes = {}
+    all_max_inh_spikes = {}
     all_exc_spike_counts = {}
     all_inh_spikes_counts = {}
     print("=" * 80)
@@ -537,22 +539,7 @@ def spike_analysis(results_file, fig_folder,
             else:
                 print("Only synaptic current contribution is supported "
                       "for analysis currently")
-        # Report statistics here
-        for key, v in all_voltages.items():
-            nid, tstep = np.unravel_index(np.argmax(v, axis=None), v.shape)
-            print("{:20}-> neuron {:>8d} received {:>6d}".format(
-                key, int(nid), int(np.max(v))),
-                "nA in timestep #{:8d}".format(int(tstep)))
-            # Also treat voltage as if it's a piggybacked value packaging
-            # counts of number of post-synaptic hits for spikes
-            max_v = np.max(v, axis=0)
-            abcd_view = max_v.astype(np.uint32).view(dtype=[('d', np.uint8),
-                                          ('c', np.uint8),
-                                          ('b', np.uint8),
-                                          ('a', np.uint8)])
-            pd_view = pd.DataFrame(abcd_view)
-            pd_view.describe()
-            all_post_hits[key] = pd_view
+
         # Looking at gsyn
         for pop in plot_order:
             try:
@@ -579,7 +566,36 @@ def spike_analysis(results_file, fig_folder,
                     all_inh_gsyn[pop] = np.squeeze(
                         np.asarray(curr_inh_gsyn.segments[0].analogsignals).T,
                         axis=-1)
-
+        # Report statistics here
+        for key, v in all_voltages.items():
+            nid, tstep = np.unravel_index(np.argmax(v, axis=None), v.shape)
+            print("{:20}-> neuron {:>8d} received {:>6d}".format(
+                key, int(nid), int(np.max(v))),
+                "nA in timestep #{:8d}".format(int(tstep)))
+            # THIS IS BROKEN! it will be removed soon
+            # # Also treat voltage as if it's a piggybacked value packaging
+            # # counts of number of post-synaptic hits for spikes
+            # max_v = np.max(v, axis=0)
+            # max_g = np.max(all_exc_gsyn[key], axis=0)
+            # abcd_view = max_v.astype(np.uint32).view(dtype=[
+            #     #                                   ('d', np.uint16),
+            #     #                                   ('c', np.uint16),
+            #     ('b', np.uint16),
+            #     ('a', np.uint16)
+            # ])
+            # abcd_view_part_2 = max_g.astype(np.uint32).view(dtype=[
+            #     ('d', np.uint16),
+            #     ('c', np.uint16),
+            #     #                                   ('b', np.uint16),
+            #     #                                   ('a', np.uint16)
+            # ])
+            # pd_view = pd.DataFrame(abcd_view)
+            # pd_view_part_2 = pd.DataFrame(abcd_view_part_2)
+            # pd_view = pd.concat([pd_view, pd_view_part_2], axis=1, sort=False)
+            #
+            # pd_view.describe()
+            # # this is meaningless using default tools
+            # all_post_hits[key] = pd_view
         # report gsyn information
         print("=" * 80)
         print("Excitatory synaptic conductance analysis")
@@ -590,6 +606,8 @@ def spike_analysis(results_file, fig_folder,
                   "conductance (g_syn) {:>10.2f}".format(
                 key, int(nid), np.max(g)),
                 "uS in timestep #{:8d}".format(int(tstep)))
+            # this is meaningless using default tools
+            all_max_exc_spikes[key] = np.max(g, axis=0)
         print("=" * 80)
         print("Inhibitory synaptic conductance analysis")
         print("-" * 80)
@@ -599,6 +617,8 @@ def spike_analysis(results_file, fig_folder,
                   "conductance (g_syn) {:>10.2f}".format(
                 key, int(nid), np.max(g)),
                 "uS in timestep #{:8d}".format(int(tstep)))
+            # this is meaningless using default tools
+            all_max_inh_spikes[key] = np.max(g, axis=0)
     else:
         print("No other recording information present.")
 
@@ -698,7 +718,56 @@ def spike_analysis(results_file, fig_folder,
     plot_analog_signal(all_voltages, variable_name="v",
                        ylabel="Membrane potential (mV)",
                        **common_values_for_plots)
-    print("Plotting a b c d post-synaptic hits")
+    # THIS IS BROKEN!
+    # print("Plotting a b c d post-synaptic hits")
+    # l = 13
+    # transparency_lvl = .7
+    # for index, pop in enumerate(plot_order):
+    #     if pop not in all_post_hits.keys():
+    #         f = plt.figure(1, figsize=(l, l), dpi=400)
+    #         plt.close(f)
+    #         continue
+    #     counts = all_post_hits[pop]
+    #     f, axes = plt.subplots(2, 2, figsize=(l, l), dpi=400,
+    #                            sharey=True, sharex=True)
+    #     ax_a = axes[0, 0]
+    #     ax_b = axes[0, 1]
+    #     ax_c = axes[1, 0]
+    #     ax_d = axes[1, 1]
+    #
+    #     ax_a.plot(counts.a, c="C0", alpha=transparency_lvl)
+    #     ax_b.plot(counts.b, c="C1", alpha=transparency_lvl)
+    #     ax_c.plot(counts.c, c="C2", alpha=transparency_lvl)
+    #     ax_d.plot(counts.d, c="C3", alpha=transparency_lvl)
+    #
+    #     ax_a.set_title("a")
+    #     ax_b.set_title("b")
+    #     ax_c.set_title("c")
+    #     ax_d.set_title("d")
+    #
+    #     ax_a.set_ylabel("# cases")
+    #     ax_c.set_ylabel("# cases")
+    #
+    #     ax_c.set_ylabel("Time (ms)")
+    #     ax_d.set_ylabel("Time (ms)")
+    #
+    #     plt.suptitle(use_display_name(pop))
+    #
+    #     plt.xlim(stim_wanted_times.min() * time_to_bin_conversion,
+    #              stim_wanted_times.max() * time_to_bin_conversion)
+    #     plt.xticks(stim_wanted_times * time_to_bin_conversion, stim_wanted_times)
+    #     # plt.legend(loc="best")
+    #     # plt.xlabel("Time (ms)")
+    #
+    #     plt.tight_layout()
+    #     save_figure(
+    #         plt,
+    #         os.path.join(sim_fig_folder,
+    #                      "post_hits_{}").format(pop),
+    #         extensions=[".pdf", ])
+    #     plt.close(f)
+
+    print("Plotting a b c d post-synaptic hits V2")
     l = 13
     transparency_lvl = .7
     for index, pop in enumerate(plot_order):
@@ -706,46 +775,102 @@ def spike_analysis(results_file, fig_folder,
             f = plt.figure(1, figsize=(l, l), dpi=400)
             plt.close(f)
             continue
-        counts = all_post_hits[pop]
-        f, axes = plt.subplots(2, 2, figsize=(l, l), dpi=400,
-                               sharey=True, sharex=True)
-        ax_a = axes[0, 0]
-        ax_b = axes[0, 1]
-        ax_c = axes[1, 0]
-        ax_d = axes[1, 1]
 
-        ax_a.plot(counts.a, c="C0", alpha=transparency_lvl)
-        ax_b.plot(counts.b, c="C1", alpha=transparency_lvl)
-        ax_c.plot(counts.c, c="C2", alpha=transparency_lvl)
-        ax_d.plot(counts.d, c="C3", alpha=transparency_lvl)
-        # counts.plot(alpha=transparency_lvl)
-        ax_a.set_title("a")
-        ax_b.set_title("b")
-        ax_c.set_title("c")
-        ax_d.set_title("d")
+        sh_exc = np.max((other_recordings[pop]['v'].segments[0].filter(name='v')[0].magnitude.T * 2 ** 15).astype(int), axis=0)
+        sh_exc_2 = np.max((other_recordings[pop]['gsyn_exc'].segments[0].filter(name='gsyn_exc')[0].magnitude.T * 2 ** 15).astype(int), axis=0)
 
-        ax_a.set_ylabel("# cases")
-        ax_c.set_ylabel("# cases")
+        f = plt.figure(1, figsize=(l, l), dpi=400)
+        a = ((sh_exc) & 0xFFFF)
+        b = ((sh_exc >> 16) & 0xFFFF)
+        c = ((sh_exc_2) & 0xFFFF)
+        d = ((sh_exc_2 >> 16) & 0xFFFF)
 
-        ax_c.set_ylabel("Time (ms)")
-        ax_d.set_ylabel("Time (ms)")
+        plt.plot(a + b + c + d, label='total', c="k", alpha=.3)
+        plt.plot(d, label='d', c="C3", alpha=transparency_lvl)
+        plt.plot(c, label='c', c="C2", alpha=transparency_lvl)
+        plt.plot(b, label='b', c="C1", alpha=transparency_lvl)
+        plt.plot(a, label='a', c="C0", alpha=transparency_lvl)
+
+        plt.ylabel("Count")
 
         plt.suptitle(use_display_name(pop))
 
         plt.xlim(stim_wanted_times.min() * time_to_bin_conversion,
                  stim_wanted_times.max() * time_to_bin_conversion)
         plt.xticks(stim_wanted_times * time_to_bin_conversion, stim_wanted_times)
-        # plt.legend(loc="best")
-        # plt.xlabel("Time (ms)")
+        plt.legend(loc="best")
+        plt.xlabel("Time (ms)")
 
         plt.tight_layout()
         save_figure(
             plt,
             os.path.join(sim_fig_folder,
-                         "post_hits_{}").format(pop),
+                         "or_post_hits_{}").format(pop),
             extensions=[".pdf", ])
         plt.close(f)
 
+    print("Plotting worst_case spikes per pop (POTENTIALLY; ONLY IF TOOLS ARE SETUP UP THIS WAY")
+    for _, pop in enumerate(plot_order):
+        if (pop not in all_max_exc_spikes.keys() or
+                pop not in all_max_inh_spikes.keys()):
+            continue
+
+        total = all_max_exc_spikes[pop] + all_max_inh_spikes[pop]
+        f = plt.figure(1, figsize=(14, 9), dpi=400)
+        plt.plot(total, c='k', label="Total", alpha=.3)
+
+        plt.plot(all_max_exc_spikes[pop], rasterized=True,
+                 label="excitatory spikes", alpha=transparency_lvl)
+        plt.plot(all_max_inh_spikes[pop], rasterized=True,
+                 label="inhibitory spikes", alpha=transparency_lvl)
+
+        plt.title(use_display_name(pop))
+        plt.xlim(stim_wanted_times.min() * time_to_bin_conversion,
+                 stim_wanted_times.max() * time_to_bin_conversion)
+        plt.xticks(stim_wanted_times * time_to_bin_conversion, stim_wanted_times)
+        plt.legend(loc="best")
+        plt.ylabel("Max # of spikes for a neuron")
+        plt.xlabel("Time (ms)")
+        plt.tight_layout()
+        save_figure(
+            plt,
+            os.path.join(sim_fig_folder,
+                         "potential_worst_neuron_only_spikes_per_pop_{}").format(pop),
+            extensions=[".pdf", ])
+        plt.close(f)
+
+    if conn_exists and worst_case:
+        for pop in plot_order:
+            for proj, worst_spikes in per_conn_worst_spikes[pop].items():
+                f = plt.figure(1, figsize=(12, 9), dpi=500)
+                im = plt.imshow(worst_spikes,
+                                interpolation='none',
+                                extent=[stim_wanted_times.min() * time_to_bin_conversion, stim_wanted_times.max() * time_to_bin_conversion,
+                                        0, worst_spikes.shape[1]],
+                                origin='lower')
+                ax = plt.gca()
+                ax.set_aspect('auto')
+                divider = make_axes_locatable(ax)
+                cax = divider.append_axes("right", "5%", pad="3%")
+                cbar = plt.colorbar(im, cax=cax)
+                cbar.set_label("# of spikes")
+
+                ax.set_xlabel("Time (ms)")
+                ax.set_ylabel("Neuron ID")
+
+                ax.set_xlim(2800, 3800)
+                #             plt.xlim(stim_wanted_times.min() * time_to_bin_conversion,
+                #              stim_wanted_times.max() * time_to_bin_conversion)
+                #             plt.xticks(stim_wanted_times * time_to_bin_conversion, stim_wanted_times)
+                #             ax.xticks(np.linspace(2800, 3800, 6))
+                ax.set_xticklabels([str(x) for x in (np.linspace(2800, 3800, 6) / 10)])
+
+                save_figure(plt, os.path.join(sim_fig_folder,
+                                              "afferent_wcs_{}_{}".format(pop, proj)),
+                            #                         extensions=['.png', '.pdf'])
+                            extensions=['.png', ])
+                plt.show()
+                plt.close(f)
     # Plot distribution of worst case spikes per population
     if conn_exists and worst_case:
         print("Plotting histogram of worst spike counts")

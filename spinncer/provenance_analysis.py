@@ -103,7 +103,7 @@ def sweep_provenance_analysis(in_folder, fig_folder, group_on,
         raise FileExistsError("There are multiple batch info .npz archives "
                               "in the current directory!")
     if len(batch_infos) == 1:
-        batch_info = np.load(join(in_folder, batch_infos[0]))
+        batch_info = np.load(join(in_folder, batch_infos[0]), allow_pickle=True)
         run_id = "@" + batch_infos[0].split("_")[1].split(".")[0]
         if batch_info:
             write_header("Batch info contained in " + batch_infos[0])
@@ -421,7 +421,8 @@ def plot_per_population_provenance_of_interest(
                                 filtered_collated_results = {x: None for x in router_pop}
                                 for rp in router_pop:
                                     filtered_collated_results[rp] = {
-                                        'max': np.nan}
+                                        'max': np.nan,
+                                        'all': pd.DataFrame([np.nan])}
                             else:
                                 filtered_collated_results = \
                                     collated_results[match_fname][type_of_prov]
@@ -444,7 +445,6 @@ def plot_per_population_provenance_of_interest(
                             else:
                                 for k, v in _max_values_per_pop.items():
                                     curr_mapping[curr_poi_val][k].extend(v)
-                            _max_values_per_pop
                 # Plotting bit
                 plot_order = get_plot_order(_max_values_per_pop.keys())
                 n_plots = float(len(plot_order))
@@ -452,15 +452,16 @@ def plot_per_population_provenance_of_interest(
                 # Convert all 2D arrays of results to numpy arrays
                 # Can report intra-trial and inter-trial variability here
                 for k in curr_mapping.keys():
-                    for p in curr_mapping[k].keys():
-                        curr_mapping[k][p] = np.array(curr_mapping[k][p])
+                    if curr_mapping[k]:
+                        for p in curr_mapping[k].keys():
+                            curr_mapping[k][p] = np.array(curr_mapping[k][p])
 
                 f = plt.figure(1, figsize=(9, 9), dpi=400)
                 for index, pop in enumerate(plot_order):
                     vals = []
                     avgs= []
                     for k in curr_poi:
-                        if curr_mapping[k][pop].size > 0:
+                        if curr_mapping[k] and curr_mapping[k][pop].size > 0:
                             merged = np.array(
                                 list(itertools.chain.from_iterable(curr_mapping[k][pop])))
                             vals.append(np.nanmean(merged))
@@ -511,7 +512,7 @@ def plot_per_population_provenance_of_interest(
                     vals = []
                     avgs= []
                     for k in curr_poi:
-                        if curr_mapping[k][pop].size > 0:
+                        if curr_mapping[k] and curr_mapping[k][pop].size > 0:
                             merged = np.array(
                                 list(itertools.chain.from_iterable(curr_mapping[k][pop])))
                             vals.append(np.sqrt(np.nanmean(merged)))
@@ -520,8 +521,8 @@ def plot_per_population_provenance_of_interest(
                             vals.append(np.nan)
                             avgs.append(np.nan)
                     # vals = np.sort(np.asarray(vals).view('i8,i8'), order=['f1'], axis=0).view(np.int)
-                    print("sqrt Vals:", vals)
-                    print("sqrt avgs:", avgs)
+                    # print("sqrt Vals:", vals)
+                    # print("sqrt avgs:", avgs)
                     vals = np.array(vals)
                     if np.any(np.isfinite(vals)):
                         plt.errorbar(curr_poi, vals,

@@ -342,6 +342,9 @@ class Cerebellum(Circuit):
                     cellclass=cell_model,
                     cellparams=cell_param,
                     label=cell_name + " cells")
+            if cell_name in ['purkinje']:
+                self.populations[cell_name].set_max_atoms_per_core(1)
+
 
 
     def build_projections(self):

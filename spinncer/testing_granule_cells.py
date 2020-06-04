@@ -211,17 +211,9 @@ projections = {
 }
 
 # Set up recordings
-# cerebellum_circuit.record_all_spikes()
-# cerebellum_circuit.selectively_record_all(every=1)
-for label, pop in populations.items():
-    print("Enabling spike recordings for ", label, "...")
-    pop.record(['spikes'])
-    if label == "granule":
-        print("Selectively recording gsyn and v for ", label)
-        ps = pop.size
-        pop.record(['gsyn_inh', 'gsyn_exc', 'v'])
-    else:
-        print("Skipping selective recording for", label, "...")
+# Record only for cell_to_test
+cell_to_test.record(['spikes'])
+cell_to_test.record(['gsyn_inh', 'gsyn_exc', 'v'])
 
 recorded_spikes = {}
 other_recordings = {}

@@ -31,3 +31,19 @@ nohup python3 provenance_analysis.py -i \
      variance_testing_3_loop_POISSON_@0b7d8b198ae23735600f8c5e1e5cfb6f \
 	 variance_testing_3_loop_POISSON_@f3503d3903819ac418e2d037cffacf85 \
 	--group_on n_run --group_on_name run > variance_testing_3_loops.out &	
+
+# Test
+nohup python3 provenance_analysis.py -i \
+	 variance_testing_timer_sync_no_phase_shift_POISSON_stim_3_@0e5b02b0603e04165747acce37aecc83 \
+	--group_on n_run --group_on_name run > variance_testing_3_loops_no_phase_shift_timer_sync.out &	
+
+	# Same board test
+nohup python3 ../provenance_analysis.py -i \
+	 variance_testing_POISSON_stim_3_@9ffa4b1557f97904a92d0db09a3c25fb \
+	--group_on n_run --group_on_name run > variance_testing_same_board.out &	
+
+# Same board test
+nohup python3 provenance_analysis.py -i \
+	 variance_testing_timer_sync_with_phase_shift_POISSON_stim_3_@771ddf9a9f2dd54d609a57cb4e65ea22 \
+	--group_on n_run --group_on_name run > variance_testing_timer_sync.out &	
+	

@@ -56,7 +56,8 @@ dataset = "scaffold_full_dcn_400.0x400.0_v3.hdf5"
 log_calls = []
 
 # making a directory for this experiment
-dir_name = "variance_testing_3_loop_POISSON_@{}".format(suffix)
+# dir_name = "variance_testing_POISSON_stim_3_@{}".format(suffix)
+dir_name = "variance_testing_POISSON_@{}".format(suffix)
 # dir_name = "variance_testing_3_loop_PERIODIC_@{}".format(suffix)
 print("=" * 80)
 print("TOTAL RUNS", total_runs)
@@ -85,6 +86,25 @@ for phase in PHASES:
 
         params[filename] = curr_params
 
+
+        concurrently_active_processes += 1
+        null = open(os.devnull, 'w')
+        print("Run ", concurrently_active_processes, "...")
+
+        call = [sys.executable,
+                '../../cerebellum_experiment.py',
+                '--input', dataset,
+                '-o', filename,
+                '--f_peak', str(200),
+                '--stim_radius', str(130),
+                # '-s', "../../400x400_stimulus_3.npz"
+                ]
+
+        if PHASES_ARGS[phase] is not None:
+            call.append(PHASES_ARGS[phase])
+        print("CALL", call)
+        log_calls.append((call, filename, curr_params))
+
         # making a directory for this individual experiment
         prev_run = True
         if os.path.isdir(filename) and os.path.isfile(
@@ -97,22 +117,6 @@ for phase in PHASES:
         os.chdir(filename)
         print("GETCWD", os.getcwd())
         shutil.copyfile("../../spynnaker.cfg", "spynnaker.cfg")
-
-        concurrently_active_processes += 1
-        null = open(os.devnull, 'w')
-        print("Run ", concurrently_active_processes, "...")
-
-        call = [sys.executable,
-                '../../cerebellum_experiment.py',
-                '--input', dataset,
-                '-o', filename,
-                # '-s', "../../400x400_stimulus_3.npz"
-                ]
-
-        if PHASES_ARGS[phase] is not None:
-            call.append(PHASES_ARGS[phase])
-        print("CALL", call)
-        log_calls.append((call, filename, curr_params))
         if (concurrently_active_processes % MAX_CONCURRENT_PROCESSES == 0
                 or concurrently_active_processes == total_runs):
             # Blocking
@@ -133,3 +137,17 @@ np.savez_compressed("batch_{}".format(suffix),
                     parameters_of_interest=parameters_of_interest,
                     total_time=total_time,
                     log_calls=log_calls)
+
+sys.stdout.flush()
+
+analysis_call = [
+    sys.executable,
+    '../provenance_analysis.py',
+    '-i', "../" + dir_name,
+    '--group_on', 'n_run',
+
+]
+with open("prov_analysis.out", "wb") as out, open("prov_analysis.err", "wb") as err:
+    subprocess.call(analysis_call, stdout=out, stderr=err)
+
+
