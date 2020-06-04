@@ -48,20 +48,19 @@ connectivity_filename = os.path.join(
 sim.setup(timestep=args.timestep, min_delay=args.timestep, max_delay=1,
           timescale=args.timescale)
 
-# Compile stimulus information
-stimulus_information = {
-    'f_base': args.f_base,
-    'f_peak': args.f_peak,
-    'stim_times': [100, 100, 100],
-    'stim_radius': np.nan,
-    'periodic_stimulus': False,
-    'percentage_active_fibers': np.nan,
-}
 
-# Compute spikes
+RB_LEFT_SHIFTS = {
+    'golgi': [0, 0],
+    'granule': [0, 0],
+    'purkinje': [-3, 0],
+    'basket': [-2, 0],
+    'stellate': [-2, 0],
+    'dcn': [-5, 0]
+}
 
 n_neurons = 10
 
+# Compute spikes
 input_spike = 10 - args.timestep
 
 # Create Spike Source Arrays
@@ -78,18 +77,18 @@ single_spike_source = sim.Population(
 populations = {}
 projections = {}
 additional_parameters = {}
-if str.lower(args.simulator) in ["spinnaker", "spynnaker"]:
-    # additional_params = {"rb_left_shifts": [0, 0]}
-    additional_parameters = {
-        "additional_parameters":{
-            "rb_left_shifts": [0, 0],
-            "n_steps_per_timestep": args.loops_grc
-        }
-    }
-    print("ADDITIONAL PARAMETERS:", additional_parameters)
 
+initial_connectivity = {}
 for conn_name, conn_params in CONNECTIVITY_MAP.items():
     cell_params = CELL_PARAMS[conn_params['post']]
+    if str.lower(args.simulator) in ["spinnaker", "spynnaker"]:
+        additional_parameters = {
+            "additional_parameters":{
+                "rb_left_shifts": RB_LEFT_SHIFTS[conn_params['post']],
+                "n_steps_per_timestep": args.loops_grc
+            }
+        }
+    print("ADDITIONAL PARAMETERS:", additional_parameters)
     # Create population
     if args.disable_i_offset and "i_offset" in cell_params.keys():
         del cell_params['i_offset']
@@ -98,7 +97,7 @@ for conn_name, conn_params in CONNECTIVITY_MAP.items():
         1,
         cellclass=sim.IF_cond_exp,
         cellparams=cell_params,
-        label=args.population,
+        label=conn_name,
         **additional_parameters)
     # initialise V
     cell_to_test.initialize(v=cell_params['v_rest'])
@@ -173,53 +172,57 @@ except:
     # This simulator might not support the way this is done
     final_connectivity = []
     traceback.print_exc()
-initial_connectivity = []
 
-# Save results
-suffix = end_time.strftime("_%H%M%S_%d%m%Y")
-if args.filename:
-    filename = args.filename
-else:
-    filename = args.population + "_cell_test" + str(suffix)
+print("Average weight per projection")
+print("-" * 80)
+conn_dict = {}
+for key in final_connectivity:
+    # Connection holder annoyance here:
+    conn = np.asarray(final_connectivity[key])
+    if final_connectivity[key] is None or conn.size == 0:
+        print("Skipping analysing connection", key)
+        continue
+    conn_exists = True
+    if len(conn.shape) == 1 or conn.shape[1] != 4:
+        try:
+            x = np.concatenate(conn)
+            conn = x
+        except:
+            pass
+        names = [('source', 'int_'),
+                 ('target', 'int_'),
+                 ('weight', 'float_'),
+                 ('delay', 'float_')]
+        useful_conn = np.zeros((conn.shape[0], 4), dtype=np.float)
+        for i, (n, _) in enumerate(names):
+            useful_conn[:, i] = conn[n].astype(np.float)
+        final_connectivity[key] = useful_conn.astype(np.float)
+        conn = useful_conn.astype(np.float)
+    conn_dict[key] = conn
+    mean = np.mean(conn[:, 2])
+    # replace with percentage of difference
+    original_conn = np.abs(CONNECTIVITY_MAP[key]["weight"])
+    if mean < original_conn:
+        proportion = mean / original_conn
+    else:
+        proportion = original_conn / mean
+    # assert (0 <= proportion <= 1), proportion
+    is_close = proportion >= .95
+    _c = Fore.GREEN if is_close else Fore.RED
 
-if current_error:
-    filename = "error_" + filename
+    print("{:27} -> {}{:4.6f}{} uS".format(
+        key, _c, mean, Style.RESET_ALL),
+        "c.f. {: 4.6f} uS ({:>7.2%})".format(
+            CONNECTIVITY_MAP[key]["weight"], proportion))
 
 # Check if the results folder exist
 if not os.path.isdir(args.result_dir) and not os.path.exists(args.result_dir):
     os.mkdir(args.result_dir)
 
-# Retrieve simulation parameters for provenance tracking and debugging purposes
-sim_params = {
-    "argparser": vars(args),
-    "git_hash": retrieve_git_commit(),
-    "run_end_time": end_time.strftime("%H:%M:%S_%d/%m/%Y"),
-    "wall_clock_script_run_time": str(total_time),
-    "wall_clock_sim_run_time": str(sim_total_time),
-    "n_neurons_per_core": 1,
-    "ss_neurons_per_core": 1,
-}
-
-# Save results to file in [by default] the `results/' directory
-results_file = os.path.join(args.result_dir, filename)
-np.savez_compressed(results_file,
-                    simulation_parameters=sim_params,
-                    all_spikes=recorded_spikes,
-                    other_recordings=other_recordings,
-                    all_neurons=all_neurons,
-                    final_connectivity=final_connectivity,
-                    initial_connectivity=initial_connectivity,
-                    stimulus_params=stimulus_information,
-                    simtime=args.simtime,
-                    json_data=None,
-                    conn_params=CONNECTIVITY_MAP,
-                    cell_params=CELL_PARAMS,
-                    )
-
 # Appropriately end the simulation
 sim.end()
 
-# TODO save required csv
+# save required csv
 excel_filename = "{}_{}_loops_{}_testing_all_connections.xlsx".format(
     args.simulator,
     args.loops_grc,
@@ -230,14 +233,15 @@ writer = pd.ExcelWriter(
     os.path.join(args.result_dir, excel_filename),
     engine='xlsxwriter')
 
-for key, value in other_recordings.items():
+ordered_projections = list(other_recordings.keys())
+ordered_projections.sort()
+for key in ordered_projections:
+    value = other_recordings[key]
     df = pd.DataFrame.from_dict(value)
+    df = df[['v', 'gsyn_exc', 'gsyn_inh']]
     df.to_excel(writer, sheet_name=key)
 
-
 writer.save()
-# Report time taken
-print("Results stored in  -- " + filename)
 
 # Report time taken
 print("Total time elapsed -- " + str(total_time))
