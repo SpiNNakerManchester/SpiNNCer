@@ -159,6 +159,10 @@ parser.add_argument('--single_spike_exp', action="store_true",
                     help='if this flag is present the input consists of a '
                          'single spike at time = 10 ms')
 
+parser.add_argument('--disable_i_offset', action="store_true",
+                    help='if this flag is present the input consists of a '
+                         'single spike at time = 10 ms')
+
 parser.add_argument('--population', type=str,
                     help="name of the population to test single cell from",
                     default=DEFAULT_SINGLE_CELL_TEST)
