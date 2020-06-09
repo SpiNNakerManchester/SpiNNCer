@@ -34,6 +34,7 @@ from spinncer.cerebellum_analysis import *
 import pylab as plt
 import os
 import pandas as pd
+import numpy as np
 import xlsxwriter
 import traceback
 
@@ -65,13 +66,15 @@ input_spike = 10 - args.timestep
 
 # Create Spike Source Arrays
 single_spike_source = sim.Population(
-    1,
+    2,
     cellclass=sim.SpikeSourceArray,
     cellparams={
         'spike_times': [input_spike]
     },
-    label="glomerulus")
+    label="Spike source")
 
+
+is_projection_exc = {}
 
 # Create a LIF population per projection
 populations = {}
@@ -80,21 +83,46 @@ additional_parameters = {}
 
 initial_connectivity = {}
 for conn_name, conn_params in CONNECTIVITY_MAP.items():
+    print("CONNECTION ", conn_name)
     cell_params = CELL_PARAMS[conn_params['post']]
+
+    # pre-multiply membrane Resistance into weight and i_offset?
+    if args.r_mem:
+        r_mem = cell_params['tau_m'] / cell_params['cm']
+        # adjust i_offset
+        if 'i_offset' in cell_params.keys():
+            cell_params['i_offset'] *= r_mem
+        # adjust weight
+        conn_params['weight'] *= r_mem
+
+    # flag if connections is exc
+    is_conn_exc = conn_params['weight'] > 0
+    if is_conn_exc:
+        weight_m = [np.abs(conn_params['weight']), 0]
+    else:
+        weight_m = [0, np.abs(conn_params['weight'])]
+    is_projection_exc[conn_name] = 0 if is_conn_exc else 1
+
     if str.lower(args.simulator) in ["spinnaker", "spynnaker"]:
+        if args.r_mem:
+            rb_ls = [np.ceil(np.log2(np.abs(conn_params['weight']))),] * 2
+        else:
+            rb_ls = RB_LEFT_SHIFTS[conn_params['post']]
         additional_parameters = {
-            "additional_parameters":{
-                "rb_left_shifts": RB_LEFT_SHIFTS[conn_params['post']],
+            "additional_parameters": {
+                "rb_left_shifts": rb_ls,
                 "n_steps_per_timestep": args.loops_grc
             }
         }
     print("ADDITIONAL PARAMETERS:", conn_params['post'], additional_parameters)
-    # Create population
+
+    # Remove i_offset if we don't want it in this experiment
     if args.disable_i_offset and "i_offset" in cell_params.keys():
         del cell_params['i_offset']
         print("Removed i_offset from ", conn_params['post'])
+    # Create population
     cell_to_test = sim.Population(
-        1,
+        2,
         cellclass=sim.IF_cond_exp,
         cellparams=cell_params,
         label=conn_name,
@@ -106,9 +134,9 @@ for conn_name, conn_params in CONNECTIVITY_MAP.items():
     conn_to_test = sim.Projection(single_spike_source, cell_to_test,
                                   sim.OneToOneConnector(),
                                   synapse_type=sim.StaticSynapse(
-                                      weight=np.abs(conn_params['weight']),
+                                      weight=weight_m,
                                       delay=args.timestep),
-                                  receptor_type="excitatory" if conn_params['weight'] > 0 else "inhibitory",
+                                  receptor_type="excitatory" if is_conn_exc else "inhibitory",
                                   label=conn_name)
     projections[conn_name] = conn_to_test
     # Enable recordings
@@ -146,9 +174,17 @@ other_recordings = {}
 for label, pop in populations.items():
     print("Retrieving recordings for ", label, "...")
     other_recordings[label] = {}
-    other_recordings[label]['gsyn_inh'] = pop.get_data(['gsyn_inh']).filter(name='gsyn_inh')[0].magnitude.ravel()
-    other_recordings[label]['gsyn_exc'] = pop.get_data(['gsyn_exc']).filter(name='gsyn_exc')[0].magnitude.ravel()
-    other_recordings[label]['v'] = pop.get_data(['v']).filter(name='v')[0].magnitude.ravel()
+
+    other_recordings[label]['current'] = np.array(
+        pop.get_data(['gsyn_inh']).filter(name='gsyn_inh'))[0].T[is_projection_exc[label]]
+
+    other_recordings[label]['gsyn'] = np.array(
+        pop.get_data(['gsyn_exc']).filter(name='gsyn_exc'))[0].T[is_projection_exc[label]].ravel()
+
+    other_recordings[label]['v'] = np.array(
+        pop.get_data(['v']).segments[0].filter(name='v'))[0].T[is_projection_exc[label]]
+
+    other_recordings
 
 # Retrieve final network connectivity
 try:
@@ -223,9 +259,10 @@ if not os.path.isdir(args.result_dir) and not os.path.exists(args.result_dir):
 sim.end()
 
 # save required csv
-excel_filename = "{}_{}_loops_{}_testing_all_connections.xlsx".format(
+excel_filename = "{}_{}_loops_r_mem_{}_{}_testing_all_connections.xlsx".format(
     args.simulator,
     args.loops_grc,
+    args.r_mem,
     "WITH_ioffset" if not args.disable_i_offset else "WITHOUT_ioffset"
 )
 
@@ -238,7 +275,10 @@ ordered_projections.sort()
 for key in ordered_projections:
     value = other_recordings[key]
     df = pd.DataFrame.from_dict(value)
-    df = df[['v', 'gsyn_exc', 'gsyn_inh']]
+    # just order columns alphabetically
+    ordered_variables = list(value.keys())
+    ordered_variables.sort()
+    df = df[ordered_variables]
     df.to_excel(writer, sheet_name=key)
 
 writer.save()
