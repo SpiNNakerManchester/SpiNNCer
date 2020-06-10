@@ -80,6 +80,7 @@ is_projection_exc = {}
 populations = {}
 projections = {}
 additional_parameters = {}
+per_pop_r_mem = {}
 
 initial_connectivity = {}
 for conn_name, conn_params in CONNECTIVITY_MAP.items():
@@ -94,6 +95,9 @@ for conn_name, conn_params in CONNECTIVITY_MAP.items():
             cell_params['i_offset'] *= r_mem
         # adjust weight
         conn_params['weight'] *= r_mem
+        per_pop_r_mem[conn_name] = r_mem
+    else:
+        per_pop_r_mem[conn_name] = 1.0
 
     # flag if connections is exc
     is_conn_exc = conn_params['weight'] > 0
@@ -151,7 +155,7 @@ sim_start_time = plt.datetime.datetime.now()
 current_error = None
 # Run the simulation
 try:
-    sim.run(100)  # ms
+    sim.run(200)  # ms
 except Exception as e:
     print("An exception occurred during execution!")
     traceback.print_exc()
@@ -176,10 +180,10 @@ for label, pop in populations.items():
     other_recordings[label] = {}
 
     other_recordings[label]['current'] = np.array(
-        pop.get_data(['gsyn_inh']).filter(name='gsyn_inh'))[0].T[is_projection_exc[label]]
+        pop.get_data(['gsyn_inh']).filter(name='gsyn_inh'))[0].T[is_projection_exc[label]] / per_pop_r_mem[label]
 
     other_recordings[label]['gsyn'] = np.array(
-        pop.get_data(['gsyn_exc']).filter(name='gsyn_exc'))[0].T[is_projection_exc[label]].ravel()
+        pop.get_data(['gsyn_exc']).filter(name='gsyn_exc'))[0].T[is_projection_exc[label]].ravel() / per_pop_r_mem[label]
 
     other_recordings[label]['v'] = np.array(
         pop.get_data(['v']).segments[0].filter(name='v'))[0].T[is_projection_exc[label]]
@@ -282,6 +286,8 @@ for key in ordered_projections:
     df.to_excel(writer, sheet_name=key)
 
 writer.save()
+
+pp(per_pop_r_mem)
 
 # Report time taken
 print("Total time elapsed -- " + str(total_time))
