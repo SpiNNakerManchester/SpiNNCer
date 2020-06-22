@@ -65,6 +65,14 @@ def highlight_area(ax, pop, start, stop, increment):
         transform=ax.get_xaxis_transform())
 
 
+def unpack_abcd(sh_exc, sh_exc_2):
+    a = ((sh_exc) & 0xFFFF)
+    b = ((sh_exc >> 16) & 0xFFFF)
+    c = ((sh_exc_2) & 0xFFFF)
+    d = ((sh_exc_2 >> 16) & 0xFFFF)
+    return a, b, c, d
+
+
 def spike_analysis(results_file, fig_folder,
                    worst_case=True, delay_sensitive=False,
                    dark_background=False,
@@ -131,6 +139,23 @@ def spike_analysis(results_file, fig_folder,
     print("=" * 80)
     print("Simulation parameters")
     print("-" * 80)
+    for cell_name in plot_order:
+        params = cell_params[cell_name]
+        if cell_name == "glomerulus":
+            continue
+        print("{} & {} & {} & {} & {} & {} & {} & {} & {} & {} \\\\".format(
+            use_display_name(cell_name),
+            params["cm"],
+            params["i_offset"],
+            params["tau_m"],
+            params["tau_refrac"],
+            params["tau_syn_E"],
+            params["tau_syn_I"],
+            params["v_reset"],
+            params["v_rest"],
+            params["v_thresh"],
+        )
+        )
     pp(sim_params)
     pp(cell_params)
     pp(conn_params)
@@ -777,7 +802,8 @@ def spike_analysis(results_file, fig_folder,
             continue
 
         sh_exc = np.max((other_recordings[pop]['v'].segments[0].filter(name='v')[0].magnitude.T * 2 ** 15).astype(int), axis=0)
-        sh_exc_2 = np.max((other_recordings[pop]['gsyn_exc'].segments[0].filter(name='gsyn_exc')[0].magnitude.T * 2 ** 15).astype(int), axis=0)
+        sh_exc_2 = np.max((other_recordings[pop]['gsyn_exc'].segments[0].filter(name='gsyn_exc')[0].magnitude.T * 2 ** 15).astype(int),
+                          axis=0)
 
         f = plt.figure(1, figsize=(l, l), dpi=400)
         a = ((sh_exc) & 0xFFFF)
@@ -871,6 +897,76 @@ def spike_analysis(results_file, fig_folder,
                             extensions=['.png', ])
                 plt.show()
                 plt.close(f)
+
+    # save required csv
+    excel_filename = os.path.join(sim_fig_folder,
+                                  "abcd_recordings_per_core.xlsx")
+
+    writer = pd.ExcelWriter(
+        excel_filename,
+        engine='xlsxwriter')
+    per_core_abcd = {}
+
+    for index, pop in enumerate(plot_order):
+        if pop not in per_conn_worst_spikes.keys():
+            continue
+        print("POPULATION", pop)
+        zipper = zip((other_recordings[pop]['v'].segments[0].filter(name='v')[0].magnitude.T * 2 ** 15).astype(int),
+                     (other_recordings[pop]['gsyn_exc'].segments[0].filter(name='gsyn_exc')[0].magnitude.T * 2 ** 15).astype(int))
+
+        abcd_data = []
+        abcd_totals = []
+        abcd_argmax = []
+        for sh_exc, sh_exc_2 in zipper:
+            x = np.asarray(unpack_abcd(sh_exc, sh_exc_2))
+            total_x = np.sum(x, axis=0)
+            max_x = np.argmax(total_x)
+            abcd_data.append(x[:, max_x])
+            abcd_totals.append(total_x)
+            abcd_argmax.append(max_x)
+        abcd_argmax = np.array(abcd_argmax)
+        abcd_data = np.array(abcd_data)
+        abcd_totals = np.array(abcd_totals)
+        print("Number of cores", abcd_data.shape[0])
+        names = ['a', 'b', 'c', 'd']  # N
+        #     value = np.array(abcd_data, dtype=names)  # Note to self: numpy structured arrays are fucking broken
+        array_for_pd = {name: abcd_data[:, col_id] for col_id, name in enumerate(names)}
+        df = pd.DataFrame(array_for_pd)
+        per_core_abcd[pop] = df
+        df.to_excel(writer, sheet_name=pop)
+
+    writer.save()
+
+    transparency_lvl = .7
+    for core_id, pop in enumerate(plot_order):
+        if pop not in per_core_abcd.keys():
+            #         f = plt.figure(1, figsize=(l, l), dpi=400)
+            #         plt.close(f)
+            continue
+        f = plt.figure(1, figsize=(13, 10), dpi=400)
+        abcd_df = per_core_abcd[pop]
+
+        plt.plot(abcd_df[['a', 'b', 'c', 'd']].sum(axis=1), label='total',
+                 c="k", ls="--", alpha=.6)
+        plt.plot(abcd_df.d.values, label='d', c="C3", alpha=transparency_lvl)
+        plt.plot(abcd_df.c.values, label='c', c="C2", alpha=transparency_lvl)
+        plt.plot(abcd_df.b.values, label='b', c="C1", alpha=transparency_lvl)
+        plt.plot(abcd_df.a.values, label='a', c="C0", alpha=transparency_lvl)
+
+        plt.ylabel("Count")
+
+        plt.title(use_display_name(pop))
+        plt.legend(loc="best")
+        plt.xlabel("Core")
+
+        plt.tight_layout()
+        save_figure(
+            plt,
+            os.path.join(sim_fig_folder,
+                         "per_core_abcd_{}").format(pop),
+            extensions=[".pdf", ])
+        plt.show()
+        plt.close(f)
     # Plot distribution of worst case spikes per population
     if conn_exists and worst_case:
         print("Plotting histogram of worst spike counts")
