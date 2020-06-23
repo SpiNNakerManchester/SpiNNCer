@@ -342,10 +342,8 @@ class Cerebellum(Circuit):
                     cellclass=cell_model,
                     cellparams=cell_param,
                     label=cell_name + " cells")
-            # if cell_name in ['purkinje']:
-            #     self.populations[cell_name].set_max_atoms_per_core(1)
-
-
+            # Initialise cell membrane potential to resting value
+            self.populations[cell_name].initialize(v=cell_param['v_rest'])
 
     def build_projections(self):
         """
@@ -725,7 +723,10 @@ class Cerebellum(Circuit):
                         ps, size=min(number_of_neurons, ps), replace=False)
                 else:
                     _neuron_choice = np.arange(0, ps, every)
-                pop[_neuron_choice].record(['gsyn_inh', 'gsyn_exc', 'v'])
+                if label == "purkinje":
+                    pop.record(['gsyn_inh', 'gsyn_exc', 'v'])
+                else:
+                    pop[_neuron_choice].record(['gsyn_inh', 'gsyn_exc', 'v'])
 
     def retrieve_final_connectivity(self):
         all_connections = {}
