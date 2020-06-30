@@ -13,9 +13,9 @@ import hashlib
 import pylab as plt
 from spinncer.batch_argparser import *
 import shutil
+import spinncer as x
 
-# Current defaults for [App: Motion detection]
-# as of 26.09.2018
+base_path = os.path.dirname(x.__file__)
 
 currrent_time = plt.datetime.datetime.now()
 string_time = currrent_time.strftime("%H%M%S_%d%m%Y")
@@ -92,7 +92,7 @@ for phase in PHASES:
         print("Run ", concurrently_active_processes, "...")
 
         call = [sys.executable,
-                '../../cerebellum_experiment.py',
+                os.path.join(base_path, 'cerebellum_experiment.py'),
                 '--input', dataset,
                 '-o', filename,
                 '--f_peak', str(200),
@@ -142,7 +142,7 @@ sys.stdout.flush()
 
 analysis_call = [
     sys.executable,
-    '../provenance_analysis.py',
+    os.path.join(base_path, 'provenance_analysis.py'),
     '-i', "../" + dir_name,
     '--group_on', 'n_run',
 

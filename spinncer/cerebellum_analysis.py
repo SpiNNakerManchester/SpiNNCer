@@ -248,7 +248,8 @@ def spike_analysis(results_file, fig_folder,
         padded_bincount = np.pad(
             spikes_per_timestep[pop],
             (0, pad_to_compute_3ms_bins -
-             (spikes_per_timestep[pop].size - no_timesteps)),  # This should be 0 or 1 corresponding to SpiNNaker or NEST
+             (spikes_per_timestep[pop].size - no_timesteps)),
+            # This should be 0 or 1 corresponding to SpiNNaker or NEST
             'constant', constant_values=0)
 
         reshaped_bincount = padded_bincount.reshape(
@@ -801,9 +802,12 @@ def spike_analysis(results_file, fig_folder,
             plt.close(f)
             continue
 
-        sh_exc = np.max((other_recordings[pop]['v'].segments[0].filter(name='v')[0].magnitude.T * 2 ** 15).astype(int), axis=0)
-        sh_exc_2 = np.max((other_recordings[pop]['gsyn_exc'].segments[0].filter(name='gsyn_exc')[0].magnitude.T * 2 ** 15).astype(int),
-                          axis=0)
+        sh_exc = np.max((other_recordings[pop]['v'].segments[0].filter(name='v')[0].magnitude.T * 2 ** 15).astype(int),
+                        axis=0)
+        sh_exc_2 = np.max(
+            (other_recordings[pop]['gsyn_exc'].segments[0].filter(name='gsyn_exc')[0].magnitude.T * 2 ** 15).astype(
+                int),
+            axis=0)
 
         f = plt.figure(1, figsize=(l, l), dpi=400)
         a = ((sh_exc) & 0xFFFF)
@@ -871,7 +875,8 @@ def spike_analysis(results_file, fig_folder,
                 f = plt.figure(1, figsize=(12, 9), dpi=500)
                 im = plt.imshow(worst_spikes,
                                 interpolation='none',
-                                extent=[stim_wanted_times.min() * time_to_bin_conversion, stim_wanted_times.max() * time_to_bin_conversion,
+                                extent=[stim_wanted_times.min() * time_to_bin_conversion,
+                                        stim_wanted_times.max() * time_to_bin_conversion,
                                         0, worst_spikes.shape[1]],
                                 origin='lower')
                 ax = plt.gca()
@@ -898,6 +903,33 @@ def spike_analysis(results_file, fig_folder,
                 plt.show()
                 plt.close(f)
 
+    # Looking at number of spikes received per neuron for the purpose of computing Ring-Buffer left shifts to appropriately accomodate all (or most) spikes
+    # Need to compute max, mean, 0.1 percentile and 99 percentile DURING STIMULUS PHASE -- Is this useful?
+    spikes_per_proj_nutshell = {}
+    if conn_exists and worst_case:
+        excel_filename = os.path.join(sim_fig_folder,
+                                      "per_projection_inc_spikes_description.xlsx")
+        writer = pd.ExcelWriter(
+            excel_filename,
+            engine='xlsxwriter')
+        for pop in plot_order:
+            for proj, worst_spikes in per_conn_worst_spikes[pop].items():
+                # need to filter worst spikes by timestep. Max wouldn't be affected, but all the other metrics would
+                interval_of_interest = np.array(worst_spikes[:, 3000:3500])
+                # remove zeros from this
+                filterd_without_zeros = interval_of_interest[interval_of_interest != 0]
+                percentile_01 = np.nanpercentile(filterd_without_zeros.ravel(), q=1)
+                percentile_99 = np.nanpercentile(filterd_without_zeros.ravel(), q=99)
+                mean = np.mean(filterd_without_zeros.ravel())
+                std = np.std(filterd_without_zeros.ravel())
+                maximums = np.max(filterd_without_zeros.ravel())
+                spikes_per_proj_nutshell[proj] = [maximums, mean, std, percentile_01, percentile_99]
+
+        names = ['max', 'mean', 'std', '1st percentile', '99th percentile']
+        df = pd.DataFrame(spikes_per_proj_nutshell, index=names)
+        df.to_excel(writer, sheet_name="per_proj_inc_spikes_description")
+        writer.save()
+
     # save required csv
     excel_filename = os.path.join(sim_fig_folder,
                                   "abcd_recordings_per_core.xlsx")
@@ -912,7 +944,8 @@ def spike_analysis(results_file, fig_folder,
             continue
         print("POPULATION", pop)
         zipper = zip((other_recordings[pop]['v'].segments[0].filter(name='v')[0].magnitude.T * 2 ** 15).astype(int),
-                     (other_recordings[pop]['gsyn_exc'].segments[0].filter(name='gsyn_exc')[0].magnitude.T * 2 ** 15).astype(int))
+                     (other_recordings[pop]['gsyn_exc'].segments[0].filter(name='gsyn_exc')[
+                          0].magnitude.T * 2 ** 15).astype(int))
 
         abcd_data = []
         abcd_totals = []

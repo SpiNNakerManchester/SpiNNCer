@@ -43,12 +43,25 @@ connectivity_filename = os.path.join(
 sim.setup(timestep=args.timestep, min_delay=args.timestep, max_delay=80,
           timescale=args.timescale)
 
-# Add constraints here
-n_neurons_per_core = 64
+# Add constraints here SpiNNaker only:
+global_n_neurons_per_core = 64
+
+if spinnaker_sim:
+    per_pop_neurons_per_core_constraint = {
+        'glomerulus': global_n_neurons_per_core,
+        'granule': 128,
+        'dcn': global_n_neurons_per_core,
+        'golgi': 32,
+        'purkinje': 1,
+        'stellate': global_n_neurons_per_core,
+        'basket': global_n_neurons_per_core,
+    }
+
+else:
+    per_pop_neurons_per_core_constraint = {}
+
 ss_neurons_per_core = 64
 if spinnaker_sim:
-    sim.set_number_of_neurons_per_core(sim.IF_cond_exp, n_neurons_per_core)
-    sim.set_number_of_neurons_per_core(sim.IF_curr_exp, n_neurons_per_core)
     sim.set_number_of_neurons_per_core(sim.SpikeSourceArray, ss_neurons_per_core)
 
 # Compile stimulus information
@@ -107,7 +120,7 @@ if args.generate_conversion_constants:
             "argparser": vars(args),
             "git_hash": retrieve_git_commit(),
             "current_time": plt.datetime.datetime.now().strftime("%H:%M:%S_%d/%m/%Y"),
-            "n_neurons_per_core": n_neurons_per_core,
+            "n_neurons_per_core": global_n_neurons_per_core,
             "ss_neurons_per_core": ss_neurons_per_core,
         },
         input_spikes=cerebellum_circuit.stimulus,
@@ -117,6 +130,11 @@ if args.generate_conversion_constants:
 
 # Test various exposed methods
 populations = cerebellum_circuit.get_all_populations()
+if spinnaker_sim:
+    if spinnaker_sim:
+        for pop_name, constraint in per_pop_neurons_per_core_constraint.items():
+            populations[pop_name].set_max_atoms_per_core(constraint)
+
 
 # Set up IO stimulation
 stim_to_pop_proj = None
@@ -158,7 +176,7 @@ if "io_cell" in populations.keys():
 
 # Set up recordings
 cerebellum_circuit.record_all_spikes()
-cerebellum_circuit.selectively_record_all(every=n_neurons_per_core)
+cerebellum_circuit.selectively_record_all(from_dict=per_pop_neurons_per_core_constraint)
 recorded_spikes = {}
 other_recordings = {}
 
@@ -212,7 +230,7 @@ sim_params = {
     "run_end_time": end_time.strftime("%H:%M:%S_%d/%m/%Y"),
     "wall_clock_script_run_time": str(total_time),
     "wall_clock_sim_run_time": str(sim_total_time),
-    "n_neurons_per_core": n_neurons_per_core,
+    "n_neurons_per_core": global_n_neurons_per_core,
     "ss_neurons_per_core": ss_neurons_per_core,
 }
 
@@ -230,6 +248,7 @@ np.savez_compressed(results_file,
                     json_data=json_data,
                     conn_params=cerebellum_circuit.retrieve_conn_params(),
                     cell_params=cerebellum_circuit.retrieve_cell_params(),
+                    per_pop_neurons_per_core_constraint=per_pop_neurons_per_core_constraint
                     )
 
 # Appropriately end the simulation

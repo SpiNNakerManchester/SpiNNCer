@@ -343,7 +343,8 @@ class Cerebellum(Circuit):
                     cellparams=cell_param,
                     label=cell_name + " cells")
             # Initialise cell membrane potential to resting value
-            self.populations[cell_name].initialize(v=cell_param['v_rest'])
+            if 'v_rest' in cell_param.keys():
+                self.populations[cell_name].initialize(v=cell_param['v_rest'])
 
     def build_projections(self):
         """
@@ -707,23 +708,26 @@ class Cerebellum(Circuit):
             gsyn_rec[label]['v'] = pop.get_data(['v'])
         return gsyn_rec
 
-    def selectively_record_all(self, number_of_neurons=None, every=None):
-        if bool(number_of_neurons) == bool(every):
+    def selectively_record_all(self, number_of_neurons=None, every=None,
+                               from_dict=None):
+        if bool(number_of_neurons) == bool(every) == bool(from_dict):
             raise ValueError("Specify a number of neurons (sampled randomly) "
                              "to record from xor a linspace of neurons "
-                             "(every nth).")
+                             "(every nth) xor a dictionary with these values.")
         for label, pop in self.populations.items():
             if label == "glomerulus":
                 print("Skipping selective recording for", label, "...")
             else:
                 print("Selectively recording gsyn and v for ", label)
                 ps = pop.size
+                if from_dict is not None:
+                    _neuron_choice = np.arange(0, ps, from_dict[label])
                 if number_of_neurons:
                     _neuron_choice = np.random.choice(
                         ps, size=min(number_of_neurons, ps), replace=False)
                 else:
                     _neuron_choice = np.arange(0, ps, every)
-                if label == "purkinje":
+                if label in ["purkinje", "dcn"]:
                     pop.record(['gsyn_inh', 'gsyn_exc', 'v'])
                 else:
                     pop[_neuron_choice].record(['gsyn_inh', 'gsyn_exc', 'v'])
