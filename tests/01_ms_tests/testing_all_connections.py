@@ -27,15 +27,12 @@ elif str.lower(args.simulator) in ["nest"]:
 else:
     raise ValueError("Simulator " + str.lower(args.simulator) +
                      "unrecognised!")
-# provenance utility
-from spinncer.utilities.provenance import retrieve_git_commit
 # analysis functionsc
 from spinncer.cerebellum_analysis import *
 import pylab as plt
 import os
 import pandas as pd
 import numpy as np
-import xlsxwriter
 import traceback
 
 # Record SCRIPT start time (wall clock)
@@ -53,10 +50,10 @@ sim.setup(timestep=args.timestep, min_delay=args.timestep, max_delay=1,
 RB_LEFT_SHIFTS = {
     'golgi': [0, 0],
     'granule': [0, 0],
-    'purkinje': [4, 0],
-    'basket': [-2, 0],
-    'stellate': [-2, 0],
-    'dcn': [-5, 0]
+    'purkinje': [4, 4],
+    'basket': [-2, -2],
+    'stellate': [-2, -2],
+    'dcn': [-5, -5]
 }
 
 n_neurons = 10
@@ -87,6 +84,8 @@ for conn_name, conn_params in CONNECTIVITY_MAP.items():
     print("CONNECTION ", conn_name)
     cell_params = CELL_PARAMS[conn_params['post']]
 
+    curr_weight = conn_params['weight']
+
     # pre-multiply membrane Resistance into weight and i_offset?
     if args.r_mem:
         r_mem = cell_params['tau_m'] / cell_params['cm']
@@ -94,24 +93,43 @@ for conn_name, conn_params in CONNECTIVITY_MAP.items():
         if 'i_offset' in cell_params.keys():
             cell_params['i_offset'] *= r_mem
         # adjust weight
-        conn_params['weight'] *= r_mem
+        curr_weight *= r_mem
         per_pop_r_mem[conn_name] = r_mem
     else:
         per_pop_r_mem[conn_name] = 1.0
 
     # flag if connections is exc
-    is_conn_exc = conn_params['weight'] > 0
+    is_conn_exc = curr_weight > 0
     if is_conn_exc:
-        weight_m = [np.abs(conn_params['weight']), 0]
+        weight_m = [np.abs(curr_weight), 0]
     else:
-        weight_m = [0, np.abs(conn_params['weight'])]
+        weight_m = [0, np.abs(curr_weight)]
     is_projection_exc[conn_name] = 0 if is_conn_exc else 1
 
     if str.lower(args.simulator) in ["spinnaker", "spynnaker"]:
         if args.r_mem:
-            rb_ls = [np.ceil(np.log2(np.abs(conn_params['weight']))),] * 2
+            rb_ls = [np.ceil(np.log2(np.abs(curr_weight))),] * 2
+            if "pf_" in conn_name:
+                rb_ls = [7, ] * 2
+            if "_dcn" in conn_name:
+                rb_ls = [4, ] * 2
+            # if "aa_" in conn_name:
+            #     rb_ls = [0, ] * 2
+            if "_pc" in conn_name:
+                rb_ls = [5, ] * 2
+
         else:
-            rb_ls = RB_LEFT_SHIFTS[conn_params['post']]
+            # rb_ls = RB_LEFT_SHIFTS[conn_params['post']]
+            if "pf_" in conn_name:
+                rb_ls = [5, 5]
+            else:
+                rb_ls = [10, 10]
+
+            if "pf_pc" in conn_name:
+                rb_ls = [5, 5]
+            if "_dcn" in conn_name:
+                rb_ls = [5, 5]
+            # rb_ls = [np.ceil(np.log2(np.abs(curr_weight*(2**5)))),] * 2
         additional_parameters = {
             "additional_parameters": {
                 "rb_left_shifts": rb_ls,
@@ -188,7 +206,6 @@ for label, pop in populations.items():
     other_recordings[label]['v'] = np.array(
         pop.get_data(['v']).segments[0].filter(name='v'))[0].T[is_projection_exc[label]]
 
-    other_recordings
 
 # Retrieve final network connectivity
 try:
@@ -213,7 +230,8 @@ except:
     final_connectivity = []
     traceback.print_exc()
 
-print("Average weight per projection")
+
+print("MAX weight per projection")
 print("-" * 80)
 conn_dict = {}
 for key in final_connectivity:
@@ -239,7 +257,7 @@ for key in final_connectivity:
         final_connectivity[key] = useful_conn.astype(np.float)
         conn = useful_conn.astype(np.float)
     conn_dict[key] = conn
-    mean = np.mean(conn[:, 2])
+    mean = np.max(conn[:, 2]) / per_pop_r_mem[key]
     # replace with percentage of difference
     original_conn = np.abs(CONNECTIVITY_MAP[key]["weight"])
     if mean < original_conn:
