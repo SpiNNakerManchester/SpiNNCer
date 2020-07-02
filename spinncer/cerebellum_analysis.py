@@ -925,6 +925,24 @@ def spike_analysis(results_file, fig_folder,
                 maximums = np.max(filterd_without_zeros.ravel())
                 spikes_per_proj_nutshell[proj] = [maximums, mean, std, percentile_01, percentile_99]
 
+                # Also save a histogram
+                f = plt.figure(1, figsize=(9, 9), dpi=400)
+                plt.hist(filterd_without_zeros, bins=20, color=viridis_cmap(index / (n_plots + 1)),
+                         rasterized=True,
+                         edgecolor='k')
+
+                plt.title(use_display_name(proj))
+
+                plt.ylabel("Count")
+                plt.xlabel("Spikes per timestep per neuron")
+                plt.tight_layout()
+                save_figure(
+                    plt,
+                    os.path.join(sim_fig_folder,
+                                 "spike_count_hist_{}").format(proj),
+                    extensions=[".pdf", ".png", ])
+                plt.close(f)
+
         names = ['max', 'mean', 'std', '1st percentile', '99th percentile']
         df = pd.DataFrame(spikes_per_proj_nutshell, index=names)
         df.to_excel(writer, sheet_name="per_proj_inc_spikes_description")
