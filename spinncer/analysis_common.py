@@ -111,7 +111,24 @@ COMMON_DISPLAY_NAMES = {
     'basket': "BC",
     'max_spikes_in_a_tick': "Max # of spikes in a time step",
     'send_multicast_packets': "Multicast packets sent",
-    'router_provenance': "Router"
+    'router_provenance': "Router",
+    # Connection names
+    'aa_goc': "aa-GoC",
+    'aa_pc': "aa-PC",
+    'bc_pc': "BC-PC",
+    'gj_bc': "BC-BC",
+    'gj_goc': "GoC-GoC",
+    'gj_sc': "SC-SC",
+    'glom_dcn': "Glom-DCNC",
+    'glom_goc': "Glom-GoC",
+    'glom_grc': "Glom-GrC",
+    'goc_grc': "GoC-GrC",
+    'pc_dcn': "PC-DCNC",
+    'pf_bc': "pf-BC",
+    'pf_goc': "pf-GoC",
+    'pf_pc': "pf-PC",
+    'pf_sc': "pf-SC",
+    'sc_pc': "SC-PC",
 }
 
 def capitalise(name):
