@@ -35,6 +35,11 @@ import pandas as pd
 import numpy as np
 import traceback
 
+# Fail if passing in incorrect parameters
+if args.test_max_weight and args.test_max_spikes:
+    raise AttributeError("Can either test maximum weight effect on neuron (single spike, weight scaled up) "
+                         "or maximum number of spikes (number of spikes scaled up, weight as original).")
+
 # Record SCRIPT start time (wall clock)
 start_time = plt.datetime.datetime.now()
 
@@ -46,6 +51,25 @@ connectivity_filename = os.path.join(
 sim.setup(timestep=args.timestep, min_delay=args.timestep, max_delay=1,
           timescale=args.timescale)
 
+EXPECTED_MAX_SPIKES = {
+    # Empirical values observed in simulation with a 200 Hz input with stim_radius = 130
+    'aa_goc': 31,
+    'aa_pc': 24,
+    'bc_pc': 7,
+    'gj_bc': 4,
+    'gj_goc': 25,
+    'gj_sc': 6,
+    'glom_dcn': 6,
+    'glom_goc': 8,
+    'glom_grc': 5,
+    'goc_grc': 4,
+    'pc_dcn': 6,
+    'pf_bc': 64,
+    'pf_goc': 64,
+    'pf_pc': 729,
+    'pf_sc': 60,
+    'sc_pc': 9,
+}
 
 RB_LEFT_SHIFTS = {
     'golgi': [0, 0],
@@ -69,7 +93,6 @@ single_spike_source = sim.Population(
         'spike_times': [input_spike]
     },
     label="Spike source")
-
 
 is_projection_exc = {}
 
@@ -98,6 +121,8 @@ for conn_name, conn_params in CONNECTIVITY_MAP.items():
     else:
         per_pop_r_mem[conn_name] = 1.0
 
+    if args.test_max_weight:
+        curr_weight *= EXPECTED_MAX_SPIKES[conn_name]
     # flag if connections is exc
     is_conn_exc = curr_weight > 0
     if is_conn_exc:
@@ -108,7 +133,7 @@ for conn_name, conn_params in CONNECTIVITY_MAP.items():
 
     if str.lower(args.simulator) in ["spinnaker", "spynnaker"]:
         if args.r_mem:
-            rb_ls = [np.ceil(np.log2(np.abs(curr_weight))),] * 2
+            rb_ls = [np.ceil(np.log2(np.abs(curr_weight))), ] * 2
             if "pf_" in conn_name:
                 rb_ls = [7, ] * 2
             if "_dcn" in conn_name:
@@ -164,7 +189,7 @@ for conn_name, conn_params in CONNECTIVITY_MAP.items():
     # Enable recordings
     cell_to_test.record(['spikes', 'gsyn_inh', 'gsyn_exc', 'v'])
 
-all_neurons = {k:1 for k in populations.keys()}
+all_neurons = {k: 1 for k in populations.keys()}
 recorded_spikes = {}
 other_recordings = {}
 
@@ -201,11 +226,11 @@ for label, pop in populations.items():
         pop.get_data(['gsyn_inh']).filter(name='gsyn_inh'))[0].T[is_projection_exc[label]] / per_pop_r_mem[label]
 
     other_recordings[label]['gsyn'] = np.array(
-        pop.get_data(['gsyn_exc']).filter(name='gsyn_exc'))[0].T[is_projection_exc[label]].ravel() / per_pop_r_mem[label]
+        pop.get_data(['gsyn_exc']).filter(name='gsyn_exc'))[0].T[is_projection_exc[label]].ravel() / per_pop_r_mem[
+                                          label]
 
     other_recordings[label]['v'] = np.array(
         pop.get_data(['v']).segments[0].filter(name='v'))[0].T[is_projection_exc[label]]
-
 
 # Retrieve final network connectivity
 try:
@@ -229,7 +254,6 @@ except:
     # This simulator might not support the way this is done
     final_connectivity = []
     traceback.print_exc()
-
 
 print("MAX weight per projection")
 print("-" * 80)
@@ -281,9 +305,10 @@ if not os.path.isdir(args.result_dir) and not os.path.exists(args.result_dir):
 sim.end()
 
 # save required csv
-excel_filename = "{}_{}_loops_r_mem_{}_{}_testing_all_connections.xlsx".format(
+excel_filename = "{}_{}_loops_max_weight_{}_r_mem_{}_{}_testing_all_connections.xlsx".format(
     args.simulator,
     args.loops_grc,
+    args.test_max_weight,
     args.r_mem,
     "WITH_ioffset" if not args.disable_i_offset else "WITHOUT_ioffset"
 )

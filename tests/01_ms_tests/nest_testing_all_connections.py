@@ -37,6 +37,11 @@ import pandas as pd
 import xlsxwriter
 import traceback
 
+# Fail if passing in incorrect parameters
+if args.test_max_weight and args.test_max_spikes:
+    raise AttributeError("Can either test maximum weight effect on neuron (single spike, weight scaled up) "
+                         "or maximum number of spikes (number of spikes scaled up, weight as original).")
+
 # Record SCRIPT start time (wall clock)
 start_time = plt.datetime.datetime.now()
 
@@ -56,6 +61,26 @@ stimulus_information = {
     'stim_radius': np.nan,
     'periodic_stimulus': False,
     'percentage_active_fibers': np.nan,
+}
+
+EXPECTED_MAX_SPIKES = {
+    # Empirical values observed in simulation with a 200 Hz input with stim_radius = 130
+    'aa_goc': 31,
+    'aa_pc': 24,
+    'bc_pc': 7,
+    'gj_bc': 4,
+    'gj_goc': 25,
+    'gj_sc': 6,
+    'glom_dcn': 6,
+    'glom_goc': 8,
+    'glom_grc': 5,
+    'goc_grc': 4,
+    'pc_dcn': 6,
+    'pf_bc': 64,
+    'pf_goc': 64,
+    'pf_pc': 729,
+    'pf_sc': 60,
+    'sc_pc': 9,
 }
 
 # Compute spikes
@@ -81,7 +106,7 @@ additional_parameters = {}
 if str.lower(args.simulator) in ["spinnaker", "spynnaker"]:
     # additional_params = {"rb_left_shifts": [0, 0]}
     additional_parameters = {
-        "additional_parameters":{
+        "additional_parameters": {
             "rb_left_shifts": [0, 0],
             "n_steps_per_timestep": args.loops_grc
         }
@@ -106,11 +131,14 @@ for conn_name, conn_params in CONNECTIVITY_MAP.items():
     # initialise V
     cell_to_test.initialize(v=cell_params['v_rest'])
     populations[conn_name] = cell_to_test
+    curr_weight = conn_params['weight']
+    if args.test_max_weight:
+        curr_weight *= EXPECTED_MAX_SPIKES[conn_name]
     # Create projection
     conn_to_test = sim.Projection(single_spike_source, cell_to_test,
                                   sim.OneToOneConnector(),
                                   synapse_type=sim.StaticSynapse(
-                                      weight=conn_params['weight'],
+                                      weight=curr_weight,
                                       delay=args.timestep),
                                   receptor_type="excitatory" if conn_params['weight'] > 0 else "inhibitory",
                                   label=conn_name)
@@ -118,7 +146,7 @@ for conn_name, conn_params in CONNECTIVITY_MAP.items():
     # Enable recordings
     cell_to_test.record(['spikes', 'gsyn_inh', 'gsyn_exc', 'v'])
 
-all_neurons = {k:1 for k in populations.keys()}
+all_neurons = {k: 1 for k in populations.keys()}
 recorded_spikes = {}
 other_recordings = {}
 
@@ -228,9 +256,10 @@ np.savez_compressed(results_file,
 sim.end()
 
 # save required csv
-excel_filename = "{}_{}_loops_r_mem_{}_{}_testing_all_connections.xlsx".format(
+excel_filename = "{}_{}_loops_max_weight_{}_r_mem_{}_{}_testing_all_connections.xlsx".format(
     args.simulator,
     args.loops_grc,
+    args.test_max_weight,
     args.r_mem,
     "WITH_ioffset" if not args.disable_i_offset else "WITHOUT_ioffset"
 )

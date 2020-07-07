@@ -167,6 +167,14 @@ parser.add_argument('--r_mem', action="store_true",
                     help='pre-multiply membrane resistance into weight and '
                          'i_offset')
 
+parser.add_argument('--test_max_weight', action="store_true",
+                    help='[testing_all_connections.py] use the maximum weight '
+                         'of expected spikes for the test (send 1 spike, scale up weight)')
+
+parser.add_argument('--test_max_spikes', action="store_true",
+                    help='[testing_all_connections.py] use the maximum number '
+                         'of expected spikes for the test')
+
 parser.add_argument('--population', type=str,
                     help="name of the population to test single cell from",
                     default=DEFAULT_SINGLE_CELL_TEST)
