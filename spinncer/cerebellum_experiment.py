@@ -49,9 +49,9 @@ global_n_neurons_per_core = 64
 if spinnaker_sim:
     per_pop_neurons_per_core_constraint = {
         'glomerulus': global_n_neurons_per_core,
-        'granule': 128,
+        'granule': global_n_neurons_per_core,
         'dcn': global_n_neurons_per_core,
-        'golgi': 32,
+        'golgi': global_n_neurons_per_core,
         'purkinje': 1,
         'stellate': global_n_neurons_per_core,
         'basket': global_n_neurons_per_core,
