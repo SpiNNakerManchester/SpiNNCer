@@ -90,6 +90,66 @@ def get_plot_order(for_keys):
     return plot_order
 
 
+def scatter_hist(x, y, ax, ax_histx, ax_histy):
+    """
+    https://matplotlib.org/gallery/lines_bars_and_markers/scatter_hist.html
+    """
+    # no labels
+    ax_histx.tick_params(axis="x", labelbottom=False)
+    ax_histy.tick_params(axis="y", labelleft=False)
+
+    # the scatter plot:
+    ax.scatter(x, y)
+
+    # now determine nice limits by hand:
+    binwidth = 0.25
+    xymax = max(np.max(np.abs(x)), np.max(np.abs(y)))
+    lim = (int(xymax / binwidth) + 1) * binwidth
+
+    bins = np.arange(-lim, lim + binwidth, binwidth)
+    ax_histx.hist(x, bins=bins)
+    ax_histy.hist(y, bins=bins, orientation='horizontal')
+
+
+def imshow_hist(x, ax, ax_histx, ax_histy, only_count_1s=False):
+    """
+        based on https://matplotlib.org/gallery/lines_bars_and_markers/scatter_hist.html
+    @param x:
+    @param ax:
+    @param ax_histx:
+    @param ax_histy:
+    @param only_count_1s:
+    @return:
+    """
+    # no labels
+    ax_histx.tick_params(axis="x", labelbottom=False)
+    ax_histy.tick_params(axis="y", labelleft=False)
+
+    ax.imshow(x)
+    if only_count_1s:
+        x[x != 1] = 0
+
+    # now determine nice limits by hand:
+    binwidth = 1
+    xymax = np.nanmax(np.nanmax(np.abs(x)))
+    lim = (int(xymax / binwidth) + 1) * binwidth
+
+    x_dim = x.shape[0]
+    y_dim = x.shape[1]
+
+    ax_histx.bar(np.arange(y_dim),
+                 height=np.nansum(x, axis=0),
+                 width=1.,
+                 )
+
+    ax_histy.barh(np.arange(x_dim),
+                  height=1.,
+                  width=np.nansum(x, axis=1),
+                  )
+    ax.set_xlim([0, x.shape[1]])
+    ax.set_ylim([0, x.shape[0]])
+
+
 COMMON_DISPLAY_NAMES = {
     'f_peak': "$f_{peak}$ (Hz)",
     'spinnaker': "SpiNNaker",
@@ -131,11 +191,13 @@ COMMON_DISPLAY_NAMES = {
     'sc_pc': "SC-PC",
 }
 
+
 def capitalise(name):
     return string.capwords(
         " ".join(
             str.split(name, "_")
         ))
+
 
 def use_display_name(name):
     name = name.lower()
@@ -144,7 +206,7 @@ def use_display_name(name):
         else capitalise(name)
 
 
-def save_figure(plt, name, extensions=(".png", ), **kwargs):
+def save_figure(plt, name, extensions=(".png",), **kwargs):
     for ext in extensions:
-        write_short_msg("Plotting", name+ext)
+        write_short_msg("Plotting", name + ext)
         plt.savefig(name + ext, **kwargs)
