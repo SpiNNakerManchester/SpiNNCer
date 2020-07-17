@@ -131,7 +131,7 @@ for conn_name, conn_params in CONNECTIVITY_MAP.items():
     # initialise V
     cell_to_test.initialize(v=cell_params['v_rest'])
     populations[conn_name] = cell_to_test
-    curr_weight = conn_params['weight']
+    curr_weight = np.abs(conn_params['weight'])  # NEST is awful.
     if args.test_max_weight:
         curr_weight *= EXPECTED_MAX_SPIKES[conn_name]
     # Create projection
