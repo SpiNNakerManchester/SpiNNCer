@@ -13,6 +13,7 @@ install_requires = [
     "elephant==0.6.2",
     "colorama",
     "pandas==0.23.4",
+    "hilbertcurve"
 ]
 
 setup(
