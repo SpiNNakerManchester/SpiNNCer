@@ -25,6 +25,7 @@ from elephant.spike_train_generation import homogeneous_poisson_process
 import quantities as pq
 import pandas as pd
 import neo
+import copy
 from spinncer.utilities.utils import (flatten_dict, create_poisson_spikes,
                                       floor_spike_time, random_id_mapping,
                                       apply_id_mapping, hilbert_id_mapping,
@@ -251,9 +252,13 @@ class Cerebellum(Circuit):
             for stimulus_producer, stimulus_activity in self.stimulus.items():
                 print("Reordering IDs for", stimulus_producer)
                 reordered_spikes = []
-                spikes = stimulus_activity['spike_times']
+                spikes = copy.deepcopy(stimulus_activity['spike_times'])
                 self.stimulus[stimulus_producer]['spike_times'] = apply_id_mapping_to_list(
                     spikes, self.id_mapping[stimulus_producer])
+                for original_spike_train, reordered_spike_train in \
+                        zip(spikes,
+                            revert_id_mapping_to_list(self.stimulus[stimulus_producer]['spike_times'], self.id_mapping[stimulus_producer])):
+                    assert np.all(np.array(original_spike_train) == np.array(reordered_spike_train))
 
         # Construct PyNN neural Populations
         self.build_populations(self.cell_positions)
@@ -424,8 +429,12 @@ class Cerebellum(Circuit):
 
             if self.id_remap is not None:
                 print("Remapping ids for connection", conn_label)
+                original_sources = copy.deepcopy(conns[:, 0])
+                original_targets = copy.deepcopy(conns[:, 1])
                 conns[:, 0] = apply_id_mapping(conns[:, 0], self.id_mapping[pre_pop])
+                assert np.all(original_sources == revert_id_mapping(conns[:, 0], self.id_mapping[pre_pop]))
                 conns[:, 1] = apply_id_mapping(conns[:, 1], self.id_mapping[post_pop])
+                assert np.all(original_targets == revert_id_mapping(conns[:, 1], self.id_mapping[post_pop]))
 
             # Save the explicit connectivity for later
             # (after scaling the weights)

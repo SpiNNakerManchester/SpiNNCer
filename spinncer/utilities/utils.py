@@ -60,7 +60,9 @@ def random_id_mapping(ids, seed=None):
 
 def revert_id_mapping(ids, mapping):
     original_ids, new_ids = mapping
-    return original_ids[ids]
+    argsorted_new_ids = np.argsort(new_ids)
+    sorted_original_ids = original_ids[argsorted_new_ids]
+    return sorted_original_ids[ids]
 
 
 def apply_id_mapping(ids, mapping):
@@ -70,7 +72,10 @@ def apply_id_mapping(ids, mapping):
 
 def revert_id_mapping_to_list(list_to_reorder, mapping):
     reordered_list = []
-    for _id in mapping[0]:
+    original_ids, new_ids = mapping
+    argsorted_new_ids = np.argsort(new_ids)
+    sorted_original_ids = original_ids[argsorted_new_ids]
+    for _id in sorted_original_ids:
         reordered_list.append(list_to_reorder[_id])
     return reordered_list
 
