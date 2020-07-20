@@ -46,19 +46,15 @@ sim.setup(timestep=args.timestep, min_delay=args.timestep, max_delay=80,
 # Add constraints here SpiNNaker only:
 global_n_neurons_per_core = 64
 
-if spinnaker_sim:
-    per_pop_neurons_per_core_constraint = {
-        'glomerulus': global_n_neurons_per_core,
-        'granule': global_n_neurons_per_core,
-        'dcn': global_n_neurons_per_core,
-        'golgi': global_n_neurons_per_core,
-        'purkinje': 1,
-        'stellate': global_n_neurons_per_core,
-        'basket': global_n_neurons_per_core,
-    }
-
-else:
-    per_pop_neurons_per_core_constraint = {}
+per_pop_neurons_per_core_constraint = {
+    'glomerulus': global_n_neurons_per_core,
+    'granule': global_n_neurons_per_core,
+    'dcn': global_n_neurons_per_core,
+    'golgi': global_n_neurons_per_core,
+    'purkinje': 1,
+    'stellate': global_n_neurons_per_core,
+    'basket': global_n_neurons_per_core,
+}
 
 ss_neurons_per_core = 64
 if spinnaker_sim:
@@ -133,9 +129,8 @@ if args.generate_conversion_constants:
 # Test various exposed methods
 populations = cerebellum_circuit.get_all_populations()
 if spinnaker_sim:
-    if spinnaker_sim:
-        for pop_name, constraint in per_pop_neurons_per_core_constraint.items():
-            populations[pop_name].set_max_atoms_per_core(constraint)
+    for pop_name, constraint in per_pop_neurons_per_core_constraint.items():
+        populations[pop_name].set_max_atoms_per_core(constraint)
 
 
 # Set up IO stimulation
