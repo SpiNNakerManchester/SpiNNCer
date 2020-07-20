@@ -63,6 +63,7 @@ else:
 ss_neurons_per_core = 64
 if spinnaker_sim:
     sim.set_number_of_neurons_per_core(sim.SpikeSourceArray, ss_neurons_per_core)
+    sim.set_number_of_neurons_per_core(sim.IF_cond_exp, global_n_neurons_per_core)
 
 # Compile stimulus information
 stimulus_information = {
@@ -104,7 +105,8 @@ cerebellum_circuit = Cerebellum(
     input_spikes=input_spikes,
     rb_left_shifts=args.rb_left_shifts,
     no_loops=args.loops_grc,
-    round_input_spike_times=round_spike_times
+    round_input_spike_times=round_spike_times,
+    id_remap=args.id_remap
 )
 
 if args.generate_conversion_constants:

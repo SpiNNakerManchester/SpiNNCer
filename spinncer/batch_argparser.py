@@ -39,4 +39,11 @@ parser.add_argument('--max_processes', type=int,
                     help='total number of concurrent processes'
                          ' -- [default {}]'.format(DEFAULT_MAX_CONCURRENT_PROCESSES))
 
+# Argparser can't deal with this properly....
+# parser.add_argument('--additional_params', type=str, nargs='+',
+#                     default=None,
+#                     help='pass through params for individual simulations'
+#                          ' -- [default {}]'.format(None))
+
 args = parser.parse_args()
+# args, unknownargs = parser.parse_known_args()

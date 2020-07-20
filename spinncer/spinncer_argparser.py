@@ -179,4 +179,9 @@ parser.add_argument('--population', type=str,
                     help="name of the population to test single cell from",
                     default=DEFAULT_SINGLE_CELL_TEST)
 
+
+parser.add_argument('--id_remap', type=str,
+                    help="how to remap neuron IDs",
+                    default=None)
+
 args = parser.parse_args()

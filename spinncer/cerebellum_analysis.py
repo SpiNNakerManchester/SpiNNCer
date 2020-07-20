@@ -95,6 +95,10 @@ def spike_analysis(results_file, fig_folder,
                                   str(ntpath.basename(results_file))[:-4])
     if not os.path.isdir(sim_fig_folder) and not os.path.exists(sim_fig_folder):
         os.mkdir(sim_fig_folder)
+
+    per_neuron_figs = os.path.join(sim_fig_folder, "per_neuron_figs")
+    if not os.path.isdir(per_neuron_figs) and not os.path.exists(per_neuron_figs):
+        os.mkdir(per_neuron_figs)
     # Set up colours
     color_init(strip=False)
 
@@ -711,6 +715,18 @@ def spike_analysis(results_file, fig_folder,
         'common_highlight_values': common_highlight_values,
     }
 
+    # These parameters are used for plotting some activity snapshot plots below
+    left, width = 0.1, 0.65
+    bottom, height = 0.1, 0.65
+    spacing = 0.005
+
+    rect_scatter = [left, bottom, width, height]
+    rect_histx = [left, bottom + height + spacing, width, 0.2]
+    rect_histy = [left + width + spacing, bottom, 0.2, height]
+
+    plotting_loops = 5
+    analysis_loops = 5
+
     # plot .1 ms PSTH
     print("Plotting elephant Instantaneous rates")
     try:
@@ -744,54 +760,6 @@ def spike_analysis(results_file, fig_folder,
     plot_analog_signal(all_voltages, variable_name="v",
                        ylabel="Membrane potential (mV)",
                        **common_values_for_plots)
-    # THIS IS BROKEN!
-    # print("Plotting a b c d post-synaptic hits")
-    # l = 13
-    # transparency_lvl = .7
-    # for index, pop in enumerate(plot_order):
-    #     if pop not in all_post_hits.keys():
-    #         f = plt.figure(1, figsize=(l, l), dpi=400)
-    #         plt.close(f)
-    #         continue
-    #     counts = all_post_hits[pop]
-    #     f, axes = plt.subplots(2, 2, figsize=(l, l), dpi=400,
-    #                            sharey=True, sharex=True)
-    #     ax_a = axes[0, 0]
-    #     ax_b = axes[0, 1]
-    #     ax_c = axes[1, 0]
-    #     ax_d = axes[1, 1]
-    #
-    #     ax_a.plot(counts.a, c="C0", alpha=transparency_lvl)
-    #     ax_b.plot(counts.b, c="C1", alpha=transparency_lvl)
-    #     ax_c.plot(counts.c, c="C2", alpha=transparency_lvl)
-    #     ax_d.plot(counts.d, c="C3", alpha=transparency_lvl)
-    #
-    #     ax_a.set_title("a")
-    #     ax_b.set_title("b")
-    #     ax_c.set_title("c")
-    #     ax_d.set_title("d")
-    #
-    #     ax_a.set_ylabel("# cases")
-    #     ax_c.set_ylabel("# cases")
-    #
-    #     ax_c.set_ylabel("Time (ms)")
-    #     ax_d.set_ylabel("Time (ms)")
-    #
-    #     plt.suptitle(use_display_name(pop))
-    #
-    #     plt.xlim(stim_wanted_times.min() * time_to_bin_conversion,
-    #              stim_wanted_times.max() * time_to_bin_conversion)
-    #     plt.xticks(stim_wanted_times * time_to_bin_conversion, stim_wanted_times)
-    #     # plt.legend(loc="best")
-    #     # plt.xlabel("Time (ms)")
-    #
-    #     plt.tight_layout()
-    #     save_figure(
-    #         plt,
-    #         os.path.join(sim_fig_folder,
-    #                      "post_hits_{}").format(pop),
-    #         extensions=[".pdf", ])
-    #     plt.close(f)
 
     print("Plotting a b c d post-synaptic hits V2")
     l = 13
@@ -869,6 +837,68 @@ def spike_analysis(results_file, fig_folder,
             extensions=[".pdf", ])
         plt.close(f)
 
+    # This doesn't need to be done every time we run analysis
+    # fan_outs = {}
+    # fan_ins = {}
+    # if conn_exists:
+    #     for proj, curr_conn in final_connectivity.items():
+    #         pre = conn_params[proj]['pre']
+    #         post = conn_params[proj]['post']
+    #
+    #         pre_index = plot_order.index(pre)
+    #         post_index = plot_order.index(post)
+    #         print(pre, proj, post)
+    #         # For the current connection what is the number of targets for each source
+    #         curr_fan_out = []
+    #         for nid in range(all_neurons[pre]):
+    #             curr_fan_out.append(np.count_nonzero(curr_conn[:, 0] == nid))
+    #         fan_outs[proj] = curr_fan_out
+    #         # For the current connection what is the number of sources for each target
+    #         curr_fan_in = []
+    #         for nid in range(all_neurons[post]):
+    #             curr_fan_in.append(np.count_nonzero(curr_conn[:, 1] == nid))
+    #         fan_ins[proj] = curr_fan_in
+    #
+    #         assert len(curr_fan_in) == all_neurons[post]
+    #         assert len(curr_fan_out) == all_neurons[pre]
+    #
+    #         # plot using colour of population of focus (pre for fan out and post for fan in)
+    #         f = plt.figure(1, figsize=(8, 5), dpi=400)
+    #         plt.hist(curr_fan_in, bins=20, color=viridis_cmap(post_index / (n_plots + 1)),
+    #                  rasterized=True,
+    #                  edgecolor='k')
+    #
+    #         plt.title("Fan in for " + use_display_name(post) + " from " + use_display_name(proj))
+    #
+    #         plt.ylabel("Count")
+    #         plt.xlabel("Fan in")
+    #         plt.tight_layout()
+    #         save_figure(
+    #             plt,
+    #             os.path.join(per_neuron_figs,
+    #                          "fan_IN_hist_{}").format(proj),
+    #             extensions=[".png", ])
+    #         plt.show()
+    #         plt.close(f)
+    #
+    #         f = plt.figure(1, figsize=(8, 5), dpi=400)
+    #         plt.hist(curr_fan_out, bins=20, color=viridis_cmap(pre_index / (n_plots + 1)),
+    #                  rasterized=True,
+    #                  edgecolor='k')
+    #
+    #         plt.title("Fan out for " + use_display_name(pre) + " from " + use_display_name(proj))
+    #
+    #         plt.ylabel("Count")
+    #         plt.xlabel("Fan out")
+    #         plt.tight_layout()
+    #         save_figure(
+    #             plt,
+    #             os.path.join(per_neuron_figs,
+    #                          "fan_OUT_hist_{}").format(proj),
+    #             extensions=[".png", ])
+    #         plt.show()
+    #         plt.close(f)
+
     if conn_exists and worst_case:
         for pop in plot_order:
             for proj, worst_spikes in per_conn_worst_spikes[pop].items():
@@ -886,7 +916,7 @@ def spike_analysis(results_file, fig_folder,
                 cbar = plt.colorbar(im, cax=cax)
                 cbar.set_label("# of spikes")
 
-                ax.set_xlabel("Time (ms)")
+                ax.set_xlabel("Time step")
                 ax.set_ylabel("Neuron ID")
 
                 ax.set_xlim(2800, 3800)
@@ -894,9 +924,8 @@ def spike_analysis(results_file, fig_folder,
                 #              stim_wanted_times.max() * time_to_bin_conversion)
                 #             plt.xticks(stim_wanted_times * time_to_bin_conversion, stim_wanted_times)
                 #             ax.xticks(np.linspace(2800, 3800, 6))
-                ax.set_xticklabels([str(x) for x in (np.linspace(2800, 3800, 6) / 10)])
-
-                save_figure(plt, os.path.join(sim_fig_folder,
+                # ax.set_xticklabels([str(x) for x in (np.linspace(2800, 3800, 6) / 10)])
+                save_figure(plt, os.path.join(per_neuron_figs,
                                               "afferent_wcs_{}_{}".format(pop, proj)),
                             #                         extensions=['.png', '.pdf'])
                             extensions=['.png', ])
@@ -958,7 +987,7 @@ def spike_analysis(results_file, fig_folder,
     per_core_abcd = {}
 
     for index, pop in enumerate(plot_order):
-        if pop not in per_conn_worst_spikes.keys():
+        if pop not in per_conn_worst_spikes.keys() or pop not in other_recordings.keys():
             continue
         print("POPULATION", pop)
         zipper = zip((other_recordings[pop]['v'].segments[0].filter(name='v')[0].magnitude.T * 2 ** 15).astype(int),
@@ -1106,6 +1135,203 @@ def spike_analysis(results_file, fig_folder,
                              "worst_neuron_only_spikes_per_pop_{}").format(pop),
                 extensions=[".pdf", ])
             plt.close(f)
+
+    # Plot peak activity for each population when plotted in 2D
+    # Select projection
+    # proj = "pf_pc"
+    # pop="glomerulus"
+
+    for pop in plot_order:
+        print("POP", pop)
+        print("-" * 80)
+        source_spikes = copy.deepcopy(np.array(all_spikes[pop]))
+        no_pre_neurons = all_neurons[pop]
+        print("# neurons", all_neurons[pop])
+
+        # Count number of spikes generated in each timestep
+        ## Transform spike time into timestep (multiply by time_to_bin_conversion)
+        source_spikes[:, 1] *= time_to_bin_conversion
+        source_spikes = source_spikes.astype(int)
+
+        ## Create (no neurons, timesteps) matrix and record spikes generated at each timestep
+        spike_matrix = np.zeros((no_pre_neurons, int(simtime / timestep))).astype(int)
+        spike_matrix[source_spikes[:, 0], source_spikes[:, 1]] = 1
+        spike_matrix = spike_matrix
+
+        ##### Plot the total matrix
+        cummulative_total_matrix = np.sum(spike_matrix, axis=1)
+        l = int(np.ceil(np.sqrt(no_pre_neurons)))
+        padded_slice = np.concatenate((cummulative_total_matrix, [np.nan] * (l ** 2 - cummulative_total_matrix.size)))
+        activity_map = padded_slice.reshape((l, l))
+
+        ###### PLOTTING STUFF
+        # start with a square Figure
+        fig = plt.figure(figsize=(9, 9), dpi=500)
+
+        ax = fig.add_axes(rect_scatter)
+        ax_histx = fig.add_axes(rect_histx, sharex=ax)
+        ax_histy = fig.add_axes(rect_histy, sharey=ax)
+        ax_histx.set_title(use_display_name(pop))
+        # use the previously defined function
+        # scatter_hist(x, y, ax, ax_histx, ax_histy)
+        imshow_hist(activity_map, ax, ax_histx, ax_histy)
+        save_figure(plt, os.path.join(per_neuron_figs,
+                                      "cummulative_activity_for_population_{}".format(pop)),
+                    extensions=['.png', ])
+
+        plt.show()
+        plt.close(fig)
+
+        ## Sum over the second dimension to get number of spikes per timestep
+        spike_sum = np.sum(spike_matrix, axis=0)
+
+        # Order timesteps in decreasing order of number of spikes
+        ordered_timesteps = np.argsort(spike_sum)[::-1]
+        for i in range(5):
+            # Plot the activity of the worst timesteps
+            selected_timestep = ordered_timesteps[i]
+            selected_slice = copy.deepcopy(spike_matrix[:, selected_timestep])
+            print("Selected timestep", selected_timestep)
+            # Plot 2D map
+            l = int(np.ceil(np.sqrt(no_pre_neurons)))
+            padded_slice = np.concatenate((selected_slice, [np.nan] * (l ** 2 - selected_slice.size)))
+            activity_map = padded_slice.reshape((l, l))
+
+            ###### PLOTTING STUFF
+            # start with a square Figure
+            fig = plt.figure(figsize=(9, 9), dpi=500)
+
+            ax = fig.add_axes(rect_scatter)
+            ax_histx = fig.add_axes(rect_histx, sharex=ax)
+            ax_histy = fig.add_axes(rect_histy, sharey=ax)
+            ax_histx.set_title(use_display_name(pop) + "; timestep=" + str(selected_timestep) + "; # spikes=" + str(
+                spike_sum[selected_timestep]))
+            # use the previously defined function
+            # scatter_hist(x, y, ax, ax_histx, ax_histy)
+            imshow_hist(activity_map, ax, ax_histx, ax_histy)
+            save_figure(plt, os.path.join(per_neuron_figs,
+                                          "activity_for_population_{}_at_timestep_{}".format(pop, selected_timestep)),
+                        extensions=['.png', ])
+
+            if i == 0:
+                plt.show()
+            plt.close(fig)
+
+            # Plot activity per timestep for the population
+            interval_start = int(stim_period_start[pop] * time_to_bin_conversion)
+            interval_end = int(stim_period_end[pop] * time_to_bin_conversion)
+            print("interval start", interval_start)
+            print("interval end", interval_end)
+            interval_of_interest = np.array(spike_sum[interval_start:interval_end])
+            print("-" * 80)
+            plt.plot(np.arange(interval_start, interval_end) * (timestep / ms), interval_of_interest)
+            plt.xlabel("Time (ms)")
+            plt.ylabel("# spikes")
+            if i == 0:
+                plt.show()
+
+
+                # Plot activity snapshots
+    # Select projection
+    # proj = "pf_pc"
+    for pop in plot_order:
+        print("POST", pop)
+        for proj, worst_spikes in per_conn_worst_spikes[pop].items():
+            # Retrieve additional needed info
+            # pop = conn_params[proj]['post']
+            print("\tPROJ", proj)
+            pre = conn_params[proj]['pre']
+            print("\tPRE", pre)
+            print("-" * 80)
+            source_spikes = all_spikes[pre]
+            curr_conn = final_connectivity[proj]
+            spike_count_for_proj = per_conn_worst_spikes[pop][proj]
+            no_pre_neurons = all_neurons[pre]
+            # Order neurons (rows) in decreasing order of worst activity (see the highest peak)
+            worst_per_neuron = np.max(spike_count_for_proj, axis=1)
+            ordered_neuron_ids = np.argsort(worst_per_neuron)[::-1]
+
+            for i in range(analysis_loops):
+                # Select a neuron
+                selected_neuron = int(ordered_neuron_ids[i])
+
+                # For the selected neuron, order timesteps in decreasing order of spikes received  (in it)
+                ordered_timesteps = np.argsort(spike_count_for_proj[selected_neuron])[::-1]
+
+                # Select a timestep
+                selected_timestep = ordered_timesteps[0]
+
+                # Transform timestep to time
+                selected_time = selected_timestep * timestep
+
+                # Where are those spikes coming from? Replay spikes once again.
+                coincident_pre_neuron_ids = source_spikes[np.isclose(source_spikes[:, 1], (selected_time / ms))][:, 0]
+                # Intersect coincident_pre_neuron_ids with possible sources for the selected_neuron
+                incoming_connections_to_selected_neuron = curr_conn[curr_conn[:, 1].astype(int) == selected_neuron][:,
+                                                          0].astype(int)
+                responsible_pre_neuron_ids = np.intersect1d(coincident_pre_neuron_ids,
+                                                            incoming_connections_to_selected_neuron).astype(int)
+
+                # SANITY CHECK! Are we getting the same number of responsible neurons as originally counted?
+                try:
+                    assert responsible_pre_neuron_ids.size == spike_count_for_proj[selected_neuron, selected_timestep], \
+                        str(responsible_pre_neuron_ids.size) + "vs." + str(
+                            spike_count_for_proj[selected_neuron, selected_timestep])
+                except AssertionError as ae:
+                    traceback.print_exc()
+                #                 continue
+                if i < plotting_loops:
+                    # Plot diff (distance 1D) between subsequent  neuron ids
+                    diff_ids = np.diff(responsible_pre_neuron_ids)
+                    f, (ax0, ax1) = plt.subplots(1, 2, figsize=(6, 4), dpi=500, sharey=True,
+                                                 gridspec_kw={'width_ratios': [3, 1]})
+                    ax0.plot(diff_ids)
+                    #             ax0.set_xlabel("Neuron ID")
+                    #             ax0.set_ylabel("Difference")
+                    ax1.hist(diff_ids, bins="auto", orientation="horizontal", edgecolor='black')
+                    plt.tight_layout()
+                    save_figure(plt, os.path.join(per_neuron_figs,
+                                                  "diff_{}_from_proj_{}".format(selected_neuron, proj)),
+                                extensions=['.png', ])
+                    if i == 0:
+                        plt.show()
+                    plt.close(f)
+                    # Plot 1D map
+
+                    # Plot 2D map
+                    l = int(np.ceil(np.sqrt(no_pre_neurons)))
+                    activity_map = np.ones((l, l)) * np.nan
+                    # Plot using 3 colours: 0 = neuron, 0.5 = neuron present in source list, 1.0 = neuron fired this timestep
+                    for nid in np.arange(no_pre_neurons):
+                        colour = 0
+                        if nid in responsible_pre_neuron_ids:
+                            colour = 1.0
+                        elif nid in incoming_connections_to_selected_neuron:
+                            colour = 0.5
+                        activity_map[np.unravel_index(nid, activity_map.shape)] = colour
+
+                    fig = plt.figure(figsize=(9, 9), dpi=500)
+
+                    ax = fig.add_axes(rect_scatter)
+                    ax_histx = fig.add_axes(rect_histx, sharex=ax)
+                    ax_histy = fig.add_axes(rect_histy, sharey=ax)
+                    ax_histx.set_title(
+                        use_display_name(pop) + "; timestep=" + str(selected_timestep) + "; # spikes=" + str(
+                            spike_sum[selected_timestep]))
+                    imshow_hist(activity_map, ax, ax_histx, ax_histy, only_count_1s=True)
+                    ax_histx.set_title(use_display_name(proj) + "; NID=" + str(selected_neuron) + ";\ntimestep=" + str(
+                        selected_timestep) + "; #spikes=" + str(responsible_pre_neuron_ids.size))
+                    ax.set_xlabel("Neuron ID")
+                    ax.set_ylabel("Neuron ID")
+                    save_figure(plt, os.path.join(per_neuron_figs,
+                                                  "activity_for_neuron_{}_from_proj_{}".format(selected_neuron, proj)),
+                                extensions=['.png', ],
+                                bbox_inches='tight')
+                    if i == 0:
+                        plt.show()
+                    plt.close(fig)
+
+                # Plot using actual 3D positions
 
     # raster plot including ALL populations
     print("Plotting spiking raster plot for all populations")
@@ -1553,8 +1779,8 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
 
         print(reporting_format_string.format(
             "", "instant. firing rate",
-            np.nanmean(all_instantenous_rate_diff[pop]),
-            np.nanstd(all_instantenous_rate_diff[pop])))
+            np.nanmean(all_instantenous_rate_diff[pop].magnitude),
+            np.nanstd(all_instantenous_rate_diff[pop].magnitude)))
 
         all_corr_coef[pop] = corr_coef_per_neuron
         all_cross_corr[pop] = cross_corr_per_neuron

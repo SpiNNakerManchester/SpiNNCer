@@ -23,8 +23,13 @@ from spinncer.utilities.reporting import (population_reporting,
                                           projection_reporting)
 from elephant.spike_train_generation import homogeneous_poisson_process
 import quantities as pq
-import sys
-from spinncer.utilities.utils import flatten_dict, create_poisson_spikes, floor_spike_time
+import pandas as pd
+import neo
+from spinncer.utilities.utils import (flatten_dict, create_poisson_spikes,
+                                      floor_spike_time, random_id_mapping,
+                                      apply_id_mapping, hilbert_id_mapping,
+                                      apply_id_mapping_to_list,
+                                      revert_id_mapping_to_list, revert_id_mapping)
 import traceback
 
 
@@ -37,7 +42,10 @@ class Cerebellum(Circuit):
                  input_spikes=None,
                  rb_left_shifts=None,
                  no_loops=3,
-                 round_input_spike_times=None
+                 round_input_spike_times=None,
+                 id_remap=None,
+                 spike_seed=None,
+                 id_seed=None
                  ):
         """
         Cerebellum Circuit
@@ -55,6 +63,12 @@ class Cerebellum(Circuit):
         self.new_scaffold = False
         # Attempt to use passed in cell and connectivity params. If none,
         # use defaults specified in constants but report DECISION
+
+        self.id_mapping = {}
+        self.spike_seed = spike_seed
+        self.id_seed = id_seed
+        self.id_remap = id_remap
+
         print("=" * 80)
 
         connectivity_data = self.__extract_connectivity(connectivity)
@@ -133,17 +147,12 @@ class Cerebellum(Circuit):
 
         print("=" * 80)
 
+        self.pd_positions = pd.DataFrame(self.cell_positions, columns=["nid", "pop", "x", "z", "y"])
         self.populations = {k: None for k in self.cell_params.keys()}
         self.number_of_neurons = {k: None for k in self.cell_params.keys()}
         self.nid_offset = {k: None for k in self.cell_params.keys()}
         self.rb_shifts = {k: None for k in self.cell_params.keys()}
 
-        # TODO is there anything clever and worth it here?
-        # for k in self.rb_shifts.keys():
-        #     if rb_left_shifts is not None and "purkinje" in k:
-        #         self.rb_shifts[k] = np.asarray(rb_left_shifts).astype(int)
-        #     else:
-        #         self.rb_shifts[k] = None
         self.no_loops = no_loops
         for k in self.rb_shifts.keys():
             if "purkinje" in k:
@@ -196,7 +205,6 @@ class Cerebellum(Circuit):
                     self.nid_offset[k] = \
                         np.min(actual_ids).astype(int)
                 else:
-                    # Check if this entity is in the entitites dataset thing
                     self.nid_offset[k] = 0
                 # get the number of neurons
                 # if k != "mossy_fibers":
@@ -212,6 +220,20 @@ class Cerebellum(Circuit):
             # Compute the number of neurons in each population
             self.__compute_number_of_neurons()
 
+        # Remap ids either randomly or by their position
+        if self.id_remap is not None:
+            for cell_name in self.number_of_neurons.keys():
+                ids_before = np.arange(self.number_of_neurons[cell_name])
+
+                if self.id_remap == "random":
+                    ids_after = random_id_mapping(ids_before)
+                elif self.id_remap == "hilbert":
+                    ids_after = hilbert_id_mapping(
+                        positions=self.pd_positions[self.pd_positions['pop'] == POPULATION_ID[cell_name]],
+                        nid_offset=self.nid_offset[cell_name],
+                        no_slices=8)
+                self.id_mapping[cell_name] = (ids_before, ids_after)
+
         self._raw_connectivity_info = connections
         if not skip_projections and force_number_of_neurons is None:
             self.__normalise_connections()
@@ -223,6 +245,15 @@ class Cerebellum(Circuit):
         elif not force_number_of_neurons:
             # generate necessary spikes
             self.stimulus = self.__compute_stimulus()
+
+        # Do stimulus remapping here
+        if self.id_remap is not None:
+            for stimulus_producer, stimulus_activity in self.stimulus.items():
+                print("Reordering IDs for", stimulus_producer)
+                reordered_spikes = []
+                spikes = stimulus_activity['spike_times']
+                self.stimulus[stimulus_producer]['spike_times'] = apply_id_mapping_to_list(
+                    spikes, self.id_mapping[stimulus_producer])
 
         # Construct PyNN neural Populations
         self.build_populations(self.cell_positions)
@@ -236,7 +267,6 @@ class Cerebellum(Circuit):
 
         for pop_name, pop_obj in self.populations.items():
             self.__setattr__(pop_name, pop_obj)
-
 
     def __compute_number_of_neurons(self):
         # compute number of neurons here if not done previously
@@ -291,7 +321,7 @@ class Cerebellum(Circuit):
                         if len(row) > 0:
                             rounded_spike_times = floor_spike_time(
                                 row, dt=self.round_input_spike_times,
-                                t_stop=np.max(row)+self.round_input_spike_times
+                                t_stop=np.max(row) + self.round_input_spike_times
                             )
                         else:
                             rounded_spike_times = np.asarray([])
@@ -371,6 +401,7 @@ class Cerebellum(Circuit):
                 print("Ignoring connection {:25} "
                       "".format(conn_label), "...")
                 continue
+
             no_synapses = conns.shape[0]
             pre_pop = self.conn_params[conn_label]['pre']
             post_pop = self.conn_params[conn_label]['post']
@@ -390,6 +421,11 @@ class Cerebellum(Circuit):
             norm_ids = np.asarray([self.nid_offset[pre_pop],
                                    self.nid_offset[post_pop]])
             conns -= norm_ids
+
+            if self.id_remap is not None:
+                print("Remapping ids for connection", conn_label)
+                conns[:, 0] = apply_id_mapping(conns[:, 0], self.id_mapping[pre_pop])
+                conns[:, 1] = apply_id_mapping(conns[:, 1], self.id_mapping[post_pop])
 
             # Save the explicit connectivity for later
             # (after scaling the weights)
@@ -554,7 +590,6 @@ class Cerebellum(Circuit):
                 'spike_times': spike_times
             }}
 
-
     def __normalise_connections(self):
         connections = self._raw_connectivity_info
         # Retrieve the Projection labels
@@ -600,11 +635,13 @@ class Cerebellum(Circuit):
                 conns[conns < 0] = 2 ** 32 - 1
             else:
                 assert (np.max(conns[:, 0]) < self.number_of_neurons[pre_pop]), \
-                    "pre id max: {} vs. {} for {}".format(np.max(conns[:, 0]), self.number_of_neurons[pre_pop], conn_label)
+                    "pre id max: {} vs. {} for {}".format(np.max(conns[:, 0]), self.number_of_neurons[pre_pop],
+                                                          conn_label)
                 assert (np.min(conns[:, 0]).astype(int) >= 0), \
                     "pre id min: {} vs. {} for {}".format(np.min(conns[:, 0]), 0, conn_label)
                 assert (np.max(conns[:, 1]) < self.number_of_neurons[post_pop]), \
-                    "post id max: {} vs. {} for {}".format(np.max(conns[:, 0]), self.number_of_neurons[post_pop], conn_label)
+                    "post id max: {} vs. {} for {}".format(np.max(conns[:, 0]), self.number_of_neurons[post_pop],
+                                                           conn_label)
                 assert (np.min(conns[:, 1]).astype(int) >= 0), \
                     "post id min: {} vs. {} for {}".format(np.min(conns[:, 1]), 0, conn_label)
             self.connections[conn_label] = np.concatenate(
@@ -685,9 +722,19 @@ class Cerebellum(Circuit):
                         for t in _times:
                             _spikes.append(np.asarray([i, t]))
                     _spikes = np.asarray(_spikes)
-                    all_spikes[label] = _spikes
                 else:
-                    all_spikes[label] = pop.get_data(['spikes'])
+                    _spikes = pop.get_data(['spikes'])
+
+                if self.id_remap:
+                    if isinstance(_spikes, neo.Block):
+                        st = _spikes.segments[0].spiketrains
+                        st = revert_id_mapping_to_list(st,
+                                                       self.id_mapping[label])
+                        _spikes.segments[0].spiketrains = st
+                    else:
+                        _spikes[:, 0] = revert_id_mapping(_spikes[:, 0].astype(int),
+                                                          self.id_mapping[label])
+                all_spikes[label] = _spikes
         return all_spikes
 
     def retrieve_selective_recordings(self):
@@ -703,9 +750,30 @@ class Cerebellum(Circuit):
                 continue
             print("Retrieving recordings for ", label, "...")
             gsyn_rec[label] = {}
-            gsyn_rec[label]['gsyn_inh'] = pop.get_data(['gsyn_inh'])
-            gsyn_rec[label]['gsyn_exc'] = pop.get_data(['gsyn_exc'])
-            gsyn_rec[label]['v'] = pop.get_data(['v'])
+            _gi = pop.get_data(['gsyn_inh'])
+            _ge = pop.get_data(['gsyn_exc'])
+            _v = pop.get_data(['v'])
+
+            # TODO figure out how to deal with sparse reordering
+            # if self.id_remap:
+            #     x = _gi.segments[0].analogsignals
+            #     x = revert_id_mapping_to_list(x,
+            #                                   self.id_mapping[label])
+            #     _gi.segments[0].analogsignals = x
+            #
+            #     x = _ge.segments[0].analogsignals
+            #     x = revert_id_mapping_to_list(x,
+            #                                   self.id_mapping[label])
+            #     _ge.segments[0].analogsignals = x
+            #
+            #     x = _v.segments[0].analogsignals
+            #     x = revert_id_mapping_to_list(x,
+            #                                   self.id_mapping[label])
+            #     _v.segments[0].analogsignals = x
+
+            gsyn_rec[label]['gsyn_inh'] = _gi
+            gsyn_rec[label]['gsyn_exc'] = _ge
+            gsyn_rec[label]['v'] = _v
         return gsyn_rec
 
     def selectively_record_all(self, number_of_neurons=None, every=None,
@@ -718,19 +786,18 @@ class Cerebellum(Circuit):
             if label == "glomerulus":
                 print("Skipping selective recording for", label, "...")
             else:
-                print("Selectively recording gsyn and v for ", label)
                 ps = pop.size
                 if from_dict is not None:
                     _neuron_choice = np.arange(0, ps, from_dict[label])
-                if number_of_neurons:
+                elif number_of_neurons:
                     _neuron_choice = np.random.choice(
                         ps, size=min(number_of_neurons, ps), replace=False)
-                else:
+                elif every:
                     _neuron_choice = np.arange(0, ps, every)
-                if label in ["purkinje", "dcn"]:
-                    pop.record(['gsyn_inh', 'gsyn_exc', 'v'])
                 else:
-                    pop[_neuron_choice].record(['gsyn_inh', 'gsyn_exc', 'v'])
+                    raise ValueError("How did we get this far?")
+                print("Selectively recording gsyn and v for ", label, "neurons:", _neuron_choice)
+                pop[_neuron_choice].record(['gsyn_inh', 'gsyn_exc', 'v'])
 
     def retrieve_final_connectivity(self):
         all_connections = {}
@@ -740,14 +807,24 @@ class Cerebellum(Circuit):
                 continue
             print("Retrieving connectivity for projection ", label, "...")
             try:
-                all_connections[label] = \
-                    np.array(p.get(('weight', 'delay'),
-                                   format="list")._get_data_items())
+                conn = np.array(p.get(('weight', 'delay'),
+                                      format="list")._get_data_items())
             except Exception as e:
                 print("Careful! Something happened when retrieving the "
                       "connectivity:", e, "\nRetrying...")
-                all_connections[label] = \
-                    np.array(p.get(('weight', 'delay'), format="list"))
+                conn = np.array(p.get(('weight', 'delay'), format="list"))
+
+            # conn isn't in the proper format because it uses
+
+            # TODO Revert the ID mappings here?
+            if self.id_remap:
+                pre = self.conn_params[label]['pre']
+                post = self.conn_params[label]['post']
+                adjusted_sources = revert_id_mapping(conn['source'].astype(int), self.id_mapping[pre])
+                adjusted_targets = revert_id_mapping(conn['target'].astype(int), self.id_mapping[post])
+                conn = np.vstack((adjusted_sources, adjusted_targets, conn['weight'], conn['delay'])).T
+
+            all_connections[label] = conn
         return all_connections
 
     def retrieve_population_names(self):

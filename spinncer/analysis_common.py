@@ -28,6 +28,7 @@ import quantities as pq
 
 mlib.use('Agg')
 warnings.filterwarnings("ignore", category=UserWarning)
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 warnings.filterwarnings("ignore", category=FutureWarning)
 
@@ -210,3 +211,142 @@ def save_figure(plt, name, extensions=(".png",), **kwargs):
     for ext in extensions:
         write_short_msg("Plotting", name + ext)
         plt.savefig(name + ext, **kwargs)
+
+
+def is_iterable(obj):
+    """
+    https://stackoverflow.com/questions/1952464/in-python-how-do-i-determine-if-an-object-is-iterable
+    """
+    try:
+        iter(obj)
+    except Exception:
+        return False
+    else:
+        return True
+
+
+# Composable functions to easily get the necessary spiking information
+def filter_spikes_by_post_ids(pre_spikes, connection, post_ids):
+    if not is_iterable(post_ids):
+        post_ids = np.array([post_ids]).astype(int)
+    pre_ids = connection[np.in1d(connection[:, 1].astype(int), post_ids)][:, 0].astype(int)
+    return pre_spikes[np.in1d(pre_spikes[:, 0].astype(int), pre_ids)]
+
+
+def filter_spikes_by_timestep(spikes, timestep, dt=0.1):
+    """
+    Call filter_spikes_by_times
+    """
+    return filter_spikes_by_time(spikes, timestep * dt)
+
+
+def filter_spikes_by_time(spikes, time):
+    return spikes[np.isclose(spikes[:, 1], time)]
+
+
+
+# TODO make this self-contained
+def plot_3d_cell_positions(position, plot_order,
+                           highlight_afferents_for=None, conn_params=None, final_connectivity=None,
+                           hightlight_rasterisation_for=None, az=0, rot=0, scenic=False):
+    # Do ID mapping for pre and post in highlight_afferents_for here
+    h_pre_ids = []
+    h_post_ids = []
+    h_active_pre_ids = []
+    if highlight_afferents_for:
+        h_post_ids = highlight_afferents_for['post_ids']
+        timestep = highlight_afferents_for['timestep']
+        curr_proj = highlight_afferents_for['proj']
+        curr_conn = final_connectivity[highlight_afferents_for['proj']]
+        for hpi in h_post_ids:
+            # Also retrieve active pre ids
+            # This involves computing active afferents
+            passive_pres = curr_conn[curr_conn[:, 1]==hpi][:, 0].astype(int)
+            if timestep:
+                active_pres = filter_spikes_by_timestep(all_spikes[conn_params[curr_proj]['pre']], timestep)
+                # highligh only active cells
+                h_pre_ids.extend(np.intersect1d(passive_pres, active_pres))
+            else:
+                h_pre_ids.extend(passive_pres)
+
+
+    h_pre_ids = np.asarray(h_pre_ids).ravel()
+
+    # Order position ids based on plot_order
+    id_order = [POPULATION_ID[po] for po in plot_order]
+    #
+    fig = plt.figure(figsize=(10,8), dpi=300)
+    ax = fig.add_subplot(111, projection='3d')
+
+    for ind, (_id, pop) in enumerate(zip(id_order, plot_order)):
+        if selective_display and not to_display[pop]:
+            continue
+        curr_data = position[position['pop']==_id]
+        curr_alpha= alphas[pop]
+        curr_marker = markers[pop]
+        if highlight_afferents_for and pop == conn_params[highlight_afferents_for['proj']]['post']:
+            print("Highlight afferents for", pop, highlight_afferents_for)
+            # Reduced alpha for non-selected ids
+            selected_points = curr_data.iloc[h_post_ids]
+            ax.scatter(selected_points.x, selected_points.y, selected_points.z,
+                       color=viridis_cmap(ind / (n_plots + 1)),
+                       alpha=1, marker="x", label="Selected " + use_display_name(pop))
+
+            if pop != conn_params[highlight_afferents_for['proj']]['pre']:
+                unselected_points = curr_data.loc[curr_data.index.difference(h_post_ids)]
+                ax.scatter(unselected_points.x, unselected_points.y, unselected_points.z,
+                           color=viridis_cmap(ind / (n_plots + 1)),
+                           alpha=low_alpha, marker=curr_marker,
+                           label="Unselected " + use_display_name(pop))
+
+        if highlight_afferents_for and pop == conn_params[highlight_afferents_for['proj']]['pre']:
+            print("Highlight afferents for", pop, highlight_afferents_for)
+            # need to run scatter plot twice. Once for selected. Once for ignored.
+
+            selected_points = curr_data.iloc[h_pre_ids]
+            ax.scatter(selected_points.x, selected_points.y, selected_points.z,
+                       color=viridis_cmap(ind / (n_plots + 1)),
+                       alpha=.2, marker=curr_marker,
+                       label="Selected " + use_display_name(pop))
+
+            if pop != conn_params[highlight_afferents_for['proj']]['post']:
+                unselected_points = curr_data.loc[curr_data.index.difference(h_pre_ids)]
+                ax.scatter(unselected_points.x, unselected_points.y, unselected_points.z,
+                           color=viridis_cmap(ind / (n_plots + 1)),
+                           alpha=low_alpha, marker=curr_marker,
+                           label="Unselected " + use_display_name(pop))
+
+        if hightlight_rasterisation_for and pop in hightlight_rasterisation_for:
+            id_range = np.asarray(curr_data['nid'])- nid_offset[pop]
+            gen_colours = list(map(viridis_cmap, id_range/(all_neurons[pop] + 1)))
+            ax.scatter(curr_data.x, curr_data.y, curr_data.z,
+                       color=gen_colours,
+                       alpha=.8, marker=curr_marker,
+                       label=use_display_name(pop))
+        elif not highlight_afferents_for:
+            ax.scatter(curr_data.x, curr_data.y, curr_data.z,
+                       color=viridis_cmap(ind / (n_plots + 1)),
+                       alpha=curr_alpha, marker=curr_marker,
+                       label=use_display_name(pop))
+        # After plotting all of the static connectivity, highlight active connectivity
+        if highlight_afferents_for and highlight_afferents_for['timestep']:
+            # TODO retrieve ids of active pre connections
+            pass
+
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_zlabel('Z')
+    ax.set_xlim(0, 400)
+    ax.set_ylim(0, 400)
+    # plt.legend(loc="best")
+    if scenic:
+        ax.set_axis_off()
+        plt.tight_layout()
+    else:
+        plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+    ax.view_init(az, rot)  # first number controls azymuth, second control rotation
+    save_figure(plt, os.path.join(per_neuron_figs,
+                                         "3D_positions_{}_{}".format(az, rot)),
+                        extensions=['.png', ])
+    plt.show()
+    plt.close(fig)
