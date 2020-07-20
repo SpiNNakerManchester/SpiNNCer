@@ -725,15 +725,15 @@ class Cerebellum(Circuit):
                 else:
                     _spikes = pop.get_data(['spikes'])
 
-                if self.id_remap:
-                    if isinstance(_spikes, neo.Block):
-                        st = _spikes.segments[0].spiketrains
-                        st = revert_id_mapping_to_list(st,
-                                                       self.id_mapping[label])
-                        _spikes.segments[0].spiketrains = st
-                    else:
-                        _spikes[:, 0] = revert_id_mapping(_spikes[:, 0].astype(int),
-                                                          self.id_mapping[label])
+                # if self.id_remap:
+                #     if isinstance(_spikes, neo.Block):
+                #         st = _spikes.segments[0].spiketrains
+                #         st = revert_id_mapping_to_list(st,
+                #                                        self.id_mapping[label])
+                #         _spikes.segments[0].spiketrains = st
+                #     else:
+                #         _spikes[:, 0] = revert_id_mapping(_spikes[:, 0].astype(int),
+                #                                           self.id_mapping[label])
                 all_spikes[label] = _spikes
         return all_spikes
 
@@ -817,12 +817,12 @@ class Cerebellum(Circuit):
             # conn isn't in the proper format because it uses
 
             # TODO Revert the ID mappings here?
-            if self.id_remap:
-                pre = self.conn_params[label]['pre']
-                post = self.conn_params[label]['post']
-                adjusted_sources = revert_id_mapping(conn['source'].astype(int), self.id_mapping[pre])
-                adjusted_targets = revert_id_mapping(conn['target'].astype(int), self.id_mapping[post])
-                conn = np.vstack((adjusted_sources, adjusted_targets, conn['weight'], conn['delay'])).T
+            # if self.id_remap:
+            #     pre = self.conn_params[label]['pre']
+            #     post = self.conn_params[label]['post']
+            #     adjusted_sources = revert_id_mapping(conn['source'].astype(int), self.id_mapping[pre])
+            #     adjusted_targets = revert_id_mapping(conn['target'].astype(int), self.id_mapping[post])
+            #     conn = np.vstack((adjusted_sources, adjusted_targets, conn['weight'], conn['delay'])).T
 
             all_connections[label] = conn
         return all_connections
