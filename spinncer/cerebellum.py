@@ -239,7 +239,7 @@ class Cerebellum(Circuit):
                             nid_offset=self.nid_offset[cell_name],
                             no_slices=8)
                 else:
-                    ids_after = copy(ids_before)
+                    ids_after = copy.deepcopy(ids_before)
                 self.id_mapping[cell_name] = (ids_before, ids_after)
                 # Check that we can map back to the original values
                 assert np.all(ids_before == revert_id_mapping(ids_after, self.id_mapping[cell_name]))
