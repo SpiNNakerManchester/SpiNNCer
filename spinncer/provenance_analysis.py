@@ -71,7 +71,9 @@ def provenance_csv_analysis(in_folder, fig_folder):
         'Total_pre_synaptic_events',
         'MAX_DMAS_IN_A_TICK',
         'MAX_PIPELINE_RESTARTS',
-        'send_multicast_packets'
+        'send_multicast_packets',
+        'MAX_FLUSHED_SPIKES',
+        'TOTAL_FLUSHED_SPIKES'
     ]
 
     results = {k: None for k in types_of_provenance}
