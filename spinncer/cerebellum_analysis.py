@@ -1231,9 +1231,7 @@ def spike_analysis(results_file, fig_folder,
                 plt.show()
 
 
-                # Plot activity snapshots
-    # Select projection
-    # proj = "pf_pc"
+    # Plot activity snapshots
     for pop in plot_order:
         print("POST", pop)
         for proj, worst_spikes in per_conn_worst_spikes[pop].items():

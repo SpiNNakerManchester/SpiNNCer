@@ -102,7 +102,9 @@ cerebellum_circuit = Cerebellum(
     rb_left_shifts=args.rb_left_shifts,
     no_loops=args.loops_grc,
     round_input_spike_times=round_spike_times,
-    id_remap=args.id_remap
+    id_remap=args.id_remap,
+    id_seed=args.id_seed,
+    spike_seed=args.spike_seed
 )
 
 if args.generate_conversion_constants:

@@ -32,6 +32,7 @@ from spinncer.utilities.utils import (flatten_dict, create_poisson_spikes,
                                       apply_id_mapping_to_list,
                                       revert_id_mapping_to_list, revert_id_mapping)
 import traceback
+from pprint import pprint as pp
 
 
 class Cerebellum(Circuit):
@@ -221,23 +222,31 @@ class Cerebellum(Circuit):
             # Compute the number of neurons in each population
             self.__compute_number_of_neurons()
 
+        pp("NID offsets")
+        pp(self.nid_offset)
+
+
         # Remap ids either randomly or by their position
         if self.id_remap is not None:
             for cell_name in self.number_of_neurons.keys():
                 ids_before = np.arange(self.number_of_neurons[cell_name])
-
-                if self.id_remap == "random":
-                    ids_after = random_id_mapping(ids_before)
-                elif self.id_remap == "hilbert":
-                    ids_after = hilbert_id_mapping(
-                        positions=self.pd_positions[self.pd_positions['pop'] == POPULATION_ID[cell_name]],
-                        nid_offset=self.nid_offset[cell_name],
-                        no_slices=8)
+                if cell_name not in ['glomerulus']:
+                    if self.id_remap == "random":
+                        ids_after = random_id_mapping(ids_before, seed=self.id_seed)
+                    elif self.id_remap == "hilbert":
+                        ids_after = hilbert_id_mapping(
+                            positions=self.pd_positions[self.pd_positions['pop'] == POPULATION_ID[cell_name]],
+                            nid_offset=self.nid_offset[cell_name],
+                            no_slices=8)
+                else:
+                    ids_after = copy(ids_before)
                 self.id_mapping[cell_name] = (ids_before, ids_after)
+                # Check that we can map back to the original values
+                assert np.all(ids_before == revert_id_mapping(ids_after, self.id_mapping[cell_name]))
 
         self._raw_connectivity_info = connections
-        if not skip_projections and force_number_of_neurons is None:
-            self.__normalise_connections()
+        # if not skip_projections and force_number_of_neurons is None:
+        #     self.__normalise_connections()
 
         if input_spikes:
             # use passed in spikes
@@ -557,8 +566,22 @@ class Cerebellum(Circuit):
                                        np.array([x_c, y_c, z_c])) ** 2,
                                       axis=1).__lt__(radius ** 2)
             target_gloms = np.asarray(gloms_pos[target_gloms_idx, 0]).astype(int)
+            np.savetxt("selected_glom_gids.csv", target_gloms, delimiter=",")
             # The target_gloms are not normalised (they are global IDs)
             target_gloms -= self.nid_offset['glomerulus']
+            np.savetxt("selected_glom_ids.csv", target_gloms, delimiter=",")
+
+            if self.id_remap == "random":
+                np.savetxt("selected_glom_random_ids.csv", apply_id_mapping(target_gloms,
+                                                                            self.id_mapping['glomerulus']),
+                           delimiter=",")
+                np.save("selected_glom_random_mapping", self.id_mapping['glomerulus'])
+            elif self.id_remap == "hilbert":
+                np.savetxt("selected_glom_hilbert_ids.csv", apply_id_mapping(target_gloms,
+                                                                            self.id_mapping['glomerulus']),
+                           delimiter=",")
+                np.save("selected_glom_hilbert_mapping", self.id_mapping['glomerulus'])
+
 
             # Inverse selection using mask (all other target_gloms are supposed
             # to fire at f_base Hz
@@ -573,6 +596,9 @@ class Cerebellum(Circuit):
             print("Number of stimulated Gloms: ", len(target_gloms),
                   "i.e. {:6.2%} the total".format(
                       len(target_gloms) / float(no_gloms)))
+
+            if self.spike_seed:
+                np.random.seed(self.spike_seed)
 
             if not periodic_stimulus:
                 spike_times = create_poisson_spikes(no_gloms, rates,

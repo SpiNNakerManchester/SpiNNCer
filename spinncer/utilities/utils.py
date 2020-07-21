@@ -162,7 +162,7 @@ def hilbert_id_mapping(positions, nid_offset, no_slices=8):
         no_cells_in_curr_voxel = cells_in_current_voxel.shape[0]
         rolling_total_selected_cells += no_cells_in_curr_voxel
         # Sort by Y
-        cells_in_current_voxel.sort_values(by=['y', 'z', 'x'])
+        cells_in_current_voxel = cells_in_current_voxel.sort_values(by=['y', 'z', 'x'])
         old_nids = cells_in_current_voxel['nid'].values - nid_offset
         mapping_for_pop[old_nids.astype(int)] = np.arange(curr_max_id, no_cells_in_curr_voxel + curr_max_id).astype(int)
         curr_max_id += no_cells_in_curr_voxel
