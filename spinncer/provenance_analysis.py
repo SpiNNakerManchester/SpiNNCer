@@ -419,15 +419,17 @@ def plot_per_population_provenance_of_interest(
                             match_fname = call[1]
                             if match_fname not in collated_results.keys():
                                 continue
-                            if type_of_prov not in collated_results[match_fname].keys():
+                            if type_of_prov not in collated_results[match_fname].keys() and router_pop is not None:
                                 filtered_collated_results = {x: None for x in router_pop}
                                 for rp in router_pop:
                                     filtered_collated_results[rp] = {
                                         'max': np.nan,
                                         'all': pd.DataFrame([np.nan])}
-                            else:
+                            elif type_of_prov in collated_results[match_fname].keys():
                                 filtered_collated_results = \
                                     collated_results[match_fname][type_of_prov]
+                            else:
+                                continue
                             _max_values_per_pop = None
                             if _max_values_per_pop is None:
                                 if router_pop is not None:
