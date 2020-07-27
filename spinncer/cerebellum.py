@@ -29,6 +29,7 @@ import copy
 from spinncer.utilities.utils import (flatten_dict, create_poisson_spikes,
                                       floor_spike_time, random_id_mapping,
                                       apply_id_mapping, hilbert_id_mapping,
+                                      grid_id_mapping,
                                       apply_id_mapping_to_list,
                                       revert_id_mapping_to_list, revert_id_mapping)
 import traceback
@@ -225,7 +226,6 @@ class Cerebellum(Circuit):
         pp("NID offsets")
         pp(self.nid_offset)
 
-
         # Remap ids either randomly or by their position
         if self.id_remap is not None:
             for cell_name in self.number_of_neurons.keys():
@@ -238,6 +238,23 @@ class Cerebellum(Circuit):
                             positions=self.pd_positions[self.pd_positions['pop'] == POPULATION_ID[cell_name]],
                             nid_offset=self.nid_offset[cell_name],
                             no_slices=8)
+                    elif self.id_remap == "grid":
+                        no_columns = 9
+                        no_rows = 23
+                        if cell_name in ['golgi', 'purkinje', 'stellate', 'basket']:
+                            sort_order = ['x', 'y', 'z']
+                        else:
+                            sort_order = ['y', 'x', 'z']
+                        col_boundaries = np.linspace(self.pd_positions.x.min(), self.pd_positions.x.max() + 0.01,
+                                                     no_columns + 1)
+                        row_boundaries = np.linspace(self.pd_positions.y.min(), self.pd_positions.y.max() + 0.01,
+                                                     no_rows + 1)
+                        ids_after = grid_id_mapping(
+                            positions=self.pd_positions[self.pd_positions['pop'] == POPULATION_ID[cell_name]],
+                            nid_offset=self.nid_offset[cell_name],
+                            column_boundaries=col_boundaries, row_boundaries=row_boundaries,
+                            sort_order=sort_order)
+
                 else:
                     ids_after = copy.deepcopy(ids_before)
                 self.id_mapping[cell_name] = (ids_before, ids_after)
@@ -266,7 +283,8 @@ class Cerebellum(Circuit):
                     spikes, self.id_mapping[stimulus_producer])
                 for original_spike_train, reordered_spike_train in \
                         zip(spikes,
-                            revert_id_mapping_to_list(self.stimulus[stimulus_producer]['spike_times'], self.id_mapping[stimulus_producer])):
+                            revert_id_mapping_to_list(self.stimulus[stimulus_producer]['spike_times'],
+                                                      self.id_mapping[stimulus_producer])):
                     assert np.all(np.array(original_spike_train) == np.array(reordered_spike_train))
 
         # Construct PyNN neural Populations
@@ -571,17 +589,12 @@ class Cerebellum(Circuit):
             target_gloms -= self.nid_offset['glomerulus']
             np.savetxt("selected_glom_ids.csv", target_gloms, delimiter=",")
 
-            if self.id_remap == "random":
-                np.savetxt("selected_glom_random_ids.csv", apply_id_mapping(target_gloms,
-                                                                            self.id_mapping['glomerulus']),
+            if self.id_remap:
+                np.savetxt("selected_glom_{}_ids.csv".format(self.id_remap), apply_id_mapping(target_gloms,
+                                                                                              self.id_mapping[
+                                                                                                  'glomerulus']),
                            delimiter=",")
-                np.save("selected_glom_random_mapping", self.id_mapping['glomerulus'])
-            elif self.id_remap == "hilbert":
-                np.savetxt("selected_glom_hilbert_ids.csv", apply_id_mapping(target_gloms,
-                                                                            self.id_mapping['glomerulus']),
-                           delimiter=",")
-                np.save("selected_glom_hilbert_mapping", self.id_mapping['glomerulus'])
-
+                np.save("selected_glom_{}_mapping".format(self.id_remap), self.id_mapping['glomerulus'])
 
             # Inverse selection using mask (all other target_gloms are supposed
             # to fire at f_base Hz

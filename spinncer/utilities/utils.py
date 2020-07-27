@@ -172,3 +172,44 @@ def hilbert_id_mapping(positions, nid_offset, no_slices=8):
     assert curr_max_id == np.max(mapping_for_pop) + 1, curr_max_id
 
     return mapping_for_pop
+
+
+def grid_id_mapping(positions, nid_offset,
+                    column_boundaries, row_boundaries,
+                    sort_order=['y', 'x', 'z']):
+    """
+    Function to map an initial set of ids to a grid-based partitioning.
+    """
+
+    # Need XYZ limits of global positions, not just of the population
+
+    # Test the number of selected cells
+    no_cells = positions.shape[0]
+    rolling_total_selected_cells = 0
+
+    no_cols = len(column_boundaries) - 1
+    no_rows = len(row_boundaries) - 1
+
+    mapping_for_pop = np.zeros(no_cells).astype(int)
+    curr_max_id = 0
+
+    for cno in range(no_cols):
+        for rno in range(no_rows):
+            cells_in_current_voxel = select_cells_in_volume(positions,
+                                                            x_min=column_boundaries[cno],
+                                                            x_max=column_boundaries[cno + 1],
+                                                            y_min=row_boundaries[rno], y_max=row_boundaries[rno + 1])
+            no_cells_in_curr_voxel = cells_in_current_voxel.shape[0]
+            rolling_total_selected_cells += no_cells_in_curr_voxel
+            # Sort by Y
+            cells_in_current_voxel = cells_in_current_voxel.sort_values(by=sort_order)
+            old_nids = cells_in_current_voxel['nid'].values - nid_offset
+            mapping_for_pop[old_nids.astype(int)] = np.arange(curr_max_id, no_cells_in_curr_voxel + curr_max_id).astype(
+                int)
+            curr_max_id += no_cells_in_curr_voxel
+
+    assert rolling_total_selected_cells == no_cells
+    assert curr_max_id == no_cells, curr_max_id
+    assert curr_max_id == np.max(mapping_for_pop) + 1, curr_max_id
+
+    return mapping_for_pop
