@@ -104,17 +104,21 @@ per_pop_r_mem = {}
 
 initial_connectivity = {}
 for conn_name, conn_params in CONNECTIVITY_MAP.items():
+    print("-"*80)
     print("CONNECTION ", conn_name)
-    cell_params = CELL_PARAMS[conn_params['post']]
+    cell_params = copy.deepcopy(CELL_PARAMS[conn_params['post']])
 
     curr_weight = conn_params['weight']
 
     # pre-multiply membrane Resistance into weight and i_offset?
     if args.r_mem:
         r_mem = cell_params['tau_m'] / cell_params['cm']
+        print("R_mem", r_mem)
         # adjust i_offset
         if 'i_offset' in cell_params.keys():
+            print("original i_offset =", cell_params['i_offset'])
             cell_params['i_offset'] *= r_mem
+            print("r_mem * i_offset =", cell_params['i_offset'])
         # adjust weight
         curr_weight *= r_mem
         per_pop_r_mem[conn_name] = r_mem
