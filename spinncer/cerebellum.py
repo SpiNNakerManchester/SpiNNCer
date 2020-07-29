@@ -48,7 +48,8 @@ class Cerebellum(Circuit):
                  round_input_spike_times=None,
                  id_remap=None,
                  spike_seed=None,
-                 id_seed=None
+                 id_seed=None,
+                 r_mem=False
                  ):
         """
         Cerebellum Circuit
@@ -71,6 +72,11 @@ class Cerebellum(Circuit):
         self.spike_seed = spike_seed
         self.id_seed = id_seed
         self.id_remap = id_remap
+        self.r_mem = r_mem
+        if self.r_mem:
+            print("=" * 80)
+            print("R_mem will be multiplied into weights and i_offset")
+        self.r_mem_per_pop = {}
 
         print("=" * 80)
 
@@ -387,6 +393,17 @@ class Cerebellum(Circuit):
                     cell_model = self.sim.IF_curr_alpha
                 elif cell_model == "if_cond_alpha":
                     cell_model = self.sim.IF_cond_alpha
+
+            # Adjust i_offset
+            # WARNING: This will have DISASTRUOUS effects if the simulation backend doesn't expect it
+            if self.r_mem and 'tau_m' in cell_param.keys():
+                r_mem = cell_param['tau_m'] / cell_param['cm']
+                self.r_mem_per_pop[cell_name] = r_mem
+                if "i_offset" in cell_param.keys():
+                    cell_param['i_offset'] *= r_mem
+            else:
+                self.r_mem_per_pop[cell_name] = 1
+
             # Adding the population to the network
             try:
                 self.populations[cell_name] = self.sim.Population(
@@ -438,6 +455,10 @@ class Cerebellum(Circuit):
             pre_pop = self.conn_params[conn_label]['pre']
             post_pop = self.conn_params[conn_label]['post']
             weight = self.conn_params[conn_label]['weight']
+            if self.r_mem:
+                # Compute r_mem for the current postsynaptic neuron
+                weight *= self.r_mem_per_pop[post_pop]
+
             delay = self.conn_params[conn_label]['delay']
             print("Creating projection from {:10}".format(pre_pop),
                   "to {:10}".format(post_pop),
@@ -802,6 +823,13 @@ class Cerebellum(Circuit):
             _ge = pop.get_data(['gsyn_exc'])
             _v = pop.get_data(['v'])
 
+            # TODO is this necessary?
+            if self.r_mem:
+                # Bring back the original weights
+                _gi.segments[0].analogsignals[0] /= self.r_mem_per_pop[label]
+                _ge.segments[0].analogsignals[0] /= self.r_mem_per_pop[label]
+                # _v.segments[0].analogsignals[0] /= self.r_mem_per_pop[label]
+
             # TODO figure out how to deal with sparse reordering
             # if self.id_remap:
             #     x = _gi.segments[0].analogsignals
@@ -861,6 +889,9 @@ class Cerebellum(Circuit):
                 print("Careful! Something happened when retrieving the "
                       "connectivity:", e, "\nRetrying...")
                 conn = np.array(p.get(('weight', 'delay'), format="list"))
+            if self.r_mem:
+                # Bring back the original weights
+                conn[:, 2] /= self.r_mem_per_pop[self.conn_params[label]['post']]
 
             # conn isn't in the proper format because it uses
 

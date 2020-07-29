@@ -104,7 +104,8 @@ cerebellum_circuit = Cerebellum(
     round_input_spike_times=round_spike_times,
     id_remap=args.id_remap,
     id_seed=args.id_seed,
-    spike_seed=args.spike_seed
+    spike_seed=args.spike_seed,
+    r_mem=args.r_mem and spinnaker_sim
 )
 
 if args.generate_conversion_constants:
@@ -175,7 +176,10 @@ if "io_cell" in populations.keys():
 
 # Set up recordings
 cerebellum_circuit.record_all_spikes()
-cerebellum_circuit.selectively_record_all(from_dict=per_pop_neurons_per_core_constraint)
+# Modify recording dict
+per_pop_recording_dict = copy.deepcopy(per_pop_neurons_per_core_constraint)
+per_pop_recording_dict['dcn'] = 1
+cerebellum_circuit.selectively_record_all(from_dict=per_pop_recording_dict)
 recorded_spikes = {}
 other_recordings = {}
 
@@ -247,7 +251,8 @@ np.savez_compressed(results_file,
                     json_data=json_data,
                     conn_params=cerebellum_circuit.retrieve_conn_params(),
                     cell_params=cerebellum_circuit.retrieve_cell_params(),
-                    per_pop_neurons_per_core_constraint=per_pop_neurons_per_core_constraint
+                    per_pop_neurons_per_core_constraint=per_pop_neurons_per_core_constraint,
+                    r_mem=cerebellum_circuit.r_mem_per_pop
                     )
 
 # Appropriately end the simulation

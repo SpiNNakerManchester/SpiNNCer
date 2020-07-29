@@ -234,7 +234,7 @@ def spike_analysis(results_file, fig_folder,
             # Save the average instantaneous rate
             elephant_instantaneous_rates[pop] = curr_inst_rates.ravel() / all_neurons[pop]
     except:
-        pass
+        traceback.print_exc()
 
     stim_period_start = {}
     stim_period_end = {}
