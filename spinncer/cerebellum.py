@@ -889,6 +889,8 @@ class Cerebellum(Circuit):
                 print("Careful! Something happened when retrieving the "
                       "connectivity:", e, "\nRetrying...")
                 conn = np.array(p.get(('weight', 'delay'), format="list"))
+
+            conn = np.array(conn.tolist())
             if self.r_mem:
                 # Bring back the original weights
                 conn[:, 2] /= self.r_mem_per_pop[self.conn_params[label]['post']]

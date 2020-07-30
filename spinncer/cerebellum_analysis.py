@@ -455,7 +455,7 @@ def spike_analysis(results_file, fig_folder,
                 x = np.concatenate(conn)
                 conn = x
             except:
-                pass
+                traceback.print_exc()
             names = [('source', 'int_'),
                      ('target', 'int_'),
                      ('weight', 'float_'),
