@@ -462,38 +462,86 @@ def plot_per_population_provenance_of_interest(
 
                 f = plt.figure(1, figsize=(9, 9), dpi=400)
                 for index, pop in enumerate(plot_order):
-                    vals = []
-                    avgs= []
+                    curr_median = []
+                    curr_percentiles = []
                     for k in curr_poi:
                         if curr_mapping[k] and curr_mapping[k][pop].size > 0:
                             merged = np.array(
                                 list(itertools.chain.from_iterable(curr_mapping[k][pop])))
-                            vals.append(np.nanmean(merged))
-                            avgs.append(np.nanstd(merged))
+                            curr_median.append(np.nanmedian(merged))
+                            curr_percentiles.append([np.percentile(merged, 5), np.percentile(merged, 95)])
                         else:
-                            vals.append(np.nan)
-                            avgs.append(np.nan)
+                            curr_median.append(np.nan)
+                            curr_percentiles.append(np.nan)
 
-                    print("Vals:", vals)
-                    print("avgs:", avgs)
-                    # vals = np.sort(np.asarray(vals).view('i8,i8'), order=['f1'], axis=0).view(np.int)
-                    vals = np.array(vals)
-                    if np.any(np.isfinite(vals)):
-                        plt.errorbar(curr_poi, vals,
-                                     yerr=avgs,
-                                 color=color_for_index(index, n_plots),
-                                 marker='o',
-                                 label=use_display_name(pop),
-                                 alpha=0.8)
+                    curr_median = np.array(curr_median)
+                    curr_percentiles = np.array(curr_percentiles).T
+                    if np.any(np.isfinite(curr_median)):
+                        plt.errorbar(curr_poi, curr_median,
+                                     yerr=curr_percentiles,
+                                     color=color_for_index(index, n_plots),
+                                     marker='o',
+                                     label=use_display_name(pop),
+                                     alpha=0.8)
                         # also print out the values per pop to easily copy and paste
-                        write_short_msg(use_display_name(pop), vals)
+                        write_short_msg(use_display_name(pop), curr_median)
+                        write_short_msg(use_display_name(pop), curr_percentiles)
                         # TODO also do some curve fitting for these numbers
                         for deg in [1, 2]:
-                            fit_res = polyfit(curr_poi, vals, deg)
+                            fit_res = polyfit(curr_poi, curr_median, deg)
                             write_short_msg("degree poly {} coeff of "
                                             "determination".format(deg),
                                             fit_res['determination'])
-                        fit_res = polyfit(curr_poi, np.log(vals), deg)
+                        fit_res = polyfit(curr_poi, np.log(curr_median), deg)
+                        write_short_msg("exp fit coeff of "
+                                        "determination",
+                                        fit_res['determination'])
+
+                plt.xlabel(use_display_name(curr_g))
+                plt.ylabel(use_display_name(type_of_prov))
+                ax = plt.gca()
+                plt.legend(loc='best')
+                plt.tight_layout()
+                save_figure(plt, join(fig_folder, "median_{}".format(type_of_prov)),
+                            extensions=['.png', '.pdf'])
+                if "MAX" in type_of_prov:
+                    ax.set_yscale('log')
+                    save_figure(plt, join(fig_folder, "log_y_median_{}".format(type_of_prov)),
+                                extensions=['.png', '.pdf'])
+                plt.close(f)
+
+                f = plt.figure(1, figsize=(9, 9), dpi=400)
+                for index, pop in enumerate(plot_order):
+                    curr_median = []
+                    curr_percentiles = []
+                    for k in curr_poi:
+                        if curr_mapping[k] and curr_mapping[k][pop].size > 0:
+                            merged = np.array(
+                                list(itertools.chain.from_iterable(curr_mapping[k][pop])))
+                            curr_median.append(np.nanmean(merged))
+                            curr_percentiles.append(np.nanstd(merged))
+                        else:
+                            curr_median.append(np.nan)
+                            curr_percentiles.append(np.nan)
+                    curr_median = np.array(curr_median)
+                    if np.any(np.isfinite(curr_median)):
+                        plt.errorbar(curr_poi, curr_median,
+                                     yerr=curr_percentiles,
+                                     color=color_for_index(index, n_plots),
+                                     marker='o',
+                                     label=use_display_name(pop),
+                                     alpha=0.8)
+                        # also print out the values per pop to easily copy and past
+                        # also print out the values per pop to easily copy and paste
+                        write_short_msg(use_display_name(pop), curr_median)
+                        write_short_msg(use_display_name(pop), curr_percentiles)
+                        # TODO also do some curve fitting for these numbers
+                        for deg in [1, 2]:
+                            fit_res = polyfit(curr_poi, curr_median, deg)
+                            write_short_msg("degree poly {} coeff of "
+                                            "determination".format(deg),
+                                            fit_res['determination'])
+                        fit_res = polyfit(curr_poi, np.log(curr_median), deg)
                         write_short_msg("exp fit coeff of "
                                         "determination",
                                         fit_res['determination'])
@@ -505,46 +553,12 @@ def plot_per_population_provenance_of_interest(
                 plt.tight_layout()
                 save_figure(plt, join(fig_folder, "{}".format(type_of_prov)),
                             extensions=['.png', '.pdf'])
+
+                plt.close(f)
                 if "MAX" in type_of_prov:
                     ax.set_yscale('log')
-                    save_figure(plt, join(fig_folder, "log_y_{}".format(type_of_prov)),
+                    save_figure(plt, join(fig_folder, "log_y_median_{}".format(type_of_prov)),
                                 extensions=['.png', '.pdf'])
-                plt.close(f)
-
-                f = plt.figure(1, figsize=(9, 9), dpi=400)
-                for index, pop in enumerate(plot_order):
-                    vals = []
-                    avgs= []
-                    for k in curr_poi:
-                        if curr_mapping[k] and curr_mapping[k][pop].size > 0:
-                            merged = np.array(
-                                list(itertools.chain.from_iterable(curr_mapping[k][pop])))
-                            vals.append(np.sqrt(np.nanmean(merged)))
-                            avgs.append(np.sqrt(np.nanstd(merged)))
-                        else:
-                            vals.append(np.nan)
-                            avgs.append(np.nan)
-                    # vals = np.sort(np.asarray(vals).view('i8,i8'), order=['f1'], axis=0).view(np.int)
-                    # print("sqrt Vals:", vals)
-                    # print("sqrt avgs:", avgs)
-                    vals = np.array(vals)
-                    if np.any(np.isfinite(vals)):
-                        plt.errorbar(curr_poi, vals,
-                                     yerr=avgs,
-                                     color=color_for_index(index, n_plots),
-                                     marker='o',
-                                     label=use_display_name(pop),
-                                     alpha=0.8)
-                        # also print out the values per pop to easily copy and past
-
-                plt.xlabel(use_display_name(curr_g))
-                plt.ylabel(use_display_name(type_of_prov))
-                ax = plt.gca()
-                plt.legend(loc='best')
-                plt.tight_layout()
-                save_figure(plt, join(fig_folder, "sqrt_{}".format(type_of_prov)),
-                            extensions=['.png', '.pdf'])
-
                 plt.close(f)
 
 
