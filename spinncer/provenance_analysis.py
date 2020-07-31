@@ -125,6 +125,17 @@ def sweep_provenance_analysis(in_folder, fig_folder, group_on,
     types_of_provenance = None
     prov_of_interest = None
     placements = {}
+
+    router_provenance_of_interest = [
+        'Dumped_from_a_Link',
+        'Dumped_from_a_processor',
+        'Local_Multicast_Packets',
+        'External_Multicast_Packets',
+        'Dropped_Multicast_Packets',
+        'Missed_For_Reinjection'
+    ]
+    router_pop_names = ['router_provenance']
+
     write_short_msg("Number of folders", len(run_folders))
     write_sep()
     for folder in run_folders:
@@ -147,20 +158,15 @@ def sweep_provenance_analysis(in_folder, fig_folder, group_on,
     plot_population_placement(collated_results, placements,
                               fig_folder=current_fig_folder)
 
+    for folder in run_folders:
+        plot_2D_map_for_poi(in_folder, folder,
+                            prov_of_interest, router_pop_names,
+                            current_fig_folder, placements)
+
     plot_per_population_provenance_of_interest(collated_results, calls, poi,
                                                prov_of_interest,
                                                group_on or group_on_name,
                                                current_fig_folder)
-
-    router_provenance_of_interest = [
-        'Dumped_from_a_Link',
-        'Dumped_from_a_processor',
-        'Local_Multicast_Packets',
-        'External_Multicast_Packets',
-        'Dropped_Multicast_Packets',
-        'Missed_For_Reinjection'
-    ]
-    router_pop_names = ['router_provenance']
 
     plot_per_population_provenance_of_interest(
         collated_results, calls, poi, router_provenance_of_interest,
@@ -170,6 +176,96 @@ def sweep_provenance_analysis(in_folder, fig_folder, group_on,
         plot_router_provenance(in_folder, folder, router_pop_names,
                                router_provenance_of_interest,
                                current_fig_folder)
+
+
+def plot_2D_map_for_poi(folder, selected_sim,
+                        provenance_of_interest, router_pop_names, fig_folder, placements):
+    write_header("PLOTTING MAPS FOR ALL PRROVENANCE OF INTEREST")
+    prov = pd.read_csv(join(join(folder, selected_sim), "structured_provenance.csv"))
+    # Filter out router provenance because the logic for plotting those maps is slightly different
+    pop_only_prov = prov[~prov['pop'].isin(router_pop_names)]
+    filtered_placement = \
+        placements[selected_sim]
+
+    router_provenance = filtered_placement['router_provenance']
+
+    for type_of_provenance in provenance_of_interest:
+        #  need to get processor p as well as x y prov_value
+        filtered_placement = \
+            pop_only_prov[pop_only_prov.prov_name == type_of_provenance][['x', 'y', 'p', 'prov_value']]
+        if filtered_placement.shape[0] == 0:
+            write_short_msg("NO INFORMATION FOR PROVENANCE", type_of_provenance)
+            continue
+
+        # make a new directory for each provenance
+        # Check if the results folder exist
+        per_prov_dir = os.path.join(fig_folder, type_of_provenance.lower())
+        if not os.path.isdir(per_prov_dir) and not os.path.exists(per_prov_dir):
+            os.mkdir(per_prov_dir)
+        # Plotting bit
+        # Fake printing to start things off...
+        f = plt.figure(1, figsize=(9, 9), dpi=400)
+        plt.close(f)
+        # Compute plot order
+        plot_order = get_plot_order(router_pop_names)
+        plot_display_names = []
+        for po in plot_order:
+            plot_display_names.append(use_display_name(po))
+
+        magic_constant = 4
+        max_x = (router_provenance.x.max() + 1) * magic_constant
+        max_y = (router_provenance.y.max() + 1) * magic_constant
+
+        x_ticks = np.arange(0, max_x, magic_constant)[::2]
+        x_tick_lables = (x_ticks / magic_constant).astype(int)
+        y_ticks = np.arange(0, max_y, magic_constant)[::2]
+        y_tick_lables = (y_ticks / magic_constant).astype(int)
+        map = np.ones((max_x, max_y)) * np.nan
+
+        for row_index, row in filtered_placement.iterrows():
+            x_pos = int(magic_constant * row.x +
+                        ((row.p // magic_constant) % magic_constant))
+            y_pos = int(magic_constant * row.y +
+                        (row.p % magic_constant))
+            map[x_pos, y_pos] = row.prov_value
+
+        # crop_point = np.max(np.max(np.argwhere(np.isfinite(map)), axis=0))
+        f = plt.figure(1, figsize=(9, 9), dpi=500)
+        # plt.matshow(map[:crop_point, :crop_point], interpolation='none')
+        im = plt.imshow(map, interpolation='none',
+                        cmap=plt.get_cmap('inferno'),
+                        extent=[0, max_x, 0, max_y],
+                        origin='lower')
+        ax = plt.gca()
+
+        plt.xlabel("Chip X coordinate")
+        plt.ylabel("Chip Y coordinate")
+
+        plt.xticks(x_ticks, x_tick_lables)
+        plt.yticks(y_ticks, y_tick_lables)
+        ax.yaxis.set_minor_locator(MultipleLocator(magic_constant))
+        ax.xaxis.set_minor_locator(MultipleLocator(magic_constant))
+
+        plt.grid(b=True, which='both', color='k', linestyle='-')
+
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("right", "5%", pad="3%")
+        cbar = plt.colorbar(im, cax=cax)
+        cbar.set_label(use_display_name(type_of_provenance))
+
+        save_figure(plt, join(per_prov_dir,
+                              "map_of_{}_for_{}".format(type_of_provenance,
+                                                        selected_sim)),
+                    extensions=['.png', '.pdf'])
+        plt.close(f)
+
+        # Some reports
+        # write_short_msg("Plotting ROUTER map for", selected_sim)
+        # write_short_msg("ROUTER provenance", type_of_provenance)
+        # write_short_msg("Number of cores used", filtered_placement.shape[0])
+        # write_short_msg("Number of chips used",
+        #                 filtered_placement[["x", "y"]].drop_duplicates().shape[0])
+        # write_line()
 
 
 def plot_router_provenance(folder, selected_sim, router_pop_names,
@@ -330,10 +426,8 @@ def plot_population_placement(collated_results, placements, fig_folder):
         max_y = (router_provenance.y.max() + 1) * magic_constant
 
         x_ticks = np.arange(0, max_x, magic_constant)[::2]
-        # x_tick_lables = np.linspace(0, collated_placements.x.max(), 6).astype(int)
         x_tick_lables = (x_ticks / magic_constant).astype(int)
         y_ticks = np.arange(0, max_y, magic_constant)[::2]
-        # y_tick_lables = np.linspace(0, collated_placements.y.max(), 6).astype(int)
         y_tick_lables = (y_ticks / magic_constant).astype(int)
         map = np.ones((max_x, max_y)) * np.nan
         for index, pop in enumerate(plot_order):
@@ -469,7 +563,8 @@ def plot_per_population_provenance_of_interest(
                             merged = np.array(
                                 list(itertools.chain.from_iterable(curr_mapping[k][pop])))
                             curr_median.append(np.nanmedian(merged))
-                            curr_percentiles.append([np.percentile(merged, 5), np.percentile(merged, 95)])
+                            curr_percentiles.append([np.nanmedian(merged)-np.percentile(merged, 5),
+                                                     np.percentile(merged, 95) - np.nanmedian(merged)])
                         else:
                             curr_median.append(np.nan)
                             curr_percentiles.append(np.nan)
