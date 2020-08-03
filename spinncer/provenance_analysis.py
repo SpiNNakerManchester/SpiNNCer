@@ -284,6 +284,12 @@ def plot_router_provenance(folder, selected_sim, router_pop_names,
         if filtered_placement.shape[0] == 0:
             write_short_msg("NO INFORMATION FOR PROVENANCE", type_of_provenance)
             continue
+
+        # make a new directory for each provenance
+        # Check if the results folder exist
+        per_prov_dir = os.path.join(fig_folder, type_of_provenance.lower())
+        if not os.path.isdir(per_prov_dir) and not os.path.exists(per_prov_dir):
+            os.mkdir(per_prov_dir)
         # Plotting bit
         # Fake printing to start things off...
         f = plt.figure(1, figsize=(9, 9), dpi=400)
@@ -335,7 +341,7 @@ def plot_router_provenance(folder, selected_sim, router_pop_names,
         cbar = plt.colorbar(im, cax=cax)
         cbar.set_label(use_display_name(type_of_provenance))
 
-        save_figure(plt, join(fig_folder,
+        save_figure(plt, join(per_prov_dir,
                               "map_of_{}_for_{}".format(type_of_provenance,
                                                         selected_sim)),
                     extensions=['.png', '.pdf'])
@@ -404,6 +410,11 @@ def plot_population_placement(collated_results, placements, fig_folder):
         placements_per_pop = {x: filtered_placement[x]
                               for x in filtered_placement.keys()
                               if "cell" in x}
+        # make a new directory for each provenance
+        # Check if the results folder exist
+        per_prov_dir = os.path.join(fig_folder, "placements")
+        if not os.path.isdir(per_prov_dir) and not os.path.exists(per_prov_dir):
+            os.mkdir(per_prov_dir)
 
         # Plotting bit
         # Fake printing to start things off...
@@ -466,7 +477,7 @@ def plot_population_placement(collated_results, placements, fig_folder):
         cbar.ax.set_yticks(uniques)
         cbar.ax.set_yticklabels(plot_display_names)
 
-        save_figure(plt, join(fig_folder,
+        save_figure(plt, join(per_prov_dir,
                               "map_of_placements_for_{}".format(selected_sim)),
                     extensions=['.png', '.pdf'])
         plt.close(f)
@@ -563,7 +574,7 @@ def plot_per_population_provenance_of_interest(
                             merged = np.array(
                                 list(itertools.chain.from_iterable(curr_mapping[k][pop])))
                             curr_median.append(np.nanmedian(merged))
-                            curr_percentiles.append([np.nanmedian(merged)-np.percentile(merged, 5),
+                            curr_percentiles.append([np.nanmedian(merged) - np.percentile(merged, 5),
                                                      np.percentile(merged, 95) - np.nanmedian(merged)])
                         else:
                             curr_median.append(np.nan)
