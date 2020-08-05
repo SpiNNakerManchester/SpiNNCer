@@ -49,7 +49,10 @@ class Cerebellum(Circuit):
                  id_remap=None,
                  spike_seed=None,
                  id_seed=None,
-                 r_mem=False
+                 r_mem=False,
+                 expected_max_spikes=None,
+                 implicit_shift=None,
+                 ensure_weight_is_representable=True
                  ):
         """
         Cerebellum Circuit
@@ -73,9 +76,15 @@ class Cerebellum(Circuit):
         self.id_seed = id_seed
         self.id_remap = id_remap
         self.r_mem = r_mem
+
+        self.expected_max_spikes = expected_max_spikes
+        self.implicit_shift = implicit_shift
+        self.ensure_weight_is_representable = ensure_weight_is_representable
+
         if self.r_mem:
             print("=" * 80)
             print("R_mem will be multiplied into weights and i_offset")
+            assert self.implicit_shift == 1
         self.r_mem_per_pop = {}
 
         print("=" * 80)
@@ -163,11 +172,6 @@ class Cerebellum(Circuit):
         self.rb_shifts = {k: None for k in self.cell_params.keys()}
 
         self.no_loops = no_loops
-        for k in self.rb_shifts.keys():
-            if "purkinje" in k:
-                self.rb_shifts[k] = np.asarray([5, 5]).astype(int)
-            elif "golgi" in k:
-                self.rb_shifts[k] = np.asarray([5, 5]).astype(int)
 
         # Save the neuron model to be used by spiking neurons in the network
         self.neuron_models = {k: str.lower(neuron_model) for k in self.cell_params.keys()}
@@ -236,7 +240,8 @@ class Cerebellum(Circuit):
         if self.id_remap is not None:
             for cell_name in self.number_of_neurons.keys():
                 ids_before = np.arange(self.number_of_neurons[cell_name])
-                if cell_name not in ['glomerulus']:
+                # if cell_name not in ['glomerulus']:
+                if cell_name not in []:
                     if self.id_remap == "random":
                         ids_after = random_id_mapping(ids_before, seed=self.id_seed)
                     elif self.id_remap == "hilbert":
@@ -268,8 +273,6 @@ class Cerebellum(Circuit):
                 assert np.all(ids_before == revert_id_mapping(ids_after, self.id_mapping[cell_name]))
 
         self._raw_connectivity_info = connections
-        # if not skip_projections and force_number_of_neurons is None:
-        #     self.__normalise_connections()
 
         if input_spikes:
             # use passed in spikes
@@ -285,13 +288,58 @@ class Cerebellum(Circuit):
                 print("Reordering IDs for", stimulus_producer)
                 reordered_spikes = []
                 spikes = copy.deepcopy(stimulus_activity['spike_times'])
-                self.stimulus[stimulus_producer]['spike_times'] = apply_id_mapping_to_list(
+                self.stimulus[stimulus_producer]['spike_times'] = revert_id_mapping_to_list(
                     spikes, self.id_mapping[stimulus_producer])
                 for original_spike_train, reordered_spike_train in \
                         zip(spikes,
-                            revert_id_mapping_to_list(self.stimulus[stimulus_producer]['spike_times'],
+                            apply_id_mapping_to_list(self.stimulus[stimulus_producer]['spike_times'],
                                                       self.id_mapping[stimulus_producer])):
                     assert np.all(np.array(original_spike_train) == np.array(reordered_spike_train))
+
+        for k in self.rb_shifts.keys():
+            if "purkinje" in k:
+                self.rb_shifts[k] = np.asarray([5, 5]).astype(int)
+            elif "golgi" in k:
+                self.rb_shifts[k] = np.asarray([5, 5]).astype(int)
+
+        # Adjust i_offset
+        # WARNING: This will have DISASTRUOUS effects if the simulation backend doesn't expect it
+        for pop in self.cell_params.keys():
+            cell_param = self.cell_params[pop]
+            if self.r_mem and 'tau_m' in cell_param.keys():
+                r_mem = cell_param['tau_m'] / cell_param['cm']
+                self.r_mem_per_pop[pop] = r_mem
+                if "i_offset" in cell_param.keys():
+                    cell_param['i_offset'] *= r_mem
+            else:
+                self.r_mem_per_pop[pop] = 1
+
+        if self.r_mem:
+            for conn_label in self._raw_connectivity_info.keys():
+                if conn_label in ["goc_glom"]:
+                    continue
+                post_pop = self.conn_params[conn_label]['post']
+                self.conn_params[conn_label]['weight'] *= self.r_mem_per_pop[post_pop]
+
+        # RB left shifts based on max spikes will overwrite everything else
+        self.max_gsyn = {k: np.zeros(2) for k in self.cell_params.keys()}
+        if self.expected_max_spikes:
+            for conn_key, max_inc_spikes in self.expected_max_spikes.items():
+                max_inc_gsyn = self.conn_params[conn_key]['weight'] * max_inc_spikes
+                curr_post = self.conn_params[conn_key]['post']
+
+                if max_inc_gsyn > 0:
+                    self.max_gsyn[curr_post][0] += max_inc_gsyn
+                else:
+                    self.max_gsyn[curr_post][1] += max_inc_gsyn
+
+            for pop in self.cell_params.keys():
+                rb_ls = np.ceil(np.log2(np.abs(self.max_gsyn[pop] * self.implicit_shift)))
+                rb_ls = np.clip(rb_ls, 0, 16)
+                self.rb_shifts[pop] = rb_ls
+
+        # HACK HACK HACK!
+        self.rb_shifts['purkinje'] -= np.array([2, 0])
 
         # Construct PyNN neural Populations
         self.build_populations(self.cell_positions)
@@ -302,6 +350,10 @@ class Cerebellum(Circuit):
             print("NOT GENERATING ANY CONNECTIVITY FOR THIS MODEL")
             print("skip_projections", skip_projections)
             print("force_number_of_neurons", force_number_of_neurons)
+
+        # Undo changes to conn_params
+        for conn_label in self.conn_params.keys():
+            self.conn_params[conn_label]['weight'] /= self.r_mem_per_pop[self.conn_params[conn_label]['post']]
 
         for pop_name, pop_obj in self.populations.items():
             self.__setattr__(pop_name, pop_obj)
@@ -383,8 +435,8 @@ class Cerebellum(Circuit):
                 # else for all other cells
                 additional_params = {"rb_left_shifts":
                                          self.rb_shifts[cell_name]}
-                if cell_name in ["granule"]:
-                    additional_params["n_steps_per_timestep"] = self.no_loops
+                # if cell_name in ["granule"]:
+                additional_params["n_steps_per_timestep"] = self.no_loops
                 if cell_model == "if_cond_exp":
                     cell_model = self.sim.IF_cond_exp
                 elif cell_model == "if_curr_exp":
@@ -393,16 +445,6 @@ class Cerebellum(Circuit):
                     cell_model = self.sim.IF_curr_alpha
                 elif cell_model == "if_cond_alpha":
                     cell_model = self.sim.IF_cond_alpha
-
-            # Adjust i_offset
-            # WARNING: This will have DISASTRUOUS effects if the simulation backend doesn't expect it
-            if self.r_mem and 'tau_m' in cell_param.keys():
-                r_mem = cell_param['tau_m'] / cell_param['cm']
-                self.r_mem_per_pop[cell_name] = r_mem
-                if "i_offset" in cell_param.keys():
-                    cell_param['i_offset'] *= r_mem
-            else:
-                self.r_mem_per_pop[cell_name] = 1
 
             # Adding the population to the network
             try:
@@ -455,9 +497,18 @@ class Cerebellum(Circuit):
             pre_pop = self.conn_params[conn_label]['pre']
             post_pop = self.conn_params[conn_label]['post']
             weight = self.conn_params[conn_label]['weight']
-            if self.r_mem:
-                # Compute r_mem for the current postsynaptic neuron
-                weight *= self.r_mem_per_pop[post_pop]
+
+            # Compute minimum representable weight for the selected rb_ls
+            if self.ensure_weight_is_representable:
+                is_weight_inh = int(weight < 0)
+                rb_ls_for_post = self.rb_shifts[post_pop][is_weight_inh]
+                min_repr_weight = 2 ** (-15 + rb_ls_for_post)
+                if np.abs(weight) * self.implicit_shift < min_repr_weight:
+                    print("Projection {:10} ".format(conn_label),
+                          "has an original weight of {:2.6f} ".format(weight),
+                          " which cannot be represented on SpiNNaker with the current activity estimates. ",
+                          "Replacing it with {:2.6f}".format(min_repr_weight))
+                    weight = min_repr_weight
 
             delay = self.conn_params[conn_label]['delay']
             print("Creating projection from {:10}".format(pre_pop),
@@ -524,6 +575,8 @@ class Cerebellum(Circuit):
         stim_start = np.cumsum(np.append([0], stim_times))[:number_of_slots]
         print("Thus, each period starts at ", stim_start, "ms")
 
+        if self.spike_seed:
+            np.random.seed(self.spike_seed)
         # check whether this is new style of scaffold
         # if new style --> generate activity for mf and glom
         if self.new_scaffold:
@@ -630,9 +683,6 @@ class Cerebellum(Circuit):
             print("Number of stimulated Gloms: ", len(target_gloms),
                   "i.e. {:6.2%} the total".format(
                       len(target_gloms) / float(no_gloms)))
-
-            if self.spike_seed:
-                np.random.seed(self.spike_seed)
 
             if not periodic_stimulus:
                 spike_times = create_poisson_spikes(no_gloms, rates,
