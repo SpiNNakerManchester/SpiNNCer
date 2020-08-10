@@ -31,7 +31,8 @@ from spinncer.utilities.utils import (flatten_dict, create_poisson_spikes,
                                       apply_id_mapping, hilbert_id_mapping,
                                       grid_id_mapping,
                                       apply_id_mapping_to_list,
-                                      revert_id_mapping_to_list, revert_id_mapping)
+                                      revert_id_mapping_to_list, revert_id_mapping,
+                                      round_to_nearest_accum)
 import traceback
 from pprint import pprint as pp
 
@@ -339,7 +340,12 @@ class Cerebellum(Circuit):
                 self.rb_shifts[pop] = rb_ls
 
         # HACK HACK HACK!
-        self.rb_shifts['purkinje'] -= np.array([2, 0])
+        if self.r_mem:
+            # self.rb_shifts['purkinje'] -= np.array([2, 0])
+            self.rb_shifts['purkinje'][0] = 7
+        else:
+            self.rb_shifts['purkinje'][0] = 5
+        print("Computed rb_ls", self.rb_shifts)
 
         # Construct PyNN neural Populations
         self.build_populations(self.cell_positions)
@@ -435,8 +441,8 @@ class Cerebellum(Circuit):
                 # else for all other cells
                 additional_params = {"rb_left_shifts":
                                          self.rb_shifts[cell_name]}
-                # if cell_name in ["granule"]:
-                additional_params["n_steps_per_timestep"] = self.no_loops
+                if cell_name in ["granule"]:
+                    additional_params["n_steps_per_timestep"] = self.no_loops
                 if cell_model == "if_cond_exp":
                     cell_model = self.sim.IF_cond_exp
                 elif cell_model == "if_curr_exp":
@@ -502,13 +508,15 @@ class Cerebellum(Circuit):
             if self.ensure_weight_is_representable:
                 is_weight_inh = int(weight < 0)
                 rb_ls_for_post = self.rb_shifts[post_pop][is_weight_inh]
-                min_repr_weight = 2 ** (-15 + rb_ls_for_post)
+                min_repr_weight = 2. ** (-15 + rb_ls_for_post)
                 if np.abs(weight) * self.implicit_shift < min_repr_weight:
                     print("Projection {:10} ".format(conn_label),
                           "has an original weight of {:2.6f} ".format(weight),
                           " which cannot be represented on SpiNNaker with the current activity estimates. ",
                           "Replacing it with {:2.6f}".format(min_repr_weight))
-                    weight = min_repr_weight
+                    weight = min_repr_weight / self.implicit_shift
+
+            weight = self.conn_params[conn_label]['weight']
 
             delay = self.conn_params[conn_label]['delay']
             print("Creating projection from {:10}".format(pre_pop),

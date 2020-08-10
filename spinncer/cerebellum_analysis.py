@@ -693,6 +693,35 @@ def spike_analysis(results_file, fig_folder,
                     conn_key, int(curr_nid_inc_spikes[tstep])
                 ))
 
+    if conn_exists and worst_case:
+        print("=" * 80)
+        print("Per connection spikes statistics")
+        print("-" * 80)
+        for pop in plot_order:
+            print("\tPOST = ", pop)
+
+            curr_projections = list(per_conn_worst_spikes[pop].keys())
+            curr_projections.sort()
+
+            total_exc_gsyn = 0
+            total_inh_gsyn = 0
+
+            for conn_key in curr_projections:
+                max_inc_spikes = per_conn_worst_spikes[pop][conn_key].max()
+                max_inc_gsyn = conn_params[conn_key]['weight'] * max_inc_spikes
+                print("\t\t{:10} -- {:8d} spikes -- {:10.6f} uS".format(
+                    conn_key, int(max_inc_spikes), max_inc_gsyn
+                ))
+                if max_inc_gsyn > 0:
+                    total_exc_gsyn += max_inc_gsyn
+                else:
+                    total_inh_gsyn += max_inc_gsyn
+            print("-" * 80)
+            print("Total gsyn for ", pop)
+            print("exc {:10.6f} uS".format(total_exc_gsyn))
+            print("inh {:10.6f} uS".format(total_inh_gsyn))
+            print("-" * 80)
+
     print("=" * 80)
     print("Plotting figures...")
     print("-" * 80)

@@ -191,4 +191,9 @@ parser.add_argument('--id_seed', type=int,
                     help='seed used for id remapping',
                     default=None)
 
+parser.add_argument('--worst_case_spikes', action="store_true",
+                    help='[FOR ANALYSIS] if this flag is present the expensive '
+                         'process of counting number of afferent '
+                         'spikes is performed.')
+
 args = parser.parse_args()
