@@ -213,3 +213,9 @@ def grid_id_mapping(positions, nid_offset,
     assert curr_max_id == np.max(mapping_for_pop) + 1, curr_max_id
 
     return mapping_for_pop
+
+
+def round_to_nearest_accum(x, shift):
+    eps = 2. ** (-15 + shift)
+    x_approx = np.floor((x / eps) + 0.5) * eps
+    return x_approx
