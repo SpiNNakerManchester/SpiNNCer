@@ -89,6 +89,50 @@ round_spike_times = None
 if args.disable_around:
     round_spike_times = args.timestep
 
+implicit_shift = 1 if args.r_mem else 2 ** 5  # ACCOUNT FOR IMPLICIT WEIGHT SCALING -- the default in main branch is 2**10
+
+EXPECTED_MAX_SPIKES_200 = {
+    # Empirical values observed in simulation with a 200 Hz input with stim_radius = 130
+    'aa_goc': 31,
+    'aa_pc': 24,
+    'bc_pc': 7,
+    'gj_bc': 4,
+    'gj_goc': 25,
+    'gj_sc': 6,
+    'glom_dcn': 6,
+    'glom_goc': 8,
+    'glom_grc': 5,
+    'goc_grc': 4,
+    'pc_dcn': 6,
+    'pf_bc': 64,
+    'pf_goc': 64,
+    'pf_pc': 729,
+    'pf_sc': 60,
+    'sc_pc': 9,
+}
+
+EXPECTED_MAX_SPIKES_150 = {
+    # Empirical values observed in simulation with a 150 Hz input with stim_radius = 140
+    'aa_goc': 28,
+    'aa_pc': 23,
+    'bc_pc': 6,
+    'gj_bc': 5,
+    'gj_goc': 25,
+    'gj_sc': 4,
+    'glom_dcn': 6,
+    'glom_goc': 8,
+    'glom_grc': 5,
+    'goc_grc': 4,
+    'pc_dcn': 6,
+    'pf_bc': 51,
+    'pf_goc': 51,
+    'pf_pc': 621,
+    'pf_sc': 53,
+    'sc_pc': 7,
+}
+
+expected_max_spikes = EXPECTED_MAX_SPIKES_200
+
 # Instantiate a Cerebellum
 cerebellum_circuit = Cerebellum(
     sim, connectivity_filename,
@@ -105,7 +149,10 @@ cerebellum_circuit = Cerebellum(
     id_remap=args.id_remap,
     id_seed=args.id_seed,
     spike_seed=args.spike_seed,
-    r_mem=args.r_mem and spinnaker_sim
+    r_mem=args.r_mem and spinnaker_sim,
+    expected_max_spikes=expected_max_spikes,
+    implicit_shift=implicit_shift,
+    ensure_weight_is_representable=False,
 )
 
 if args.generate_conversion_constants:
@@ -134,7 +181,6 @@ populations = cerebellum_circuit.get_all_populations()
 if spinnaker_sim:
     for pop_name, constraint in per_pop_neurons_per_core_constraint.items():
         populations[pop_name].set_max_atoms_per_core(constraint)
-
 
 # Set up IO stimulation
 stim_to_pop_proj = None
@@ -252,7 +298,9 @@ np.savez_compressed(results_file,
                     conn_params=cerebellum_circuit.retrieve_conn_params(),
                     cell_params=cerebellum_circuit.retrieve_cell_params(),
                     per_pop_neurons_per_core_constraint=per_pop_neurons_per_core_constraint,
-                    r_mem=cerebellum_circuit.r_mem_per_pop
+                    r_mem=cerebellum_circuit.r_mem_per_pop,
+                    expected_max_spikes=expected_max_spikes,
+                    implicit_shift=implicit_shift
                     )
 
 # Appropriately end the simulation
@@ -260,7 +308,7 @@ sim.end()
 
 # Analysis time!
 spike_analysis(results_file=results_file, fig_folder=args.figures_dir,
-               worst_case=True, delay_sensitive=True)
+               worst_case=args.worst_case_spikes, delay_sensitive=True)
 
 # Report time taken
 print("Results stored in  -- " + filename)
