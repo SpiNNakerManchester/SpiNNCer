@@ -212,7 +212,9 @@ projections = {
 
 # Set up recordings
 # Record only for cell_to_test
-cell_to_test.record(['spikes'])
+for label, pop in populations.items():
+    pop.record(['spikes'])
+# cell_to_test.record(['spikes'])
 cell_to_test.record(['gsyn_inh', 'gsyn_exc', 'v'])
 
 recorded_spikes = {}
@@ -323,7 +325,7 @@ sim.end()
 
 # Analysis time!
 spike_analysis(results_file=results_file, fig_folder=args.figures_dir,
-               worst_case=False, delay_sensitive=False)
+               worst_case=False, delay_sensitive=True)
 
 # Report time taken
 print("Results stored in  -- " + filename)
