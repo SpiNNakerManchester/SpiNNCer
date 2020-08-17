@@ -133,27 +133,29 @@ golgi = sim.Population(
 # Create LIF population
 exc_weight = CONNECTIVITY_MAP['glom_grc']['weight']
 inh_weight = CONNECTIVITY_MAP['goc_grc']['weight']
+
+cell_params = CELL_PARAMS[args.population]
+if args.r_mem:
+    r_mem = cell_params['tau_m'] / cell_params['cm']
+    print("R_mem", r_mem)
+    # adjust i_offset
+    if 'i_offset' in cell_params.keys():
+        print("original i_offset =", cell_params['i_offset'])
+        cell_params['i_offset'] *= r_mem
+        print("r_mem * i_offset =", cell_params['i_offset'])
+    exc_weight *= r_mem
+    inh_weight *= r_mem
+    per_pop_r_mem[args.population] = r_mem
+    curr_weights = np.array([exc_weight, inh_weight])
+    rb_ls = np.asarray(np.ceil(np.log2(np.abs(curr_weights * 2))))  # Expect at most 3 spikes in the same time step
+    print("Compute RB_LS:", rb_ls)
+    rb_ls = np.clip(rb_ls, 0, 16)
+    print("Clipped RB_LS:", rb_ls)
+else:
+    per_pop_r_mem[args.population] = 1.0
+    rb_ls = [0, 0]
+
 if str.lower(args.simulator) in ["spinnaker", "spynnaker"]:
-    cell_params = CELL_PARAMS[args.population]
-    if args.r_mem:
-        r_mem = cell_params['tau_m'] / cell_params['cm']
-        print("R_mem", r_mem)
-        # adjust i_offset
-        if 'i_offset' in cell_params.keys():
-            print("original i_offset =", cell_params['i_offset'])
-            cell_params['i_offset'] *= r_mem
-            print("r_mem * i_offset =", cell_params['i_offset'])
-        exc_weight *= r_mem
-        inh_weight *= r_mem
-        per_pop_r_mem[args.population] = r_mem
-        curr_weights = np.array([exc_weight, inh_weight])
-        rb_ls = np.asarray(np.ceil(np.log2(np.abs(curr_weights * 2))))  # Expect at most 3 spikes in the same time step
-        print("Compute RB_LS:", rb_ls)
-        rb_ls = np.clip(rb_ls, 0, 16)
-        print("Clipped RB_LS:", rb_ls)
-    else:
-        per_pop_r_mem[args.population] = 1.0
-        rb_ls = [0, 0]
     additional_params = {
         "rb_left_shifts": rb_ls,
         "n_steps_per_timestep": args.loops_grc
