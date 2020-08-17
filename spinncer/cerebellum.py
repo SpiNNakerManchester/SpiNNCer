@@ -508,15 +508,14 @@ class Cerebellum(Circuit):
             if self.ensure_weight_is_representable:
                 is_weight_inh = int(weight < 0)
                 rb_ls_for_post = self.rb_shifts[post_pop][is_weight_inh]
-                min_repr_weight = 2. ** (-15 + rb_ls_for_post)
-                if np.abs(weight) * self.implicit_shift < min_repr_weight:
-                    print("Projection {:10} ".format(conn_label),
-                          "has an original weight of {:2.6f} ".format(weight),
-                          " which cannot be represented on SpiNNaker with the current activity estimates. ",
-                          "Replacing it with {:2.6f}".format(min_repr_weight))
-                    weight = min_repr_weight / self.implicit_shift
-
-            weight = self.conn_params[conn_label]['weight']
+                # min_repr_weight = 2. ** (-15 + rb_ls_for_post)
+                # if np.abs(weight) * self.implicit_shift < min_repr_weight:
+                #     print("Projection {:10} ".format(conn_label),
+                #           "has an original weight of {:2.6f} ".format(weight),
+                #           " which cannot be represented on SpiNNaker with the current activity estimates. ",
+                #           "Replacing it with {:2.6f}".format(min_repr_weight))
+                #     weight = min_repr_weight / self.implicit_shift
+                weight = round_to_nearest_accum(weight, shift=rb_ls_for_post)
 
             delay = self.conn_params[conn_label]['delay']
             print("Creating projection from {:10}".format(pre_pop),

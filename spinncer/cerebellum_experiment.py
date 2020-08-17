@@ -152,7 +152,7 @@ cerebellum_circuit = Cerebellum(
     r_mem=args.r_mem and spinnaker_sim,
     expected_max_spikes=expected_max_spikes,
     implicit_shift=implicit_shift,
-    ensure_weight_is_representable=False,
+    ensure_weight_is_representable=args.cast_to_accum,
 )
 
 if args.generate_conversion_constants:
