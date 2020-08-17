@@ -336,8 +336,8 @@ def plot_3d_cell_positions(position, plot_order,
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
-    ax.set_xlim(0, 400)
-    ax.set_ylim(0, 400)
+    ax.set_xlim(-5, 405)
+    ax.set_ylim(-5, 405)
     # plt.legend(loc="best")
     if scenic:
         ax.set_axis_off()

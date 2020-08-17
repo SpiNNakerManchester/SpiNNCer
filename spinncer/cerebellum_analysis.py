@@ -511,9 +511,11 @@ def spike_analysis(results_file, fig_folder,
     print("Connection Name ")
     print("{:27} | {:10} | ".format("Connection Name", "Def. W"),
           "{:20}".format("SpiNN. W"))
-    for key in final_connectivity:
+    sorted_keys = list(final_connectivity.keys())
+    sorted_keys.sort()
+    for key in sorted_keys:
         conn = conn_dict[key]
-        mean = np.mean(conn[:, 2])
+        mean = np.abs(np.mean(conn[:, 2]))
         # replace with percentage of difference
         original_conn = np.abs(conn_params[key]["weight"])
         orig_conn_sign = np.sign(conn_params[key]["weight"])
@@ -522,12 +524,12 @@ def spike_analysis(results_file, fig_folder,
         else:
             proportion = original_conn / mean
         diff = original_conn - mean
-        prop_diff = orig_conn_sign * (diff / original_conn)
+        prop_diff = (diff / original_conn)
         # assert (0 <= proportion <= 1), proportion
         is_close = proportion >= .95
 
-        print("{:27} & {:4.10f} &".format(key, conn_params[key]["weight"]),
-              "{: 4.10f} ({:>7.2%})".format(
+        print("{:27} & {:10.4e} &".format(key, conn_params[key]["weight"]),
+              "{:10.4e} ({:>7.2%})".format(
                   mean, prop_diff))
 
     # Check voltage information
@@ -1007,75 +1009,76 @@ def spike_analysis(results_file, fig_folder,
         writer.save()
 
     # save required csv
-    excel_filename = os.path.join(sim_fig_folder,
-                                  "abcd_recordings_per_core.xlsx")
+    if worst_case:
+        excel_filename = os.path.join(sim_fig_folder,
+                                      "abcd_recordings_per_core.xlsx")
 
-    writer = pd.ExcelWriter(
-        excel_filename,
-        engine='xlsxwriter')
-    per_core_abcd = {}
+        writer = pd.ExcelWriter(
+            excel_filename,
+            engine='xlsxwriter')
+        per_core_abcd = {}
 
-    for index, pop in enumerate(plot_order):
-        if pop not in per_conn_worst_spikes.keys() or pop not in other_recordings.keys():
-            continue
-        print("POPULATION", pop)
-        zipper = zip((other_recordings[pop]['v'].segments[0].filter(name='v')[0].magnitude.T * 2 ** 15).astype(int),
-                     (other_recordings[pop]['gsyn_exc'].segments[0].filter(name='gsyn_exc')[
-                          0].magnitude.T * 2 ** 15).astype(int))
+        for index, pop in enumerate(plot_order):
+            if pop not in per_conn_worst_spikes.keys() or pop not in other_recordings.keys():
+                continue
+            print("POPULATION", pop)
+            zipper = zip((other_recordings[pop]['v'].segments[0].filter(name='v')[0].magnitude.T * 2 ** 15).astype(int),
+                         (other_recordings[pop]['gsyn_exc'].segments[0].filter(name='gsyn_exc')[
+                              0].magnitude.T * 2 ** 15).astype(int))
 
-        abcd_data = []
-        abcd_totals = []
-        abcd_argmax = []
-        for sh_exc, sh_exc_2 in zipper:
-            x = np.asarray(unpack_abcd(sh_exc, sh_exc_2))
-            total_x = np.sum(x, axis=0)
-            max_x = np.argmax(total_x)
-            abcd_data.append(x[:, max_x])
-            abcd_totals.append(total_x)
-            abcd_argmax.append(max_x)
-        abcd_argmax = np.array(abcd_argmax)
-        abcd_data = np.array(abcd_data)
-        abcd_totals = np.array(abcd_totals)
-        print("Number of cores", abcd_data.shape[0])
-        names = ['a', 'b', 'c', 'd']  # N
-        #     value = np.array(abcd_data, dtype=names)  # Note to self: numpy structured arrays are fucking broken
-        array_for_pd = {name: abcd_data[:, col_id] for col_id, name in enumerate(names)}
-        df = pd.DataFrame(array_for_pd)
-        per_core_abcd[pop] = df
-        df.to_excel(writer, sheet_name=pop)
+            abcd_data = []
+            abcd_totals = []
+            abcd_argmax = []
+            for sh_exc, sh_exc_2 in zipper:
+                x = np.asarray(unpack_abcd(sh_exc, sh_exc_2))
+                total_x = np.sum(x, axis=0)
+                max_x = np.argmax(total_x)
+                abcd_data.append(x[:, max_x])
+                abcd_totals.append(total_x)
+                abcd_argmax.append(max_x)
+            abcd_argmax = np.array(abcd_argmax)
+            abcd_data = np.array(abcd_data)
+            abcd_totals = np.array(abcd_totals)
+            print("Number of cores", abcd_data.shape[0])
+            names = ['a', 'b', 'c', 'd']  # N
+            #     value = np.array(abcd_data, dtype=names)  # Note to self: numpy structured arrays are fucking broken
+            array_for_pd = {name: abcd_data[:, col_id] for col_id, name in enumerate(names)}
+            df = pd.DataFrame(array_for_pd)
+            per_core_abcd[pop] = df
+            df.to_excel(writer, sheet_name=pop)
 
-    writer.save()
+        writer.save()
 
-    transparency_lvl = .7
-    for core_id, pop in enumerate(plot_order):
-        if pop not in per_core_abcd.keys():
-            #         f = plt.figure(1, figsize=(l, l), dpi=400)
-            #         plt.close(f)
-            continue
-        f = plt.figure(1, figsize=(13, 10), dpi=400)
-        abcd_df = per_core_abcd[pop]
+        transparency_lvl = .7
+        for core_id, pop in enumerate(plot_order):
+            if pop not in per_core_abcd.keys():
+                #         f = plt.figure(1, figsize=(l, l), dpi=400)
+                #         plt.close(f)
+                continue
+            f = plt.figure(1, figsize=(13, 10), dpi=400)
+            abcd_df = per_core_abcd[pop]
 
-        plt.plot(abcd_df[['a', 'b', 'c', 'd']].sum(axis=1), label='total',
-                 c="k", ls="--", alpha=.6)
-        plt.plot(abcd_df.d.values, label='d', c="C3", alpha=transparency_lvl)
-        plt.plot(abcd_df.c.values, label='c', c="C2", alpha=transparency_lvl)
-        plt.plot(abcd_df.b.values, label='b', c="C1", alpha=transparency_lvl)
-        plt.plot(abcd_df.a.values, label='a', c="C0", alpha=transparency_lvl)
+            plt.plot(abcd_df[['a', 'b', 'c', 'd']].sum(axis=1), label='total',
+                     c="k", ls="--", alpha=.6)
+            plt.plot(abcd_df.d.values, label='d', c="C3", alpha=transparency_lvl)
+            plt.plot(abcd_df.c.values, label='c', c="C2", alpha=transparency_lvl)
+            plt.plot(abcd_df.b.values, label='b', c="C1", alpha=transparency_lvl)
+            plt.plot(abcd_df.a.values, label='a', c="C0", alpha=transparency_lvl)
 
-        plt.ylabel("Count")
+            plt.ylabel("Count")
 
-        plt.title(use_display_name(pop))
-        plt.legend(loc="best")
-        plt.xlabel("Core")
+            plt.title(use_display_name(pop))
+            plt.legend(loc="best")
+            plt.xlabel("Core")
 
-        plt.tight_layout()
-        save_figure(
-            plt,
-            os.path.join(sim_fig_folder,
-                         "per_core_abcd_{}").format(pop),
-            extensions=[".pdf", ])
-        plt.show()
-        plt.close(f)
+            plt.tight_layout()
+            save_figure(
+                plt,
+                os.path.join(sim_fig_folder,
+                             "per_core_abcd_{}").format(pop),
+                extensions=[".pdf", ])
+            plt.show()
+            plt.close(f)
     # Plot distribution of worst case spikes per population
     if conn_exists and worst_case:
         print("Plotting histogram of worst spike counts")
@@ -1702,7 +1705,7 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
                 curr_inst_rates_1 - curr_inst_rates_2), 0)
         except ValueError as ve:
             traceback.print_exc()
-            all_instantenous_rate_diff[pop] = [[np.nan]]
+            all_instantenous_rate_diff[pop] = neo.AnalogSignal([np.nan], units='Hz', sampling_rate=1*pq.Hz)
 
         # I guess we need to look at each neuron?
         for (p1, p2) in zip(pop_1_spikes, pop_2_spikes):
@@ -1744,13 +1747,11 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
                 t_start=0 * pq.ms, t_stop=simtime)
 
             cc_matrix = elephant.spike_train_correlation.corrcoef(
-                combined_binned,
-                fast=True)
+                combined_binned)
             corr_coef_per_neuron.append(cc_matrix[0, 1])
 
             cov_matrix = elephant.spike_train_correlation.covariance(
-                combined_binned,
-                fast=True)
+                combined_binned)
             cov_per_neuron.append(cov_matrix[0, 1])
 
             tiling = elephant.spike_train_correlation.spike_time_tiling_coefficient(

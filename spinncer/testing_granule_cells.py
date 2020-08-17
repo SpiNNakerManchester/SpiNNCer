@@ -100,6 +100,8 @@ else:  # args.single_spike_exp
         'golgi': inh_spike_times
     }
 
+
+per_pop_r_mem = {}
 if args.disable_around:
     number_of_decimals_to_round = int(np.ceil(np.log10((1 / args.timestep) / 10)) + 1)
     print(
@@ -129,17 +131,38 @@ golgi = sim.Population(
     label="golgi")
 
 # Create LIF population
+exc_weight = CONNECTIVITY_MAP['glom_grc']['weight']
+inh_weight = CONNECTIVITY_MAP['goc_grc']['weight']
 if str.lower(args.simulator) in ["spinnaker", "spynnaker"]:
-    # additional_params = {"rb_left_shifts": [0, 0]}
+    cell_params = CELL_PARAMS[args.population]
+    if args.r_mem:
+        r_mem = cell_params['tau_m'] / cell_params['cm']
+        print("R_mem", r_mem)
+        # adjust i_offset
+        if 'i_offset' in cell_params.keys():
+            print("original i_offset =", cell_params['i_offset'])
+            cell_params['i_offset'] *= r_mem
+            print("r_mem * i_offset =", cell_params['i_offset'])
+        exc_weight *= r_mem
+        inh_weight *= r_mem
+        per_pop_r_mem[args.population] = r_mem
+        curr_weights = np.array([exc_weight, inh_weight])
+        rb_ls = np.asarray(np.ceil(np.log2(np.abs(curr_weights * 2))))  # Expect at most 3 spikes in the same time step
+        print("Compute RB_LS:", rb_ls)
+        rb_ls = np.clip(rb_ls, 0, 16)
+        print("Clipped RB_LS:", rb_ls)
+    else:
+        per_pop_r_mem[args.population] = 1.0
+        rb_ls = [0, 0]
     additional_params = {
-        "rb_left_shifts": [0, 0],
+        "rb_left_shifts": rb_ls,
         "n_steps_per_timestep": args.loops_grc
     }
     print("ADDITIONAL PARAMETERS:", additional_params)
     cell_to_test = sim.Population(
         1,
         cellclass=sim.IF_cond_exp,
-        cellparams=CELL_PARAMS[args.population],
+        cellparams=cell_params,
         label=args.population,
         additional_parameters=additional_params)
 else:
@@ -148,7 +171,14 @@ else:
         cellclass=sim.IF_cond_exp,
         cellparams=CELL_PARAMS[args.population],
         label=args.population)
-# populations = cerebellum_circuit.get_all_populations()
+
+
+from spinncer.utilities.utils import round_to_nearest_accum
+print("WEIGHTS BEFORE CASTING TO ACCUM:", exc_weight, inh_weight)
+exc_weight = round_to_nearest_accum(exc_weight, shift=rb_ls[0])
+inh_weight = round_to_nearest_accum(inh_weight, shift=rb_ls[1])
+print("WEIGHTS AFTER CASTING TO ACCUM:", exc_weight, inh_weight)
+
 populations = {
     'glomerulus': glomerulus,
     args.population: cell_to_test,
@@ -189,7 +219,7 @@ glom_grc = sim.Projection(
     # connector includes (source, target, weight, delay)
     sim.AllToAllConnector(),
     synapse_type=sim.StaticSynapse(
-        weight=CONNECTIVITY_MAP['glom_grc']['weight'],
+        weight=exc_weight,
         delay=1),
     receptor_type="excitatory",  # inh or exc
     label="glom_grc")  # label for connection
@@ -200,7 +230,7 @@ goc_grc = sim.Projection(
     # connector includes (source, target, weight, delay)
     sim.AllToAllConnector(),
     synapse_type=sim.StaticSynapse(
-        weight=-CONNECTIVITY_MAP['goc_grc']['weight'],  # NEST insists on the weight being negative, SpiNNaker does it behind the scenes
+        weight=-inh_weight,  # NEST insists on the weight being negative, SpiNNaker does it behind the scenes
         delay=2),
     receptor_type="inhibitory",  # inh or exc
     label="goc_grc")  # label for connection
@@ -251,9 +281,18 @@ for label, pop in populations.items():
         continue
     print("Retrieving recordings for ", label, "...")
     other_recordings[label] = {}
-    other_recordings[label]['gsyn_inh'] = pop.get_data(['gsyn_inh'])
-    other_recordings[label]['gsyn_exc'] = pop.get_data(['gsyn_exc'])
-    other_recordings[label]['v'] = pop.get_data(['v'])
+    _gi = pop.get_data(['gsyn_inh'])
+    _ge = pop.get_data(['gsyn_exc'])
+    _v = pop.get_data(['v'])
+
+    if args.r_mem:
+        # Bring back the original weights
+        _gi.segments[0].analogsignals[0] /= per_pop_r_mem[args.population]
+        _ge.segments[0].analogsignals[0] /= per_pop_r_mem[args.population]
+
+    other_recordings[label]['gsyn_inh'] = _gi
+    other_recordings[label]['gsyn_exc'] = _ge
+    other_recordings[label]['v'] = _v
 
 # Retrieve final network connectivity
 try:
@@ -265,20 +304,25 @@ try:
             continue
         print("Retrieving connectivity for projection ", label, "...")
         try:
-            final_connectivity[label] = \
+             conn = \
                 np.array(p.get(('weight', 'delay'),
                                format="list")._get_data_items())
         except Exception as e:
             print("Careful! Something happened when retrieving the "
                   "connectivity:", e, "\nRetrying...")
-            final_connectivity[label] = \
+            conn = \
                 np.array(p.get(('weight', 'delay'), format="list"))
+
+        conn = np.array(conn.tolist())
+        if args.r_mem:
+            # Bring back the original weights
+            conn[:, 2] /= per_pop_r_mem[args.population]
+        final_connectivity[label] = conn
 except:
     # This simulator might not support the way this is done
     final_connectivity = []
     traceback.print_exc()
 initial_connectivity = []
-
 # Save results
 suffix = end_time.strftime("_%H%M%S_%d%m%Y")
 if args.filename:
