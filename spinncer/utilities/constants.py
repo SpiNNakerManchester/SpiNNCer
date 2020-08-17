@@ -244,6 +244,205 @@ CONNECTIVITY_MAP = {
     },
 }
 
+CONNECTIVITY_MAP_SPINNAKER_VANILLA = {
+    'aa_goc': {
+        'pre': 'granule',
+        'post': 'golgi',
+        'weight': 0.0199890137,  # uS
+        'delay': 2.0,  # ms
+    },
+    'aa_pc': {
+        'pre': 'granule',
+        'post': 'purkinje',
+        'weight': 0.0750122070,  # uS
+        'delay': 2.0,  # ms
+    },
+    'bc_pc': {
+        'pre': 'basket',
+        'post': 'purkinje',
+        'weight': -0.0090026855,  # uS
+        'delay': 4.0,  # ms
+    },
+    'gj_bc': {
+        'pre': 'basket',
+        'post': 'basket',
+        'weight': -0.0024995804,  # uS
+        'delay': 4.0,  # ms
+    },
+    'gj_goc': {
+        'pre': 'golgi',
+        'post': 'golgi',
+        'weight': -0.0080032349,  # uS
+        'delay': 1.0,  # ms
+    },
+    'gj_sc': {
+        'pre': 'stellate',
+        'post': 'stellate',
+        'weight': -0.0019998550,  # uS
+        'delay': 1.0,  # ms
+    },
+    'glom_dcn': {
+        'pre': 'glomerulus',
+        'post': 'dcn',
+        'weight': 0.0000057220,  # uS
+        'delay': 4.0,  # ms
+    },
+    'glom_goc': {
+        'pre': 'glomerulus',
+        'post': 'golgi',
+        'weight': 0.0020141602,  # uS
+        'delay': 4.0,  # ms
+    },
+    'glom_grc': {
+        'pre': 'glomerulus',
+        'post': 'granule',
+        'weight': 0.0090007782,  # uS
+        'delay': 4.0,  # ms
+    },
+    'goc_grc': {
+        'pre': 'golgi',
+        'post': 'granule',
+        'weight': -0.0050001144,  # uS
+        'delay': 2.0,  # ms
+    },
+    'pc_dcn': {
+        'pre': 'purkinje',
+        'post': 'dcn',
+        'weight': -0.0000295639,  # uS This is different to the original: typo
+        'delay': 4.0,  # ms
+    },
+    'pf_bc': {
+        'pre': 'granule',
+        'post': 'basket',
+        'weight': 0.0002002716,  # uS
+        'delay': 5.0,  # ms
+    },
+    'pf_goc': {
+        'pre': 'granule',
+        'post': 'golgi',
+        'weight': 0.0003967285,  # uS
+        'delay': 5.0,  # ms
+    },
+    'pf_pc': {
+        'pre': 'granule',
+        'post': 'purkinje',
+        'weight': 0.0000305176,  # uS
+        'delay': 5.0,  # ms
+    },
+    'pf_sc': {
+        'pre': 'granule',
+        'post': 'stellate',
+        'weight': 0.0002002716,  # uS
+        'delay': 5.0,  # ms
+    },
+    'sc_pc': {
+        'pre': 'stellate',
+        'post': 'purkinje',
+        'weight': -0.0084991455,  # uS
+        'delay': 5.0,  # ms
+    },
+}
+
+CONNECTIVITY_MAP_SPINNAKER_R_MEM = {
+    'aa_goc': {
+        'pre': 'granule',
+        'post': 'golgi',
+        'weight': 0.0199895833,  # uS
+        'delay': 2.0,  # ms
+    },
+    'aa_pc': {
+        'pre': 'granule',
+        'post': 'purkinje',
+        'weight': 0.0749955611,  # uS
+        'delay': 2.0,  # ms
+    },
+    'bc_pc': {
+        'pre': 'basket',
+        'post': 'purkinje',
+        'weight': -0.0089994673,  # uS
+        'delay': 4.0,  # ms
+    },
+    'gj_bc': {
+        'pre': 'basket',
+        'post': 'basket',
+        'weight': -0.0025000000,  # uS
+        'delay': 4.0,  # ms
+    },
+    'gj_goc': {
+        'pre': 'golgi',
+        'post': 'golgi',
+        'weight': -0.0080014881,  # uS
+        'delay': 1.0,  # ms
+    },
+    'gj_sc': {
+        'pre': 'stellate',
+        'post': 'stellate',
+        'weight': -0.0020000000,  # uS
+        'delay': 1.0,  # ms
+    },
+    'glom_dcn': {
+        'pre': 'glomerulus',
+        'post': 'dcn',
+        'weight': 0.0000060039,  # uS
+        'delay': 4.0,  # ms
+    },
+    'glom_goc': {
+        'pre': 'glomerulus',
+        'post': 'golgi',
+        'weight': 0.0020074405,  # uS
+        'delay': 4.0,  # ms
+    },
+    'glom_grc': {
+        'pre': 'glomerulus',
+        'post': 'granule',
+        'weight': 0.0090000000,  # uS
+        'delay': 4.0,  # ms
+    },
+    'goc_grc': {
+        'pre': 'golgi',
+        'post': 'granule',
+        'weight': -0.0050002441,  # uS
+        'delay': 2.0,  # ms
+    },
+    'pc_dcn': {
+        'pre': 'purkinje',
+        'post': 'dcn',
+        'weight': -0.0000300197,  # uS This is different to the original: typo
+        'delay': 4.0,  # ms
+    },
+    'pf_bc': {
+        'pre': 'granule',
+        'post': 'basket',
+        'weight': 0.0002001953,  # uS
+        'delay': 5.0,  # ms
+    },
+    'pf_goc': {
+        'pre': 'granule',
+        'post': 'golgi',
+        'weight': 0.0003958333,  # uS
+        'delay': 5.0,  # ms
+    },
+    'pf_pc': {
+        'pre': 'granule',
+        'post': 'purkinje',
+        'weight': 0.0000275213,  # uS
+        'delay': 5.0,  # ms
+    },
+    'pf_sc': {
+        'pre': 'granule',
+        'post': 'stellate',
+        'weight': 0.0002001953,  # uS
+        'delay': 5.0,  # ms
+    },
+    'sc_pc': {
+        'pre': 'stellate',
+        'post': 'purkinje',
+        'weight': -0.0084972035,  # uS
+        'delay': 5.0,  # ms
+    },
+}
+
+
 # create a map from pyNest param names to PyNN param names + unit conversions
 # https://nest-test.readthedocs.io/en/pynest_mock/models/neurons.html#_CPPv4N4nest14iaf_cond_alphaE
 # http://neuralensemble.org/docs/PyNN/standardmodels.html?highlight=if_cond_alpha
