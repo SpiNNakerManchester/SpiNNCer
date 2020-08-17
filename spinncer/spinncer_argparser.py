@@ -196,4 +196,8 @@ parser.add_argument('--worst_case_spikes', action="store_true",
                          'process of counting number of afferent '
                          'spikes is performed.')
 
+parser.add_argument('--cast_to_accum', action="store_true",
+                    help='[FOR EXPERIMENTS] if this flag is present transform parameters to as to be '
+                         'representable by accums.')
+
 args = parser.parse_args()

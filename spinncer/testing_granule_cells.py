@@ -172,12 +172,12 @@ else:
         cellparams=CELL_PARAMS[args.population],
         label=args.population)
 
-
-from spinncer.utilities.utils import round_to_nearest_accum
-print("WEIGHTS BEFORE CASTING TO ACCUM:", exc_weight, inh_weight)
-exc_weight = round_to_nearest_accum(exc_weight, shift=rb_ls[0])
-inh_weight = round_to_nearest_accum(inh_weight, shift=rb_ls[1])
-print("WEIGHTS AFTER CASTING TO ACCUM:", exc_weight, inh_weight)
+if args.cast_to_accum:
+    from spinncer.utilities.utils import round_to_nearest_accum
+    print("WEIGHTS BEFORE CASTING TO ACCUM:", exc_weight, inh_weight)
+    exc_weight = round_to_nearest_accum(exc_weight, shift=rb_ls[0])
+    inh_weight = round_to_nearest_accum(inh_weight, shift=rb_ls[1])
+    print("WEIGHTS AFTER CASTING TO ACCUM:", exc_weight, inh_weight)
 
 populations = {
     'glomerulus': glomerulus,
