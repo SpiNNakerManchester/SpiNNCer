@@ -131,8 +131,9 @@ golgi = sim.Population(
     label="golgi")
 
 # Create LIF population
-exc_weight = CONNECTIVITY_MAP['glom_grc']['weight']
-inh_weight = CONNECTIVITY_MAP['goc_grc']['weight']
+c_map = CONNECTIVITY_MAP_SPINNAKER_VANILLA
+exc_weight = c_map['glom_grc']['weight']
+inh_weight = c_map['goc_grc']['weight']
 
 cell_params = CELL_PARAMS[args.population]
 if args.r_mem:
@@ -362,7 +363,7 @@ np.savez_compressed(results_file,
                     stimulus_params=stimulus_information,
                     simtime=args.simtime,
                     json_data=None,
-                    conn_params=CONNECTIVITY_MAP,
+                    conn_params=c_map,
                     cell_params=CELL_PARAMS,
                     )
 
