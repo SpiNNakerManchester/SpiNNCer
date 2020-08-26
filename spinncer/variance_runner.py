@@ -37,8 +37,8 @@ PHASES_ARGS = [None, "--periodic_stimulus"]
 # PHASES = [POISSON_PHASE, PERIODIC_PHASE]
 
 
-PHASES = [POISSON_PHASE]  # Only Poisson phase
-# PHASES = [PERIODIC_PHASE]  # Only PERIODIC phase
+# PHASES = [POISSON_PHASE]  # Only Poisson phase
+PHASES = [PERIODIC_PHASE]  # Only PERIODIC phase
 
 concurrently_active_processes = 0
 
@@ -57,7 +57,8 @@ log_calls = []
 
 # making a directory for this experiment
 # dir_name = "variance_testing_POISSON_stim_3_@{}".format(suffix)
-dir_name = "variance_testing_POISSON_@{}".format(suffix)
+dir_name = "variance_testing_{}_@{}".format(PHASES_NAMES[PHASES[0]], suffix)
+# dir_name = "variance_testing_PERIODIC_@{}".format(suffix)
 # dir_name = "variance_testing_3_loop_PERIODIC_@{}".format(suffix)
 print("=" * 80)
 print("TOTAL RUNS", total_runs)
@@ -95,13 +96,27 @@ for phase in PHASES:
                 os.path.join(base_path, 'cerebellum_experiment.py'),
                 '--input', dataset,
                 '-o', filename,
-                '--f_peak', str(200),
-                '--stim_radius', str(130),
-                # '-s', "../../400x400_stimulus_3.npz"
+                # '--f_peak', str(150),
+                # '--stim_radius', str(140),
+                # '--f_peak', str(200),
+                # '--stim_radius', str(130),
+                # '--spike_seed', str(31415926),
+                # '--id_seed', str(31415926),
+                # '-s', os.path.join(base_path, "400x400_stimulus_3.npz"),
+                '--r_mem',
+                '--loops_grc', str(3),
+                '--id_remap', 'grid'
                 ]
 
         if PHASES_ARGS[phase] is not None:
             call.append(PHASES_ARGS[phase])
+
+        # if args.additional_params is not None:
+        #     print("Additional parameters passed through to individual simulations:", args.additional_params)
+        #     for element in args.additional_params:
+        #         split_ap = element.split(" ")
+        #         for token in split_ap:
+        #             call.append(token)
         print("CALL", call)
         log_calls.append((call, filename, curr_params))
 

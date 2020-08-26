@@ -14,6 +14,9 @@ import pylab as plt
 from spinncer.batch_argparser import *
 import shutil
 from collections import namedtuple
+import spinncer as x
+
+base_path = os.path.dirname(x.__file__)
 
 currrent_time = plt.datetime.datetime.now()
 string_time = currrent_time.strftime("%H%M%S_%d%m%Y")
@@ -36,7 +39,7 @@ PHASES_ARGS = [None, "--periodic_stimulus"]
 
 
 # PHASES = [POISSON_PHASE] # Only Poisson phase
-PHASES = [PERIODIC_PHASE] # Only PERIODIC phase
+PHASES = [PERIODIC_PHASE]  # Only PERIODIC phase
 
 concurrently_active_processes = 0
 Result = namedtuple('Result', 'call filename parameters')
@@ -62,13 +65,17 @@ dataset = "scaffold_full_dcn_400.0x400.0_v3.hdf5"
 log_calls = []
 
 # making a directory for this experiment
-dir_name = "activity_sweep_stim_radius_3_loops_10x_PERIODIC_@{}".format(suffix)
-# dir_name = "activity_sweep_f_peak_3_loops_10x_PERIODIC_@{}".format(suffix)
+# dir_name = "activity_sweep_stim_radius_3_loops_10x_PERIODIC_@{}".format(suffix)
+# dir_name = "activity_sweep_f_peak_POISSON_@{}".format(suffix)
+dir_name = "activity_sweep_stim_radius_PERIODIC_@{}".format(suffix)
 
 print("=" * 80)
 print("TOTAL RUNS", total_runs)
-print("MKDIR", dir_name)
-os.mkdir(dir_name)
+if not os.path.isdir(dir_name):
+    print("MKDIR", dir_name)
+    os.mkdir(dir_name)
+else:
+    print("FOLDER ALREADY EXISTS. RE-RUNNING INCOMPLETE JOBS.")
 print("CHDIR", dir_name)
 os.chdir(dir_name)
 print("GETCWD", os.getcwd())
@@ -98,32 +105,37 @@ for phase in PHASES:
 
                 params[filename] = curr_params
 
-                # making a directory for this individual experiment
-                os.mkdir(filename)
-                os.chdir(filename)
-                print("GETCWD", os.getcwd())
-                shutil.copyfile("../../spynnaker.cfg", "spynnaker.cfg")
-
                 concurrently_active_processes += 1
                 null = open(os.devnull, 'w')
                 print("Run ", concurrently_active_processes, "...")
 
                 call = [sys.executable,
-                        '../../cerebellum_experiment.py',
+                        os.path.join(base_path, 'cerebellum_experiment.py'),
                         '--input', dataset,
                         '-o', filename,
                         '--f_peak', str(f_peak),
-                        '--stim_radius', str(stim_radius)
+                        '--stim_radius', str(stim_radius),
+                        '--id_remap', 'grid'
                         ]
-                if RB_LEFT_SHIFT is not None:
-                    call.append('--rb_left_shifts')
-                    for rbls in RB_LEFT_SHIFT:
-                        call.append(str(rbls))
 
                 if PHASES_ARGS[phase] is not None:
                     call.append(PHASES_ARGS[phase])
+
                 print("CALL", call)
                 log_calls.append(Result(call, filename, curr_params))
+
+                # making a directory for this individual experiment
+                prev_run = True
+                if os.path.isdir(filename) and os.path.isfile(
+                        os.path.join(filename, "structured_provenance.csv")):
+                    print("Skipping", filename)
+                    continue
+                elif not os.path.isdir(filename):
+                    os.mkdir(filename)
+                    prev_run = False
+                os.chdir(filename)
+                print("GETCWD", os.getcwd())
+                shutil.copyfile("../../spynnaker.cfg", "spynnaker.cfg")
                 if concurrently_active_processes % MAX_CONCURRENT_PROCESSES == 0 \
                         or concurrently_active_processes == total_runs:
                     # Blocking

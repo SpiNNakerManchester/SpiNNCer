@@ -12,7 +12,19 @@
 # 	--group_on n_run --group_on_name run > variance_testing.out &	
 
 # Runs with 3 loops for granule
-nohup python3 provenance_analysis.py -i  activity_sweep_f_peak_3_loops_try_2_POISSON_@aea5e313e04d41712ac8f5a69031eb90 \
+nohup python3 provenance_analysis.py -i  \
+	activity_sweep_f_peak_POISSON_@1000x_vanilla_scaling_200_grid \
+	activity_sweep_f_peak_PERIODIC_@1000x_vanilla_scaling_200_grid \
+	--group_on f_peak > f_peak_vanilla_grid.out &
+
+nohup python3 provenance_analysis.py -i  \
+	activity_sweep_stim_radius_POISSON_@1000x_vanilla_scaling_200_grid \
+	activity_sweep_stim_radius_PERIODIC_@1000x_vanilla_scaling_200_grid \
+	--group_on stim_radius > stim_radius_vanilla_grid.out &
+
+nohup python3 provenance_analysis.py -i  
+	activity_sweep_f_peak_POISSON_@1000x_vanilla_scaling_200_grid \
+	activity_sweep_f_peak_3_loops_try_2_POISSON_@aea5e313e04d41712ac8f5a69031eb90 \
 	activity_sweep_f_peak_3_loops_10x_PERIODIC_@547e8ae1ce1014d8ec7feed9955dccfe \
     activity_sweep_f_peak_3_loops_try_2_POISSON_@0625bb6d09db8cee6b4ca024e1e15af2 \
 	activity_sweep_f_peak_3_loops_try_2_PERIODIC_@3eed4e3f66064a7f152a507b84c3f506 \
