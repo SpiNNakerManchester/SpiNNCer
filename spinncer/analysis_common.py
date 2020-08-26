@@ -170,8 +170,11 @@ COMMON_DISPLAY_NAMES = {
     'stellate': "SC",
     'basket cells': "BC",
     'basket': "BC",
-    'max_spikes_in_a_tick': "Max # of spikes in a time step",
-    'send_multicast_packets': "Multicast packets sent",
+    'max_spikes_in_a_tick': "Peak # of MC packets",
+    'dumped_from_a_link': "Dropped from link",
+    'send_multicast_packets': "MC packets sent",
+    'max_dmas_in_a_tick': "Peak # of DMAs",
+    'max_pipeline_restarts': "Peak # of pipeline restarts",
     'router_provenance': "Router",
     # Connection names
     'aa_goc': "aa-GoC",

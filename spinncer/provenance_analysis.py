@@ -155,27 +155,28 @@ def sweep_provenance_analysis(in_folder, fig_folder, group_on,
             cumulative_report(new_collated_results, types_of_provenance,
                               prov_of_interest)
 
+    plot_per_population_provenance_of_interest(
+        collated_results, calls, poi, router_provenance_of_interest,
+        group_on or group_on_name, current_fig_folder,
+        router_pop=router_pop_names)
+
     plot_population_placement(collated_results, placements,
                               fig_folder=current_fig_folder)
 
     for folder in run_folders:
-        plot_2D_map_for_poi(in_folder, folder,
-                            prov_of_interest, router_pop_names,
-                            current_fig_folder, placements)
+        plot_router_provenance(in_folder, folder, router_pop_names,
+                               router_provenance_of_interest,
+                               current_fig_folder)
 
     plot_per_population_provenance_of_interest(collated_results, calls, poi,
                                                prov_of_interest,
                                                group_on or group_on_name,
                                                current_fig_folder)
 
-    plot_per_population_provenance_of_interest(
-        collated_results, calls, poi, router_provenance_of_interest,
-        group_on or group_on_name, current_fig_folder,
-        router_pop=router_pop_names)
     for folder in run_folders:
-        plot_router_provenance(in_folder, folder, router_pop_names,
-                               router_provenance_of_interest,
-                               current_fig_folder)
+        plot_2D_map_for_poi(in_folder, folder,
+                            prov_of_interest, router_pop_names,
+                            current_fig_folder, placements)
 
 
 def plot_2D_map_for_poi(folder, selected_sim,
@@ -186,8 +187,11 @@ def plot_2D_map_for_poi(folder, selected_sim,
     pop_only_prov = prov[~prov['pop'].isin(router_pop_names)]
     filtered_placement = \
         placements[selected_sim]
-
-    router_provenance = filtered_placement['router_provenance']
+    try:
+        router_provenance = filtered_placement['router_provenance']
+    except KeyError:
+        traceback.print_exc()
+        router_provenance = filtered_placement
 
     for type_of_provenance in provenance_of_interest:
         #  need to get processor p as well as x y prov_value
@@ -258,14 +262,6 @@ def plot_2D_map_for_poi(folder, selected_sim,
                                                         selected_sim)),
                     extensions=['.png', '.pdf'])
         plt.close(f)
-
-        # Some reports
-        # write_short_msg("Plotting ROUTER map for", selected_sim)
-        # write_short_msg("ROUTER provenance", type_of_provenance)
-        # write_short_msg("Number of cores used", filtered_placement.shape[0])
-        # write_short_msg("Number of chips used",
-        #                 filtered_placement[["x", "y"]].drop_duplicates().shape[0])
-        # write_line()
 
 
 def plot_router_provenance(folder, selected_sim, router_pop_names,
@@ -347,14 +343,6 @@ def plot_router_provenance(folder, selected_sim, router_pop_names,
                     extensions=['.png', '.pdf'])
         plt.close(f)
 
-        # Some reports
-        write_short_msg("Plotting ROUTER map for", selected_sim)
-        write_short_msg("ROUTER provenance", type_of_provenance)
-        write_short_msg("Number of cores used", filtered_placement.shape[0])
-        write_short_msg("Number of chips used",
-                        filtered_placement[["x", "y"]].drop_duplicates().shape[0])
-        write_line()
-
 
 def cumulative_report(collated_results, types_of_provenance, prov_of_interest):
     sorted_key_list = list(collated_results.keys())
@@ -404,8 +392,11 @@ def plot_population_placement(collated_results, placements, fig_folder):
     for selected_sim in sorted_key_list:
         filtered_placement = \
             placements[selected_sim]
-
+        # try:
         router_provenance = filtered_placement['router_provenance']
+        # except KeyError:
+        #     traceback.print_exc()
+        #     continue
 
         placements_per_pop = {x: filtered_placement[x]
                               for x in filtered_placement.keys()
@@ -505,11 +496,11 @@ def plot_per_population_provenance_of_interest(
     # Look at parameters in calls
     # Check if group_on is a parameter in poi and calls
     # Grab all of the uniques from
-    for curr_g in group_on:
+    for curr_group in group_on:
         # if curr_g is in POI then we can proceed with plotting things like this
-        if curr_g in poi.keys():
-            curr_poi = poi[curr_g]
-            print("Current parameter of interest is ", curr_g,
+        if curr_group in poi.keys():
+            curr_poi = poi[curr_group]
+            print("Current parameter of interest is ", curr_group,
                   "with values", curr_poi)
             # sort, just in case
             curr_poi.sort()
@@ -519,7 +510,7 @@ def plot_per_population_provenance_of_interest(
                 curr_mapping = {val: None for val in curr_poi}
                 for curr_poi_val in curr_poi:
                     for call in calls:
-                        if call[2][curr_g] == curr_poi_val:
+                        if call[2][curr_group] == curr_poi_val:
                             # store filename associated with current value
                             match_fname = call[1]
                             if match_fname not in collated_results.keys():
@@ -553,7 +544,8 @@ def plot_per_population_provenance_of_interest(
                                 curr_mapping[curr_poi_val] = _max_values_per_pop
                             else:
                                 for k, v in _max_values_per_pop.items():
-                                    curr_mapping[curr_poi_val][k].extend(v)
+                                    if v:
+                                        curr_mapping[curr_poi_val][k].extend(v)
                 # Plotting bit
                 plot_order = get_plot_order(_max_values_per_pop.keys())
                 n_plots = float(len(plot_order))
@@ -603,7 +595,7 @@ def plot_per_population_provenance_of_interest(
                                         "determination",
                                         fit_res['determination'])
 
-                plt.xlabel(use_display_name(curr_g))
+                plt.xlabel(use_display_name(curr_group))
                 plt.ylabel(use_display_name(type_of_prov))
                 ax = plt.gca()
                 plt.legend(loc='best')
@@ -652,7 +644,7 @@ def plot_per_population_provenance_of_interest(
                                         "determination",
                                         fit_res['determination'])
 
-                plt.xlabel(use_display_name(curr_g))
+                plt.xlabel(use_display_name(curr_group))
                 plt.ylabel(use_display_name(type_of_prov))
                 ax = plt.gca()
                 plt.legend(loc='best')
