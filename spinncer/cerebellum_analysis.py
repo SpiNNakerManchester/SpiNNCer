@@ -28,6 +28,207 @@ def color_for_index(index, size, cmap=viridis_cmap):
     return cmap(1 / (size - index + 1))
 
 
+def filtered_spike_rates(all_spikes, all_neurons, plot_order, simtime,
+                         sim_params, stimulus_params):
+    spikes_per_timestep = {}
+    # Per neuron firing rate in each stimulus period
+    per_neuron_firing = {}
+    filtered_per_neuron_firing = {}
+    filtered_per_neuron_excited_map = {}
+    filtered_per_neuron_inhibited_map = {}
+    per_neuron_spike_count = {}
+    filtered_per_neuron_spike_count = {}
+    average_firing_rates = {}
+
+    delay_sensitive = True
+
+    timestep = sim_params['argparser']['timestep'] * ms
+    # Pre-compute conversions
+    time_to_bin_conversion = 1. / (timestep / ms)
+    bins_in_3ms = int(3 * time_to_bin_conversion)
+    no_timesteps = int(simtime / ms * time_to_bin_conversion)
+    pad_to_compute_3ms_bins = bins_in_3ms - no_timesteps % bins_in_3ms
+
+    stim_durations = sim_params['argparser']['stim_times']
+    stimulus_periods = len(stim_durations)
+
+    starts = np.cumsum(np.concatenate(([0], stimulus_params['stim_times'])))
+    time_filter = starts
+    stim_durations = sim_params['argparser']['stim_times']
+    stimulus_periods = len(stim_durations)
+
+    stim_period_start = {}
+    stim_period_end = {}
+    per_pop_stim_durations = {k: [] for k in plot_order}
+
+    for pop in plot_order:
+        spikes = all_spikes[pop]
+
+        spikes_per_timestep[pop] = \
+            np.bincount((spikes[:, 1] * time_to_bin_conversion).astype(int),
+                        minlength=no_timesteps)
+        max_spikes = np.max(spikes_per_timestep[pop])
+        print("\t{:20}->{:6} = {:1.4f}".format(pop, max_spikes,
+                                               max_spikes / all_neurons[pop]),
+              "per neuron")
+
+        # temporary variable to store the population level firing rates
+        # before, during and after stimulation
+        _filtered_spike_rates = np.zeros(stimulus_periods)
+        _spike_times = spikes[:, 1]
+        # Initialise per_neuron_firing
+        per_neuron_firing[pop] = np.ones((all_neurons[pop],
+                                          stimulus_periods)) * -10
+        per_neuron_spike_count[pop] = np.ones((all_neurons[pop],
+                                               stimulus_periods)) * -10
+
+        for period in range(stimulus_periods):
+
+            if delay_sensitive and period == 0:
+                time_filter_pre = time_filter[period]
+                time_filter_post = time_filter[period + 1] + DELAY_IN_EXCITATION[pop]
+            elif delay_sensitive and period == 1:
+                time_filter_pre = time_filter[period] + DELAY_IN_EXCITATION[pop]
+                time_filter_post = time_filter[period + 1] + DELAY_IN_EXCITATION[pop]
+            elif delay_sensitive and period == 2:
+                time_filter_pre = time_filter[period] + DELAY_IN_EXCITATION[pop]
+                time_filter_post = time_filter[period + 1]
+            else:
+                time_filter_pre = time_filter[period]
+                time_filter_post = time_filter[period + 1]
+
+            if period == 1:
+                stim_period_start[pop] = time_filter_pre
+                stim_period_end[pop] = time_filter_post
+            per_pop_stim_durations[pop].append(time_filter_post - time_filter_pre)
+            current_period_duration = per_pop_stim_durations[pop][period]
+            _filtered_spike_times = np.logical_and(
+                _spike_times >= time_filter_pre,
+                _spike_times < time_filter_post)
+            _filtered_spike_rates[period] = \
+                np.count_nonzero(_filtered_spike_times) / \
+                (current_period_duration * ms)
+            for nid in range(all_neurons[pop]):
+                _spikes_for_nid = spikes[spikes[:, 0] == nid][:, 1]
+                _no_spike_for_nid = np.count_nonzero(np.logical_and(
+                    _spikes_for_nid >= time_filter_pre,
+                    _spikes_for_nid < time_filter_post))
+                per_neuron_spike_count[pop][nid, period] = _no_spike_for_nid
+                per_neuron_firing[pop][nid, period] = \
+                    _no_spike_for_nid / (current_period_duration * ms)
+        # save the firing rate for the average neuron in this population
+        average_firing_rates[pop] = _filtered_spike_rates / all_neurons[pop]
+
+    print("=" * 80)
+    print("FILTERED average firing rates before, during and after stimulation")
+    print("-" * 80)
+    for pop in plot_order:
+        # Retrieve firing rate for each neuron in each of the periods
+        _x = per_neuron_firing[pop]
+        _x_count = per_neuron_spike_count[pop]
+        # _filtered_rates = np.zeros(stimulus_periods)
+        _excited_map = np.zeros(_x.shape[0])
+        _inhibited_map = np.zeros(_x.shape[0])
+
+        # filter out neurons that are not "excited" as defined in the
+        # scaffold paper, i.e., cells that fire twice as much when stimulated as
+        # compared to before stimulation
+        _excited_map = np.greater(_x[:, 1], 2 * _x[:, 0])
+        # See SC email from 23/01/2020
+        # baseline firing rate b
+        # stimulation firing rate s
+        # correct: b > 2 * s
+        _inhibited_map = np.greater(_x[:, 0], 2 * _x[:, 1])
+
+        # filter out neurons that don't fire at all
+        _neurons_that_fire = np.sum(
+            per_neuron_spike_count[pop], axis=1) > 0
+        _excited_map = np.logical_and(
+            _excited_map, _neurons_that_fire
+        )
+        _inhibited_map = np.logical_and(
+            _inhibited_map, _neurons_that_fire
+        )
+
+        if pop == "granule":
+            # for GrC filter out neurons that don't fire more than once
+            _excited_map = np.logical_and(
+                _excited_map, per_neuron_spike_count[pop][:, 1] > 1
+            )
+
+        # check that neurons are not both inhibited and excited
+        assert np.all(~(np.logical_and(_excited_map, _inhibited_map)))
+
+        filtered_per_neuron_firing[pop] = _x[_excited_map]
+        filtered_per_neuron_spike_count[pop] = _x_count[_excited_map]
+        filtered_per_neuron_excited_map[pop] = np.arange(all_neurons[pop])[_excited_map]
+        excited_filtered_mean = np.mean(_x[_excited_map], axis=0)
+        excited_filtered_std = np.std(_x[_excited_map], axis=0)
+        excited_before = excited_filtered_mean[0]
+        excited_during = excited_filtered_mean[1]
+        excited_after = excited_filtered_mean[2]
+        excited_before_std = excited_filtered_std[0]
+        excited_during_std = excited_filtered_std[1]
+        excited_after_std = excited_filtered_std[2]
+        print("\t{:20} excited   ->[{:>8.2f}+-{:>4.1f}, {:>8.2f}+-{:>4.1f}, {:>8.2f}+-{:>4.1f}] Hz".format(
+            pop,
+            excited_before, excited_before_std,
+            excited_during, excited_during_std,
+            excited_after, excited_after_std),
+            "per neuron")
+        no_excited = np.count_nonzero(_excited_map)
+        print("\t\t\t {:6d} excited neurons, i.e. {:7.2%} of cells".format(
+            no_excited, no_excited / all_neurons[pop]))
+
+        inhibited_filtered_mean = np.mean(_x[_inhibited_map], axis=0)
+        inhibited_filtered_std = np.std(_x[_inhibited_map], axis=0)
+
+        filtered_per_neuron_inhibited_map[pop] = np.arange(all_neurons[pop])[_inhibited_map]
+        inhibited_before = inhibited_filtered_mean[0]
+        inhibited_during = inhibited_filtered_mean[1]
+        inhibited_after = inhibited_filtered_mean[2]
+        inhibited_before_std = inhibited_filtered_std[0]
+        inhibited_during_std = inhibited_filtered_std[1]
+        inhibited_after_std = inhibited_filtered_std[2]
+        print("\t{:20} inhibited ->[{:>8.2f}+-{:>4.1f}, {:>8.2f}+-{:>4.1f}, {:>8.2f}+-{:>4.1f}] Hz".format(
+            pop,
+            inhibited_before, inhibited_before_std,
+            inhibited_during, inhibited_during_std,
+            inhibited_after, inhibited_after_std),
+            "per neuron")
+        no_inhibited = np.count_nonzero(_inhibited_map)
+        print("\t\t\t {:6d} inhibited neurons, i.e. {:7.2%} of cells".format(
+            no_inhibited, no_inhibited / all_neurons[pop]))
+        print("\t{:10} neurons didn't fire at all".format(
+            np.count_nonzero(np.invert(_neurons_that_fire))))
+        print("<(LaTeX formatting)>")
+        print("{:15} EXCITED {:6d} ({:7.2%}) & "
+              "{:>8.2f}$\pm${:>4.1f} & "
+              "{:>8.2f}$\pm${:>4.1f} & "
+              "{:>8.2f}$\pm${:>4.1f}".format(
+            pop,
+            int(no_excited), no_excited / all_neurons[pop],
+            excited_before, excited_before_std,
+            excited_during, excited_during_std,
+            excited_after, excited_after_std))
+
+        print("{:15} INHIBITED {:6d} ({:7.2%}) & "
+              "{:>8.2f}$\pm${:>4.1f} & "
+              "{:>8.2f}$\pm${:>4.1f} & "
+              "{:>8.2f}$\pm${:>4.1f}".format(
+            pop,
+            int(no_inhibited), no_inhibited / all_neurons[pop],
+            inhibited_before, inhibited_before_std,
+            inhibited_during, inhibited_during_std,
+            inhibited_after, inhibited_after_std))
+        print("</(LaTeX formatting)>")
+        print("-" * 80)
+    print("=" * 80)
+    return (average_firing_rates, per_neuron_spike_count, per_neuron_firing,
+            filtered_per_neuron_firing, filtered_per_neuron_spike_count,
+            filtered_per_neuron_excited_map, filtered_per_neuron_inhibited_map)
+
+
 def plot_analog_signal(data, variable_name, ylabel, plot_order,
                        wanted_times, time_to_bin_conversion,
                        fig_folder,
@@ -1262,7 +1463,6 @@ def spike_analysis(results_file, fig_folder,
     #         if i == 0:
     #             plt.show()
 
-
     # # Plot activity snapshots
     # for pop in plot_order:
     #     print("POST", pop)
@@ -1361,7 +1561,7 @@ def spike_analysis(results_file, fig_folder,
     #                     plt.show()
     #                 plt.close(fig)
 
-                # Plot using actual 3D positions
+    # Plot using actual 3D positions
 
     # raster plot including ALL populations
     print("Plotting spiking raster plot for all populations")
@@ -1608,6 +1808,9 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
     all_spikes_1 = data_1['all_spikes'].ravel()[0]
     all_spikes_2 = data_2['all_spikes'].ravel()[0]
 
+    all_neurons_1 = data_1['all_neurons'].ravel()[0]
+    all_neurons_2 = data_2['all_neurons'].ravel()[0]
+
     other_recordings_1 = data_1['other_recordings'].ravel()[0]
     other_recordings_2 = data_2['other_recordings'].ravel()[0]
 
@@ -1637,6 +1840,7 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
                   sim_params_2['argparser']['simulator']]
 
     stimulus_params = data_1['stimulus_params'].ravel()[0]
+    stimulus_params_2 = data_2['stimulus_params'].ravel()[0]
     starts = np.cumsum(np.concatenate(([0], stimulus_params['stim_times']))) * pq.ms
 
     bin_size = 5 * pq.ms
@@ -1661,6 +1865,93 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
     all_isi = {}
     all_cv = {}
     all_cv2 = {}
+
+    # Pre-compute conversions
+    time_to_bin_conversion = 1. / (timestep / ms)
+    bins_in_3ms = int(3 * time_to_bin_conversion)
+    no_timesteps = int(useful_simtime / ms * time_to_bin_conversion)
+
+    spinn_format_all_spikes_1 = {}
+    spinn_format_all_spikes_2 = {}
+    spinn_format_spikes = [spinn_format_all_spikes_1, spinn_format_all_spikes_2]
+    neo_format_spikes = [all_spikes_1, all_spikes_2]
+    for spike_train_id, neo_format_s in enumerate(neo_format_spikes):
+        for pop, potential_neo_block in neo_format_s.items():
+            if isinstance(potential_neo_block, neo.Block):
+                spinn_format_spikes[spike_train_id][pop] = convert_spikes(potential_neo_block)
+
+    print("=" * 80)
+    print(file_1)
+    (average_firing_rates_1, per_neuron_spike_count_1, per_neuron_firing_1,
+     filtered_per_neuron_firing_1, filtered_per_neuron_spike_count_1,
+     excited_map_1, inhibited_map_1) = filtered_spike_rates(
+        spinn_format_all_spikes_1, all_neurons_1, plot_order,
+        useful_simtime, sim_params_1, stimulus_params)
+
+    print(file_2)
+    (average_firing_rates_2, per_neuron_spike_count_2, per_neuron_firing_2,
+     filtered_per_neuron_firing_2, filtered_per_neuron_spike_count_2,
+     excited_map_2, inhibited_map_2) = filtered_spike_rates(
+        spinn_format_all_spikes_2, all_neurons_2, plot_order,
+        useful_simtime, sim_params_2, stimulus_params_2)
+
+    excel_filename = os.path.join(sim_fig_folder,
+                                  "firing_rate_per_period.xlsx")
+    writer = pd.ExcelWriter(
+        excel_filename,
+        engine='xlsxwriter')
+    for pop in plot_order:
+        spikes_per_pop = {}
+        x_1 = filtered_per_neuron_firing_1[pop]
+        x_2 = filtered_per_neuron_firing_2[pop]
+        excited_1 = excited_map_1[pop]
+        excited_2 = excited_map_2[pop]
+        inhibited_1 = inhibited_map_1[pop]
+        inhibited_2 = inhibited_map_2[pop]
+        if x_1.shape[0] == 0 or x_2.shape[0] == 0:
+            continue
+        print("pop ", pop)
+        print("Overlap in excited ids", np.intersect1d(excited_1, excited_2).size,
+              "cf size of 1", excited_1.size,
+              "cf size of 2", excited_2.size)
+        print("Overlap in inhibited ids", np.intersect1d(inhibited_1, inhibited_2).size,
+              "cf size of 1", inhibited_1.size,
+              "cf size of 2", inhibited_2.size)
+        for period in range(3):
+            print("Period:", period)
+            curr_x1 = x_1[:, period]
+            curr_x2 = x_2[:, period]
+
+            spikes_per_pop["sim_1_period_{}".format(period)] = curr_x1
+            spikes_per_pop["sim_2_period_{}".format(period)] = curr_x2
+
+            print("is x1 normal?:", stats.normaltest(curr_x1))
+            print("is x2 normal?:", stats.normaltest(curr_x2))
+
+            curr_ttest = stats.ttest_ind(curr_x1, curr_x2, equal_var=True)
+            print("ttest (p, stat):", curr_ttest.pvalue, curr_ttest.statistic)
+
+            curr_ttest = stats.ttest_ind(curr_x1, curr_x2, equal_var=False)
+            print("ttest (p, stat) equal_var=False:", curr_ttest.pvalue, curr_ttest.statistic)
+
+            curr_ttest_from_stats = \
+                stats.ttest_ind_from_stats(mean1=np.mean(curr_x1), std1=np.std(curr_x1), nobs1=curr_x1.size,
+                                           mean2=np.mean(curr_x2), std2=np.std(curr_x2), nobs2=curr_x2.size)
+
+            print("ttest  from stats (p, stat):", curr_ttest_from_stats.pvalue, curr_ttest_from_stats.statistic)
+
+            f = plt.figure(1, figsize=(9, 9), dpi=400)
+            plt.hist(curr_x1, alpha=.6)
+            plt.hist(curr_x2, alpha=.6)
+            plt.title(use_display_name(pop))
+            save_figure(plt, os.path.join(sim_fig_folder,
+                                          "hist_of_firing_rates_{}_{}".format(pop, period)),
+                        extensions=['.png', ])
+            plt.close(f)
+        df = pd.DataFrame({ key:pd.Series(value) for key, value in spikes_per_pop.items() } )
+        df.to_excel(writer, sheet_name=pop)
+        print("-" * 80)
+    writer.save()
     print("=" * 80)
     print("Spike train analysis (avg +- std)")
     # https://elephant.readthedocs.io/en/latest/modules.html
@@ -1683,7 +1974,7 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
         cv2s = {0: [],
                 1: []}
 
-        # Comptue instantaneous rates for sim 1 and 2 and take the difference
+        # Compute instantaneous rates for sim 1 and 2 and take the difference
         try:
             curr_inst_rates_1 = \
                 elephant.statistics.instantaneous_rate(
@@ -1705,7 +1996,7 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
                 curr_inst_rates_1 - curr_inst_rates_2), 0)
         except ValueError as ve:
             traceback.print_exc()
-            all_instantenous_rate_diff[pop] = neo.AnalogSignal([np.nan], units='Hz', sampling_rate=1*pq.Hz)
+            all_instantenous_rate_diff[pop] = neo.AnalogSignal([np.nan], units='Hz', sampling_rate=1 * pq.Hz)
 
         # I guess we need to look at each neuron?
         for (p1, p2) in zip(pop_1_spikes, pop_2_spikes):
@@ -1835,7 +2126,7 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
                   stats.normaltest(log_isi_1))
             print("{:45}".format("log_isi_2 distribution normality"),
                   stats.normaltest(log_isi_2))
-            ttest_for_pop = stats.ttest_ind(log_isi_1, log_isi_2, equal_var=False)
+            ttest_for_pop = stats.ttest_ind(log_isi_1, log_isi_2, equal_var=True)
 
             print("{:30}-{:30}:".format(
                 "", "ttest on log ISI (pvalue, statistic)"),
@@ -2027,47 +2318,16 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
                                   ylabel="CV", titles=simulators,
                                   **common_values_for_plots)
 
+    plot_sbs_boxplot_for_all_pops(all_cv, "cv",
+                                  xlabel="Population",
+                                  ylabel="CV", titles=simulators,
+                                  yscale='log',
+                                  **common_values_for_plots)
+
     plot_sbs_boxplot_for_all_pops(all_cv2, "cv2",
                                   xlabel="Population",
                                   ylabel="CV2", titles=simulators,
                                   **common_values_for_plots)
-
-    # Plot side by side histograms
-    # plot_sbs_histogram_for_all_pops(all_isi, "isi",
-    #                                 xlabel="ISI",
-    #                                 ylabel="count", titles=simulators,
-    #                                 **common_values_for_plots)
-    #
-    # plot_sbs_histogram_for_all_pops(all_cv, "cv",
-    #                                 xlabel="CV",
-    #                                 ylabel="count", titles=simulators,
-    #                                 **common_values_for_plots)
-    #
-    # plot_sbs_histogram_for_all_pops(all_cv2, "cv2",
-    #                                 xlabel="CV2",
-    #                                 ylabel="count", titles=simulators,
-    #                                 **common_values_for_plots)
-
-    # Plotting histograms
-    # plot_histogram_for_all_pops(all_cross_corr, "cross_corr",
-    #                             xlabel="Cross Correlation",
-    #                             ylabel="count",
-    #                             **common_values_for_plots)
-
-    # plot_histogram_for_all_pops(all_corr_coef, "corr_coeff",
-    #                             xlabel="Correlation Coefficient",
-    #                             ylabel="count",
-    #                             **common_values_for_plots)
-    #
-    # plot_histogram_for_all_pops(all_distances, "van_rostum_dist",
-    #                             xlabel="van Rostum Distance",
-    #                             ylabel="count",
-    #                             **common_values_for_plots)
-    #
-    # plot_histogram_for_all_pops(all_tiling_coef, "tiling_coeff",
-    #                             xlabel="Tiling Coefficient",
-    #                             ylabel="count",
-    #                             **common_values_for_plots)
 
     print("=" * 80)
 
@@ -2138,18 +2398,19 @@ def plot_analog_signal_with_error(data, variable_name,
             passed_in_ticks = False
             argsorted_ticks = adjusted_xticks
         f = plt.figure(1, figsize=(9, 9), dpi=400)
+        values = np.nanmean(values_for_pop, axis=1).ravel()[argsorted_ticks]
         if errorbars:
             plt.errorbar(adjusted_xticks,
-                         np.nanmean(values_for_pop, axis=1).ravel()[argsorted_ticks],
+                         values,
                          yerr=np.nanstd(values_for_pop, axis=1).ravel(),
                          color=color_for_index(index, n_plots),
                          rasterized=True)
         else:
             plt.plot(adjusted_xticks,
-                     np.nanmean(values_for_pop, axis=1).ravel()[argsorted_ticks],
+                     values,
                      color=color_for_index(index, n_plots),
                      rasterized=True)
-
+        plt.ylim([np.minimum(0, np.min(values)), np.minimum(1, np.max(values))])
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
         save_figure(plt, os.path.join(fig_folder,
