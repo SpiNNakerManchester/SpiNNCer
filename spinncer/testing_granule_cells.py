@@ -131,7 +131,12 @@ golgi = sim.Population(
     label="golgi")
 
 # Create LIF population
-c_map = CONNECTIVITY_MAP_SPINNAKER_VANILLA
+# 3 possibilities for a connectivity map
+
+if not args.cast_to_accum:
+    c_map = CONNECTIVITY_MAP
+else:
+    c_map = CONNECTIVITY_MAP_SPINNAKER_R_MEM if args.r_mem else CONNECTIVITY_MAP_SPINNAKER_VANILLA
 exc_weight = c_map['glom_grc']['weight']
 inh_weight = c_map['goc_grc']['weight']
 
