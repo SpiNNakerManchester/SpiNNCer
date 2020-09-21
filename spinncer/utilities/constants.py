@@ -460,3 +460,23 @@ PYNEST_TO_PYNN_CONVERSION = {
     "tau_syn_in": ("tau_syn_I", 1),  # ms
     "I_e": ("i_offset", 1e-3),  # conversion from pA (pyNest) to nA (PyNN)
 }
+
+
+# Store cannonical RB LS here for [excitatory, inhibitory] synapses
+VANILLA_RBLS = {
+    'granule': [1, 0],
+    'golgi': [5, 3],
+    'stellate': [0, 0],
+    'basket': [0, 0],
+    'purkinje': [5, 2],
+    'dcn': [0, 0]
+}
+
+RMEM_RBLS = {
+    'granule': [5, 4],
+    'golgi': [8, 6],
+    'stellate': [4, 3],
+    'basket': [4, 4],
+    'purkinje': [7, 5],
+    'dcn': [0, 0]
+}

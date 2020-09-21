@@ -136,25 +136,31 @@ exc_weight = c_map['glom_grc']['weight']
 inh_weight = c_map['goc_grc']['weight']
 
 cell_params = CELL_PARAMS[args.population]
-if args.r_mem:
-    r_mem = cell_params['tau_m'] / cell_params['cm']
-    print("R_mem", r_mem)
-    # adjust i_offset
-    if 'i_offset' in cell_params.keys():
-        print("original i_offset =", cell_params['i_offset'])
-        cell_params['i_offset'] *= r_mem
-        print("r_mem * i_offset =", cell_params['i_offset'])
-    exc_weight *= r_mem
-    inh_weight *= r_mem
-    per_pop_r_mem[args.population] = r_mem
-    curr_weights = np.array([exc_weight, inh_weight])
-    rb_ls = np.asarray(np.ceil(np.log2(np.abs(curr_weights * 2))))  # Expect at most 3 spikes in the same time step
-    print("Compute RB_LS:", rb_ls)
-    rb_ls = np.clip(rb_ls, 0, 16)
-    print("Clipped RB_LS:", rb_ls)
+
+if args.real_rbls:
+    cannonical_rbls = RMEM_RBLS if args.r_mem else VANILLA_RBLS
+    rb_ls = cannonical_rbls[args.population]
+    print("Using cannonical RB LS for population", args.population, "with values", rb_ls)
 else:
-    per_pop_r_mem[args.population] = 1.0
-    rb_ls = [0, 0]
+    if args.r_mem:
+        r_mem = cell_params['tau_m'] / cell_params['cm']
+        print("R_mem", r_mem)
+        # adjust i_offset
+        if 'i_offset' in cell_params.keys():
+            print("original i_offset =", cell_params['i_offset'])
+            cell_params['i_offset'] *= r_mem
+            print("r_mem * i_offset =", cell_params['i_offset'])
+        exc_weight *= r_mem
+        inh_weight *= r_mem
+        per_pop_r_mem[args.population] = r_mem
+        curr_weights = np.array([exc_weight, inh_weight])
+        rb_ls = np.asarray(np.ceil(np.log2(np.abs(curr_weights * 2))))  # Expect at most 3 spikes in the same time step
+        print("Compute RB_LS:", rb_ls)
+        rb_ls = np.clip(rb_ls, 0, 16)
+        print("Clipped RB_LS:", rb_ls)
+    else:
+        per_pop_r_mem[args.population] = 1.0
+        rb_ls = [0, 0]
 
 if str.lower(args.simulator) in ["spinnaker", "spynnaker"]:
     additional_params = {
@@ -276,6 +282,7 @@ for label, pop in populations.items():
     if pop is not None:
         print("Retrieving recordings for ", label, "...")
         recorded_spikes[label] = pop.get_data(['spikes'])
+        print("Spikes: ", recorded_spikes[label].segments[0].spiketrains)
 # other_recordings = cerebellum_circuit.retrieve_selective_recordings()
 other_recordings = {}
 for label, pop in populations.items():

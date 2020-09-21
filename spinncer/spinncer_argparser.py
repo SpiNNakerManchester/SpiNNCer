@@ -200,4 +200,14 @@ parser.add_argument('--cast_to_accum', action="store_true",
                     help='[FOR EXPERIMENTS] if this flag is present transform parameters to as to be '
                          'representable by accums.')
 
+parser.add_argument('--real_rbls', action="store_true",
+                    help='[FOR SMALL SCALE EXPERIMENTS] if this flag is present the '
+                         'ring buffer left shifts (rbls) are set to those used in the large scale '
+                         'network')
+
+parser.add_argument('--full_spikes', action="store_true",
+                    help='[FOR SMALL SCALE EXPERIMENTS] if this flag is present the '
+                         'input is no longer a single spike with weight scaled up, '
+                         'rather the correct number of spikes')
+
 args = parser.parse_args()
