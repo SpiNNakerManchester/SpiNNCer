@@ -137,6 +137,7 @@ if not args.cast_to_accum:
     c_map = CONNECTIVITY_MAP
 else:
     c_map = CONNECTIVITY_MAP_SPINNAKER_R_MEM if args.r_mem else CONNECTIVITY_MAP_SPINNAKER_VANILLA
+
 exc_weight = c_map['glom_grc']['weight']
 inh_weight = c_map['goc_grc']['weight']
 
@@ -167,7 +168,7 @@ else:
         per_pop_r_mem[args.population] = 1.0
         rb_ls = [0, 0]
 
-if str.lower(args.simulator) in ["spinnaker", "spynnaker"]:
+if spinnaker_sim:
     additional_params = {
         "rb_left_shifts": rb_ls,
         "n_steps_per_timestep": args.loops_grc
