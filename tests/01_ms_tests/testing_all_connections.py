@@ -12,7 +12,7 @@ from spinncer.utilities.utils import floor_spike_time
 
 # import sPyNNaker
 # import simulator
-from spinncer.utilities import create_poisson_spikes
+from spinncer.utilities import create_poisson_spikes, round_to_nearest_accum
 
 spinnaker_sim = False
 if str.lower(args.simulator) in ["spinnaker", "spynnaker"]:
@@ -51,6 +51,8 @@ connectivity_filename = os.path.join(
 sim.setup(timestep=args.timestep, min_delay=args.timestep, max_delay=1,
           timescale=args.timescale)
 
+simtime = args.simtime
+
 EXPECTED_MAX_SPIKES = {
     # Empirical values observed in simulation with a 200 Hz input with stim_radius = 130
     'aa_goc': 31,
@@ -71,15 +73,6 @@ EXPECTED_MAX_SPIKES = {
     'sc_pc': 9,
 }
 
-RB_LEFT_SHIFTS = {
-    'golgi': [0, 0],
-    'granule': [0, 0],
-    'purkinje': [4, 4],
-    'basket': [-2, -2],
-    'stellate': [-2, -2],
-    'dcn': [-5, -5]
-}
-
 n_neurons = 10
 
 # Compute spikes
@@ -91,6 +84,7 @@ single_spike_source = sim.Population(
     cellclass=sim.SpikeSourceArray,
     cellparams={
         'spike_times': [input_spike]
+        # 'spike_times': []
     },
     label="Spike source")
 
@@ -102,6 +96,7 @@ projections = {}
 additional_parameters = {}
 per_pop_r_mem = {}
 
+cannonical_rbls = RMEM_RBLS if args.r_mem else VANILLA_RBLS
 initial_connectivity = {}
 for conn_name, conn_params in CONNECTIVITY_MAP.items():
     print("-"*80)
@@ -135,36 +130,24 @@ for conn_name, conn_params in CONNECTIVITY_MAP.items():
         weight_m = [0, np.abs(curr_weight)]
     is_projection_exc[conn_name] = 0 if is_conn_exc else 1
 
-    if str.lower(args.simulator) in ["spinnaker", "spynnaker"]:
+    if args.real_rbls:
+        # Retrieve the RB LS for the post-synaptic population
+        rb_ls = cannonical_rbls[conn_params['post']]
+        print("Using cannonical RB LS for population", args.population, "with values", rb_ls)
+    else:
         if args.r_mem:
-            rb_ls = [np.ceil(np.log2(np.abs(curr_weight))), ] * 2
-            if "pf_" in conn_name:
-                rb_ls = [7, ] * 2
-            if "_dcn" in conn_name:
-                rb_ls = [4, ] * 2
-            # if "aa_" in conn_name:
-            #     rb_ls = [0, ] * 2
-            if "_pc" in conn_name:
-                rb_ls = [5, ] * 2
-
+            rb_ls = np.asarray([np.ceil(np.log2(np.abs(curr_weight))), ] * 2)
         else:
-            # rb_ls = RB_LEFT_SHIFTS[conn_params['post']]
-            if "pf_" in conn_name:
-                rb_ls = [5, 5]
-            else:
-                rb_ls = [10, 10]
-
-            if "pf_pc" in conn_name:
-                rb_ls = [5, 5]
-            if "_dcn" in conn_name:
-                rb_ls = [5, 5]
-            # rb_ls = [np.ceil(np.log2(np.abs(curr_weight*(2**5)))),] * 2
-        additional_parameters = {
-            "additional_parameters": {
-                "rb_left_shifts": rb_ls,
-                "n_steps_per_timestep": args.loops_grc
-            }
+            rb_ls = np.asarray([np.ceil(np.log2(np.abs(curr_weight*(2**5)))),] * 2)
+        print("Compute RB_LS:", rb_ls)
+        rb_ls = np.clip(rb_ls, 0, 16)
+        print("Clipped RB_LS:", rb_ls)
+    additional_parameters = {
+        "additional_parameters": {
+            "rb_left_shifts": rb_ls,
+            "n_steps_per_timestep": args.loops_grc
         }
+    }
     print("ADDITIONAL PARAMETERS:", conn_params['post'], additional_parameters)
 
     # Remove i_offset if we don't want it in this experiment
@@ -181,6 +164,7 @@ for conn_name, conn_params in CONNECTIVITY_MAP.items():
     # initialise V
     cell_to_test.initialize(v=cell_params['v_rest'])
     populations[conn_name] = cell_to_test
+    print(conn_name, "will have weight set to", weight_m)
     # Create projection
     conn_to_test = sim.Projection(single_spike_source, cell_to_test,
                                   sim.OneToOneConnector(),
@@ -202,7 +186,7 @@ sim_start_time = plt.datetime.datetime.now()
 current_error = None
 # Run the simulation
 try:
-    sim.run(200)  # ms
+    sim.run(simtime)  # ms
 except Exception as e:
     print("An exception occurred during execution!")
     traceback.print_exc()
@@ -218,8 +202,9 @@ sim_total_time = end_time - sim_start_time
 recorded_spikes = {}
 for label, pop in populations.items():
     if pop is not None:
-        print("Retrieving recordings for ", label, "...")
-        recorded_spikes[label] = pop.get_data(['spikes'])
+        print("Retrieving spikes for ", label, "...")
+        recorded_spikes[label] = pop.get_data(['spikes']).segments[0].spiketrains[is_projection_exc[label]]
+        print("Spikes: ", recorded_spikes[label])
 # other_recordings = cerebellum_circuit.retrieve_selective_recordings()
 other_recordings = {}
 for label, pop in populations.items():
@@ -262,6 +247,7 @@ except:
 print("MAX weight per projection")
 print("-" * 80)
 conn_dict = {}
+print("{:27} -> SpiNNaker weight \t|\t Prescribed weight".format("Conn name"))
 for key in final_connectivity:
     # Connection holder annoyance here:
     conn = np.asarray(final_connectivity[key])
@@ -286,6 +272,8 @@ for key in final_connectivity:
         conn = useful_conn.astype(np.float)
     conn_dict[key] = conn
     mean = np.max(conn[:, 2]) / per_pop_r_mem[key]
+    if args.test_max_weight:
+        mean = mean / EXPECTED_MAX_SPIKES[key]
     # replace with percentage of difference
     original_conn = np.abs(CONNECTIVITY_MAP[key]["weight"])
     if mean < original_conn:
@@ -308,14 +296,19 @@ if not os.path.isdir(args.result_dir) and not os.path.exists(args.result_dir):
 # Appropriately end the simulation
 sim.end()
 
+
 # save required csv
-excel_filename = "{}_{}_loops_max_weight_{}_r_mem_{}_{}_testing_all_connections.xlsx".format(
+excel_filename = "{}_{}_loops_max_weight_{}_r_mem_{}_{}_testing_all_connections".format(
     args.simulator,
     args.loops_grc,
     args.test_max_weight,
     args.r_mem,
     "WITH_ioffset" if not args.disable_i_offset else "WITHOUT_ioffset"
 )
+
+if args.suffix:
+    excel_filename += "_" + args.suffix
+excel_filename += ".xlsx"
 
 writer = pd.ExcelWriter(
     os.path.join(args.result_dir, excel_filename),
@@ -325,6 +318,16 @@ ordered_projections = list(other_recordings.keys())
 ordered_projections.sort()
 for key in ordered_projections:
     value = other_recordings[key]
+
+    # Create a bool vector with an entry per time step. 0 = no spike, 1 = spike
+    spike_hit_vector = np.zeros(int(simtime * 10))
+    curr_spikes = np.asarray(recorded_spikes[key]).ravel()
+    curr_timestep = (curr_spikes * 10).astype(int)
+    spike_hit_vector[curr_timestep] = 1
+
+    # add spikes to value dict
+    value["spikes"] = spike_hit_vector
+
     df = pd.DataFrame.from_dict(value)
     # just order columns alphabetically
     ordered_variables = list(value.keys())

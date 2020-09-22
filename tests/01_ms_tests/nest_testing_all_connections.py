@@ -53,15 +53,7 @@ connectivity_filename = os.path.join(
 sim.setup(timestep=args.timestep, min_delay=args.timestep, max_delay=1,
           timescale=args.timescale)
 
-# Compile stimulus information
-stimulus_information = {
-    'f_base': args.f_base,
-    'f_peak': args.f_peak,
-    'stim_times': [100, 100, 100],
-    'stim_radius': np.nan,
-    'periodic_stimulus': False,
-    'percentage_active_fibers': np.nan,
-}
+simtime = args.simtime
 
 EXPECTED_MAX_SPIKES = {
     # Empirical values observed in simulation with a 200 Hz input with stim_radius = 130
@@ -155,7 +147,7 @@ sim_start_time = plt.datetime.datetime.now()
 current_error = None
 # Run the simulation
 try:
-    sim.run(200)  # ms
+    sim.run(simtime)  # ms
 except Exception as e:
     print("An exception occurred during execution!")
     traceback.print_exc()
@@ -171,8 +163,9 @@ sim_total_time = end_time - sim_start_time
 recorded_spikes = {}
 for label, pop in populations.items():
     if pop is not None:
-        print("Retrieving recordings for ", label, "...")
-        recorded_spikes[label] = pop.get_data(['spikes'])
+        print("Retrieving spikes for ", label, "...")
+        recorded_spikes[label] = pop.get_data(['spikes']).segments[0].spiketrains[0]
+        print("Spikes: ", recorded_spikes[label])
 # other_recordings = cerebellum_circuit.retrieve_selective_recordings()
 other_recordings = {}
 gsyn_labels = ['gsyn_inh', 'gsyn_exc']
@@ -225,44 +218,21 @@ if current_error:
 if not os.path.isdir(args.result_dir) and not os.path.exists(args.result_dir):
     os.mkdir(args.result_dir)
 
-# Retrieve simulation parameters for provenance tracking and debugging purposes
-sim_params = {
-    "argparser": vars(args),
-    "git_hash": retrieve_git_commit(),
-    "run_end_time": end_time.strftime("%H:%M:%S_%d/%m/%Y"),
-    "wall_clock_script_run_time": str(total_time),
-    "wall_clock_sim_run_time": str(sim_total_time),
-    "n_neurons_per_core": 1,
-    "ss_neurons_per_core": 1,
-}
-
-# Save results to file in [by default] the `results/' directory
-results_file = os.path.join(args.result_dir, filename)
-np.savez_compressed(results_file,
-                    simulation_parameters=sim_params,
-                    all_spikes=recorded_spikes,
-                    other_recordings=other_recordings,
-                    all_neurons=all_neurons,
-                    final_connectivity=final_connectivity,
-                    initial_connectivity=initial_connectivity,
-                    stimulus_params=stimulus_information,
-                    simtime=args.simtime,
-                    json_data=None,
-                    conn_params=CONNECTIVITY_MAP,
-                    cell_params=CELL_PARAMS,
-                    )
-
 # Appropriately end the simulation
 sim.end()
 
 # save required csv
-excel_filename = "{}_{}_loops_max_weight_{}_r_mem_{}_{}_testing_all_connections.xlsx".format(
+excel_filename = "{}_{}_loops_max_weight_{}_r_mem_{}_{}_testing_all_connections".format(
     args.simulator,
     args.loops_grc,
     args.test_max_weight,
     args.r_mem,
     "WITH_ioffset" if not args.disable_i_offset else "WITHOUT_ioffset"
 )
+
+if args.suffix:
+    excel_filename += "_" + args.suffix
+excel_filename += ".xlsx"
 
 writer = pd.ExcelWriter(
     os.path.join(args.result_dir, excel_filename),
@@ -272,6 +242,16 @@ ordered_projections = list(other_recordings.keys())
 ordered_projections.sort()
 for key in ordered_projections:
     value = other_recordings[key]
+
+    # Create a bool vector with an entry per time step. 0 = no spike, 1 = spike
+    spike_hit_vector = np.zeros(int(simtime * 10))
+    curr_spikes = np.asarray(recorded_spikes[key]).ravel()
+    curr_timestep = (curr_spikes * 10).astype(int)
+    spike_hit_vector[curr_timestep] = 1
+
+    # add spikes to value dict
+    value["spikes"] = spike_hit_vector
+
     df = pd.DataFrame.from_dict(value)
     # just order columns alphabetically
     ordered_variables = list(value.keys())
