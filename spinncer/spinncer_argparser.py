@@ -210,4 +210,9 @@ parser.add_argument('--full_spikes', action="store_true",
                          'input is no longer a single spike with weight scaled up, '
                          'rather the correct number of spikes')
 
+
+parser.add_argument('--suffix', type=str,
+                    help="extra string to identify some files"
+                         "-- default {}".format(None))
+
 args = parser.parse_args()
