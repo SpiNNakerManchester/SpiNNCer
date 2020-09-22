@@ -244,7 +244,7 @@ for key in ordered_projections:
     value = other_recordings[key]
 
     # Create a bool vector with an entry per time step. 0 = no spike, 1 = spike
-    spike_hit_vector = np.zeros(int((simtime+1) * 10))
+    spike_hit_vector = np.zeros(int((simtime) * 10)+1)
     curr_spikes = np.asarray(recorded_spikes[key]).ravel()
     curr_timestep = (curr_spikes * 10).astype(int)
     spike_hit_vector[curr_timestep] = 1
