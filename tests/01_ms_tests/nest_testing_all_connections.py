@@ -75,20 +75,34 @@ EXPECTED_MAX_SPIKES = {
     'sc_pc': 9,
 }
 
+# Number of pairs
+n_pops = len(list(CONNECTIVITY_MAP.keys()))
+
 # Compute spikes
-
-n_neurons = 10
-
-input_spike = 10 - args.timestep
+input_spike_time = 10 - args.timestep
 
 # Create Spike Source Arrays
-single_spike_source = sim.Population(
-    1,
-    cellclass=sim.SpikeSourceArray,
-    cellparams={
-        'spike_times': [input_spike]
-    },
-    label="glomerulus")
+if not args.test_max_spikes:
+    single_spike_source = sim.Population(
+        2,
+        cellclass=sim.SpikeSourceArray,
+        cellparams={
+            'spike_times': [input_spike_time]
+        },
+        label="Spike source")
+
+all_spike_sources = {}
+for conn_label in CONNECTIVITY_MAP.keys():
+    if not args.test_max_spikes:
+        all_spike_sources[conn_label] = single_spike_source
+    else:
+        all_spike_sources[conn_label] = sim.Population(
+            2,
+            cellclass=sim.SpikeSourceArray,
+            cellparams={
+                'spike_times': [input_spike_time] * EXPECTED_MAX_SPIKES[conn_label]
+            },
+            label="Spike source for {}".format(conn_label))
 
 is_projection_exc = {}
 # Create a LIF population per projection
@@ -127,7 +141,7 @@ for conn_name, conn_params in CONNECTIVITY_MAP.items():
     if args.test_max_weight:
         curr_weight *= EXPECTED_MAX_SPIKES[conn_name]
     # Create projection
-    conn_to_test = sim.Projection(single_spike_source, cell_to_test,
+    conn_to_test = sim.Projection(all_spike_sources[conn_name], cell_to_test,
                                   sim.OneToOneConnector(),
                                   synapse_type=sim.StaticSynapse(
                                       weight=curr_weight,
@@ -222,13 +236,18 @@ if not os.path.isdir(args.result_dir) and not os.path.exists(args.result_dir):
 sim.end()
 
 # save required csv
-excel_filename = "{}_{}_loops_max_weight_{}_r_mem_{}_{}_testing_all_connections".format(
+excel_filename = "testing_all_connections_{}_{}_loops".format(
     args.simulator,
     args.loops_grc,
-    args.test_max_weight,
-    args.r_mem,
-    "WITH_ioffset" if not args.disable_i_offset else "WITHOUT_ioffset"
 )
+if args.r_mem:
+    excel_filename += "_" + "r_mem"
+if args.test_max_spikes:
+    excel_filename += "_" + "max_spikes"
+if args.test_max_weight:
+    excel_filename += "_" + "single_max_weight"
+if args.disable_i_offset:
+    excel_filename += "_" + "WITHOUT_IOFFSET"
 
 if args.suffix:
     excel_filename += "_" + args.suffix
