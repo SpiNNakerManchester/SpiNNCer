@@ -1,7 +1,9 @@
 # argparser for easily running experiment from cli
 from spinncer.spinncer_argparser import *
 from spinncer.utilities.constants import *
+from spinncer.utilities.neo_converter import convert_spikes
 from spinncer.utilities import create_poisson_spikes, round_to_nearest_accum
+
 spinnaker_sim = False
 if str.lower(args.simulator) in ["spinnaker", "spynnaker"]:
     try:
@@ -31,6 +33,9 @@ start_time = plt.datetime.datetime.now()
 sim.setup(timestep=args.timestep, min_delay=args.timestep, max_delay=1,
           timescale=args.timescale)
 
+if spinnaker_sim:
+    sim.set_number_of_neurons_per_core(sim.IF_cond_exp, 5)
+
 simtime = args.simtime
 
 # 40 values for i_offset
@@ -45,10 +50,10 @@ subcycles = np.arange(11)[1:]
 
 n_neurons = dc_currents.size
 
-typical_pop_dict = {k:None for k in CELL_PARAMS.keys() if k!="glomerulus"}
+typical_pop_dict = {k: None for k in CELL_PARAMS.keys() if k != "glomerulus"}
 
 per_pop_r_mem = {}
-pop_by_subcycle = {k:copy.deepcopy(typical_pop_dict) for k in subcycles}
+pop_by_subcycle = {k: copy.deepcopy(typical_pop_dict) for k in subcycles}
 recorded_spikes = copy.deepcopy(pop_by_subcycle)
 recorded_voltage = copy.deepcopy(pop_by_subcycle)
 cannonical_rbls = RMEM_RBLS if args.r_mem else VANILLA_RBLS
@@ -99,7 +104,6 @@ for sc in subcycles:
         # initialise V
         curr_pop.initialize(v=curr_cell_params['v_rest'])
 
-
 # Record simulation start time (wall clock)
 sim_start_time = plt.datetime.datetime.now()
 current_error = None
@@ -120,13 +124,12 @@ sim_total_time = end_time - sim_start_time
 # Retrieve recordings
 for sc, pops_for_sc in pop_by_subcycle.items():
     for pop_label, pop_o in pops_for_sc.items():
-        if pop_o is not None:
-            print("Retrieving spikes for ", pop_label, "...")
-            recorded_spikes[sc][pop_label] = np.array(pop_o.get_data(['spikes']).segments[0].spiketrains)
-            print("Retrieving v for ", pop_label, "...")
-            # TODO Normalise this by r_mem
-            recorded_voltage[sc][pop_label] = np.array(
-                pop_o.get_data(['v']).segments[0].filter(name='v'))[0].T
+        print("Retrieving spikes for ", pop_label, "...")
+        recorded_spikes[sc][pop_label] = convert_spikes(pop_o.get_data(['spikes']))
+        print("Retrieving v for ", pop_label, "...")
+        # TODO Normalise this by r_mem
+        recorded_voltage[sc][pop_label] = np.array(
+            pop_o.get_data(['v']).segments[0].filter(name='v'))[0].T
 
 sim.end()
 
@@ -135,7 +138,7 @@ if not os.path.isdir(args.result_dir) and not os.path.exists(args.result_dir):
     os.mkdir(args.result_dir)
 
 # save required csv
-filename = "{}_r_mem_{}_testing_all_cells".format(
+filename = "DC_testing_all_cells_{}_r_mem_{}".format(
     args.simulator,
     args.r_mem,
 )
