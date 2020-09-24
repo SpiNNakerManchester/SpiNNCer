@@ -39,8 +39,8 @@ if spinnaker_sim:
 simtime = args.simtime
 
 # 40 values for i_offset
-dc_currents = np.linspace(0, 1.2, 41)[1:]
-# TODO use SpiNNaker representable values by casting to the closest accum
+dc_currents = np.linspace(0, 1., 61)[1:]
+# use SpiNNaker representable values by casting to the closest accum
 spinnaker_dc_currents = np.array(
     [round_to_nearest_accum(x, 0) for x in dc_currents]
 )
