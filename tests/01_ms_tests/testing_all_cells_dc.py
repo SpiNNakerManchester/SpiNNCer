@@ -78,8 +78,15 @@ for sc in subcycles:
     for pop in typical_pop_dict.keys():
         print("\tCreating pop", pop)
         curr_cell_params = copy.deepcopy(CELL_PARAMS[pop])
+        # Do we have to consider the R_mem case?
+        if args.r_mem:
+            r_mem = curr_cell_params['tau_m'] / curr_cell_params['cm']
+            per_pop_r_mem[pop] = r_mem
+        else:
+            per_pop_r_mem[pop] = 1
+
         # Set up correct cell parameters
-        curr_cell_params['i_offset'] = spinnaker_dc_currents
+        curr_cell_params['i_offset'] = spinnaker_dc_currents * per_pop_r_mem[pop]
 
         if spinnaker_sim:
             curr_pop = sim.Population(
@@ -127,7 +134,6 @@ for sc, pops_for_sc in pop_by_subcycle.items():
         print("Retrieving spikes for ", pop_label, "...")
         recorded_spikes[sc][pop_label] = convert_spikes(pop_o.get_data(['spikes']))
         print("Retrieving v for ", pop_label, "...")
-        # TODO Normalise this by r_mem
         recorded_voltage[sc][pop_label] = np.array(
             pop_o.get_data(['v']).segments[0].filter(name='v'))[0].T
 
