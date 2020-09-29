@@ -159,7 +159,16 @@ for test_name, rates_for_test, contributions_for_test in zip(test_case_names, te
 
             # Round spike times to time step boundary
             for id, exc_s in enumerate(exc_spikes):
-                exc_spikes[id] = floor_spike_time(exc_s, t_stop=simtime * pq.ms)
+                rounded_spike_times = floor_spike_time(exc_s, t_stop=simtime * pq.ms)
+                # DEALING WITH nest.lib.hl_api_exceptions.NESTErrors.BadProperty:
+                # ("BadProperty in SetStatus_id: Setting status of a
+                # 'spike_generator' with GID 855: spike time cannot be
+                # set to 0.", 'BadProperty',
+                # <SLILiteral: SetStatus_id>, ": Setting status of a
+                # 'spike_generator' with GID 855: spike time cannot be set to 0.")
+                # Which means IT CAN'T BE 0.1, NOT 0
+                rounded_spike_times[rounded_spike_times < 0.2] = 0.2
+                exc_spikes[id] = rounded_spike_times
 
             # Produce inhibitory spikes
             inh_spikes = create_poisson_spikes(n_neurons,
@@ -169,7 +178,16 @@ for test_name, rates_for_test, contributions_for_test in zip(test_case_names, te
 
             # Round spike times to time step boundary
             for id, inh_s in enumerate(inh_spikes):
-                inh_spikes[id] = floor_spike_time(inh_s, t_stop=simtime * pq.ms)
+                rounded_spike_times = floor_spike_time(inh_s, t_stop=simtime * pq.ms)
+                # DEALING WITH nest.lib.hl_api_exceptions.NESTErrors.BadProperty:
+                # ("BadProperty in SetStatus_id: Setting status of a
+                # 'spike_generator' with GID 855: spike time cannot be
+                # set to 0.", 'BadProperty',
+                # <SLILiteral: SetStatus_id>, ": Setting status of a
+                # 'spike_generator' with GID 855: spike time cannot be set to 0.")
+                # Which means IT CAN'T BE 0.1, NOT 0
+                rounded_spike_times[rounded_spike_times < 0.2] = 0.2
+                inh_spikes[id] = rounded_spike_times
 
             # save the spikes but don't record them from the Spike Sources
             input_spikes_by_subcycle[sc]['exc'] = exc_spikes
