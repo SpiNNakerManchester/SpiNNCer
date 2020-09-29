@@ -231,6 +231,10 @@ for test_name, rates_for_test, contributions_for_test in zip(test_case_names, te
             assert len(exc_weights) == n_neurons
             assert len(inh_weights) == n_neurons
 
+            # NEST quirk
+            exc_weights = np.array(exc_weights).reshape((n_neurons, 1))
+            inh_weights = np.array(inh_weights).reshape((n_neurons, 1))
+
             # add the exc and inh projections
             sim.Projection(exc_ssa, curr_pop,
                            sim.AllToAllConnector(),
@@ -280,11 +284,11 @@ for sc, pops_for_sc in pop_by_subcycle.items():
 
         print("Retrieving gsyn exc for ", pop_label, "...")
         recorded_gsyn_exc[sc][pop_label] = np.array(
-            pop_o.get_data(['gsyn_exc']).segments[0].filter(name='v'))[0].T / per_pop_r_mem
+            pop_o.get_data(['gsyn_exc']).segments[0].filter(name='gsyn_exc'))[0].T / per_pop_r_mem
 
         print("Retrieving gsyn inh for ", pop_label, "...")
         recorded_gsyn_inh[sc][pop_label] = np.array(
-            pop_o.get_data(['gsyn_inh']).segments[0].filter(name='v'))[0].T / per_pop_r_mem
+            pop_o.get_data(['gsyn_inh']).segments[0].filter(name='gsyn_inh'))[0].T / per_pop_r_mem
 
 sim.end()
 
