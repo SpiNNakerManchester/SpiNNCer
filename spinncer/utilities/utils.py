@@ -41,7 +41,7 @@ def create_poisson_spikes(n_inputs, rates, starts, durations):
 # result: array(0.4) * ms
 # def floor_spike_time(a, precision=0, dtype=1 * pq.ms):
 #     return np.round(a - 0.5 * 10**(-precision) * dtype, precision)
-def floor_spike_time(times, dt=0.1, t_start=0, t_stop=1000.0):
+def floor_spike_time(times, dt=0.1 * pq.ms, t_start=0* pq.ms, t_stop=1000.0* pq.ms):
     bins = np.arange(t_start, t_stop + dt, dt)
     count, bin_edges = np.histogram(times, bins=bins)
     present_times_filter = count > 0

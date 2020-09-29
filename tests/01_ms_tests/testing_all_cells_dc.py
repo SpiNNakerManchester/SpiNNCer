@@ -62,7 +62,8 @@ print("=" * 80)
 print("\nThis is a test of the SpiNNaker solver when confronted with very rapidly changing sub-threshold voltage "
       "\nvalues to due high values on intrinsic current (DC, i_offset) injected into cells.")
 print("Original DC current values", dc_currents, "nA")
-print("SpiNNaker DC current values", dc_currents, "nA")
+print("SpiNNaker DC current values", spinnaker_dc_currents, "nA")
+print("Diff in DC current values (Prescribed - S1615)", dc_currents-spinnaker_dc_currents)
 print("Solver sub-cycle values", subcycles)
 print("=" * 80)
 for sc in subcycles:
