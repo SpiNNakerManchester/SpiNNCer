@@ -153,7 +153,7 @@ for test_name, rates_for_test, contributions_for_test in zip(test_case_names, te
 
             # Produce excitatory spikes
             exc_spikes = create_poisson_spikes(n_neurons,
-                                               [[int(exc_rate)], ] * n_neurons,
+                                               [[float(exc_rate)], ] * n_neurons,
                                                [[0], ] * n_neurons,
                                                [[simtime], ] * n_neurons)
 
@@ -172,7 +172,7 @@ for test_name, rates_for_test, contributions_for_test in zip(test_case_names, te
 
             # Produce inhibitory spikes
             inh_spikes = create_poisson_spikes(n_neurons,
-                                               [[int(inh_rate)], ] * n_neurons,
+                                               [[float(inh_rate)], ] * n_neurons,
                                                [[0], ] * n_neurons,
                                                [[simtime], ] * n_neurons)
 
