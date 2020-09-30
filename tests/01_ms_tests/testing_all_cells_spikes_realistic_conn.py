@@ -181,7 +181,8 @@ for case, test_name, rates_for_test in zip(cases, test_case_names, test_rates):
             curr_pop.initialize(v=curr_cell_params['v_rest'])
 
             # retrieve the proportions of each weight
-            inc_proj = per_pop_incoming_projections[pop].sort()
+            inc_proj = per_pop_incoming_projections[pop]
+            inc_proj.sort()
 
             # Create a spike source array for each pre-synaptic pop
             for proj in inc_proj:
