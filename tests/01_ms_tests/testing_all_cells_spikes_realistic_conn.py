@@ -98,7 +98,7 @@ n_test_cells = 1
 typical_pop_dict = {k: None for k in CELL_PARAMS.keys() if k != "glomerulus"}
 cases_dict = {k: copy.deepcopy(typical_pop_dict) for k in cases}
 
-spike_source_per_pop = {}
+spike_source_per_pop = {k: {} for k in cases}
 
 per_pop_r_mem = {}
 pop_by_subcycle = {k: copy.deepcopy(cases_dict) for k in subcycles}
@@ -122,13 +122,14 @@ print("=" * 80)
 
 pop_order = get_plot_order(low_case_rates.keys())
 
+# Set up all the pops for the current value of sub-cycles
+# seed the elephant spike generator here so that all sub-cycles generate the same spikes
+np.random.seed(3141592653)
+
 for case, test_name, rates_for_test in zip(cases, test_case_names, test_rates):
     print("Current case:", test_name)
     for sc in subcycles:
         print("Creating populations using ", sc, "solver sub-cycles.")
-        # Set up all the pops for the current value of sub-cycles
-        # seed the elephant spike generator here so that all sub-cycles generate the same spikes
-        np.random.seed(3141592653)
         # Consistently loop over populations in the same order
         for pop in pop_order:
             # Set up correct additional params
@@ -180,7 +181,7 @@ for case, test_name, rates_for_test in zip(cases, test_case_names, test_rates):
             curr_pop.initialize(v=curr_cell_params['v_rest'])
 
             # retrieve the proportions of each weight
-            inc_proj = per_pop_incoming_projections[pop]
+            inc_proj = per_pop_incoming_projections[pop].sort()
 
             # Create a spike source array for each pre-synaptic pop
             for proj in inc_proj:
@@ -199,7 +200,7 @@ for case, test_name, rates_for_test in zip(cases, test_case_names, test_rates):
                     curr_fan_in = int(curr_fan_in / 10.)
                     rate_for_pre_pop *= 10
 
-                if pre_pop not in spike_source_per_pop.keys():
+                if pre_pop not in spike_source_per_pop[case].keys():
                     # Produce spikes
                     curr_spikes = create_poisson_spikes(curr_fan_in,
                                                         [[rate_for_pre_pop], ] * curr_fan_in,
@@ -231,9 +232,9 @@ for case, test_name, rates_for_test in zip(cases, test_case_names, test_rates):
                         },
                         label="{}-SSA for {} at {} sub-cycles".format(test_name, proj, sc))
 
-                    spike_source_per_pop[pre_pop] = ssa
+                    spike_source_per_pop[case][pre_pop] = ssa
                 else:
-                    ssa = spike_source_per_pop[pre_pop]
+                    ssa = spike_source_per_pop[case][pre_pop]
                 # add the exc and inh projections
                 sim.Projection(ssa, curr_pop,
                                sim.AllToAllConnector(),
