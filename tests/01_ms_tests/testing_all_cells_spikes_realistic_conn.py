@@ -52,6 +52,7 @@ high_case_rates = {
 
 test_rates = [low_case_rates, high_case_rates]
 test_case_names = ["LOW", "HIGH"]
+cases = [0, 1]
 
 # need information on peak fan-in from each connection.
 max_fan_ins = {'aa_goc': 400,
@@ -71,15 +72,6 @@ max_fan_ins = {'aa_goc': 400,
  'pf_sc': 1379,
  'sc_pc': 20}
 
-# all_neurons = {
-#     'glomerulus': 7073,
-#     'granule': 88158,
-#     'golgi': 219,
-#     'stellate': 603,
-#     'basket': 603,
-#     'purkinje': 69,
-#     'dcn': 12
-# }
 
 per_pop_incoming_projections = {}
 for k in low_case_rates.keys():
@@ -104,13 +96,14 @@ subcycles = np.arange(5)[1:]
 n_test_cells = 1
 
 typical_pop_dict = {k: None for k in CELL_PARAMS.keys() if k != "glomerulus"}
+cases_dict = {k: copy.deepcopy(typical_pop_dict) for k in cases}
 
 spike_source_per_pop = {}
 
 per_pop_r_mem = {}
-pop_by_subcycle = {k: copy.deepcopy(typical_pop_dict) for k in subcycles}
+pop_by_subcycle = {k: copy.deepcopy(cases_dict) for k in subcycles}
 
-input_spikes_by_subcycle = {k: {} for k in subcycles}
+input_spikes_by_case = {k: {} for k in cases}
 
 recorded_spikes = copy.deepcopy(pop_by_subcycle)
 recorded_voltage = copy.deepcopy(pop_by_subcycle)
@@ -129,7 +122,7 @@ print("=" * 80)
 
 pop_order = get_plot_order(low_case_rates.keys())
 
-for test_name, rates_for_test in zip(test_case_names, test_rates):
+for case, test_name, rates_for_test in zip(cases, test_case_names, test_rates):
     print("Current case:", test_name)
     for sc in subcycles:
         print("Creating populations using ", sc, "solver sub-cycles.")
@@ -181,7 +174,7 @@ for test_name, rates_for_test in zip(test_case_names, test_rates):
             curr_pop.record(["spikes", "v", "gsyn_inh", "gsyn_exc"])
 
             # Add the current population to an object that might be a bit easier to parse
-            pop_by_subcycle[sc][pop] = curr_pop
+            pop_by_subcycle[sc][case][pop] = curr_pop
 
             # initialise V
             curr_pop.initialize(v=curr_cell_params['v_rest'])
@@ -227,7 +220,7 @@ for test_name, rates_for_test in zip(test_case_names, test_rates):
                         curr_spikes[id] = rounded_spike_times
 
                     # save the spikes but don't record them from the Spike Sources
-                    input_spikes_by_subcycle[sc][proj] = curr_spikes
+                    input_spikes_by_case[case][proj] = curr_spikes
 
                     # add the exc and inh input populations
                     ssa = sim.Population(
@@ -270,21 +263,22 @@ sim_total_time = end_time - sim_start_time
 
 # Retrieve recordings
 for sc, pops_for_sc in pop_by_subcycle.items():
-    for pop_label, pop_o in pops_for_sc.items():
-        print("Retrieving spikes for ", pop_label, "...")
-        recorded_spikes[sc][pop_label] = convert_spikes(pop_o.get_data(['spikes']))
+    for case, pops_for_case in pops_for_sc.items():
+        for pop_label, pop_o in pops_for_case.items():
+            print("Retrieving spikes for ", pop_label, "...")
+            recorded_spikes[sc][case][pop_label] = convert_spikes(pop_o.get_data(['spikes']))
 
-        print("Retrieving v for ", pop_label, "...")
-        recorded_voltage[sc][pop_label] = np.array(
-            pop_o.get_data(['v']).segments[0].filter(name='v'))[0].T
+            print("Retrieving v for ", pop_label, "...")
+            recorded_voltage[sc][case][pop_label] = np.array(
+                pop_o.get_data(['v']).segments[0].filter(name='v'))[0].T
 
-        print("Retrieving gsyn exc for ", pop_label, "...")
-        recorded_gsyn_exc[sc][pop_label] = np.array(
-            pop_o.get_data(['gsyn_exc']).segments[0].filter(name='gsyn_exc'))[0].T / per_pop_r_mem[pop_label]
+            print("Retrieving gsyn exc for ", pop_label, "...")
+            recorded_gsyn_exc[sc][case][pop_label] = np.array(
+                pop_o.get_data(['gsyn_exc']).segments[0].filter(name='gsyn_exc'))[0].T / per_pop_r_mem[pop_label]
 
-        print("Retrieving gsyn inh for ", pop_label, "...")
-        recorded_gsyn_inh[sc][pop_label] = np.array(
-            pop_o.get_data(['gsyn_inh']).segments[0].filter(name='gsyn_inh'))[0].T / per_pop_r_mem[pop_label]
+            print("Retrieving gsyn inh for ", pop_label, "...")
+            recorded_gsyn_inh[sc][case][pop_label] = np.array(
+                pop_o.get_data(['gsyn_inh']).segments[0].filter(name='gsyn_inh'))[0].T / per_pop_r_mem[pop_label]
 
 sim.end()
 
@@ -314,7 +308,9 @@ np.savez_compressed(os.path.join(args.result_dir, filename),
                     # Experiment parameters
                     subcycles=subcycles,
                     simtime=simtime,
-                    input_spikes=input_spikes_by_subcycle,
+                    input_spikes=input_spikes_by_case,
+                    cases=cases,
+                    case_names=test_case_names
                     )
 
 print("R_mem for all pops")
