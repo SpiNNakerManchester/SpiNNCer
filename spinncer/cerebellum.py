@@ -407,6 +407,11 @@ class Cerebellum(Circuit):
                 continue
             if cell_name in ["glomerulus", "mossy_fibers"]:
                 cell_param = self.stimulus[cell_name]
+                for k, v in cell_param.items():
+                    if k in ['v_rest', 'v_reset', 'i_offset']:
+                        print(k, "BEFORE CASTING TO ACCUM:", v)
+                        cell_param[k] = round_to_nearest_accum(v, shift=0)
+                        print(k, "AFTER CASTING TO ACCUM:", cell_param[k])
                 if self.round_input_spike_times is not None:
                     min_spike_time = 357893.
                     for index, row in enumerate(cell_param['spike_times']):
@@ -416,8 +421,8 @@ class Cerebellum(Circuit):
                         #     row, self.round_input_spike_times)
                         if len(row) > 0:
                             rounded_spike_times = floor_spike_time(
-                                row, dt=self.round_input_spike_times,
-                                t_stop=np.max(row) + self.round_input_spike_times
+                                row, dt=self.round_input_spike_times * pq.ms,
+                                t_stop=(np.max(row) + self.round_input_spike_times) * pq.ms
                             )
                         else:
                             rounded_spike_times = np.asarray([])
@@ -441,8 +446,8 @@ class Cerebellum(Circuit):
                 # else for all other cells
                 additional_params = {"rb_left_shifts":
                                          self.rb_shifts[cell_name]}
-                # if cell_name in ["granule"]:
-                additional_params["n_steps_per_timestep"] = self.no_loops
+                if cell_name in ["granule", "dcn"]:
+                    additional_params["n_steps_per_timestep"] = self.no_loops
                 if cell_model == "if_cond_exp":
                     cell_model = self.sim.IF_cond_exp
                 elif cell_model == "if_curr_exp":
