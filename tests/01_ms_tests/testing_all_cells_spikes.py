@@ -61,7 +61,7 @@ if spinnaker_sim:
 simtime = args.simtime
 
 # 4 values for sub-cycles. If we really need more we'll find out and modify the value below.
-subcycles = np.arange(5)[1:]
+subcycles = np.arange(11)[1:]
 
 n_neurons = 100
 n_test_cells = 1
@@ -113,7 +113,7 @@ for case, test_name, rates_for_test, contributions_for_test in \
             print("\tCreating pop", pop)
             curr_cell_params = copy.deepcopy(CELL_PARAMS[pop])
             # Do we have to consider the R_mem case?
-            if args.r_mem:
+            if args.r_mem and spinnaker_sim:
                 r_mem = curr_cell_params['tau_m'] / curr_cell_params['cm']
                 per_pop_r_mem[pop] = r_mem
             else:
@@ -224,7 +224,7 @@ for case, test_name, rates_for_test, contributions_for_test in \
             for proj in inc_proj:
                 curr_weight = CONNECTIVITY_MAP[proj]['weight']
                 is_inh = int(curr_weight < 0)
-                curr_weight = np.abs(curr_weight)
+                curr_weight = np.abs(curr_weight) * per_pop_r_mem[pop]
                 # Making this explicit for readability I guess
                 if is_inh:
                     inh_weights.extend([curr_weight, ] * contributions_for_test[proj])

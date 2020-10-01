@@ -51,10 +51,10 @@ EXPECTED_MAX_SPIKES = {
 
 SINGLE_SPIKE = {k: 1 for k in EXPECTED_MAX_SPIKES.keys()}
 
-
 test_case_names = ["Single Spike", "Max Spike", "Full Spikes"]
 cases = [0, 1, 2]
 test_spikes = [SINGLE_SPIKE, SINGLE_SPIKE, EXPECTED_MAX_SPIKES]
+scale_weights = [SINGLE_SPIKE, EXPECTED_MAX_SPIKES, SINGLE_SPIKE]
 
 per_pop_incoming_projections = {}
 for k in CELL_PARAMS.keys():
@@ -98,8 +98,8 @@ cannonical_rbls = RMEM_RBLS if args.r_mem else VANILLA_RBLS
 
 pop_order = get_plot_order(EXPECTED_MAX_SPIKES.keys())
 
-for case, test_name, spikes_for_test in \
-        zip(cases, test_case_names, test_spikes):
+for case, test_name, spikes_for_test, do_weight_scaling in \
+        zip(cases, test_case_names, test_spikes, scale_weights):
     print("Current case:", test_name)
     for sc in subcycles:
         print("Creating populations using ", sc, "solver sub-cycles.")
@@ -161,17 +161,19 @@ for case, test_name, spikes_for_test in \
             curr_weight = CONNECTIVITY_MAP[proj]['weight']
             is_inh = int(curr_weight < 0)
             curr_weight = np.abs(curr_weight) * per_pop_r_mem[proj]
+            # Extra scaling for weights for case 1 (Single spikes, max weight)
+            curr_weight *= do_weight_scaling[proj]
 
             # add the exc and inh input populations
             ssa = sim.Population(
                 n_neurons,
                 cellclass=sim.SpikeSourceArray,
                 cellparams={
-                    'spike_times': [spike_time,] * no_spikes
+                    'spike_times': [spike_time] * no_spikes
                 },
                 label="{}-SSA for {} at {} sub-cycles".format(test_name, proj, sc))
 
-            input_spikes_by_case[case][proj] = [spike_time,] * no_spikes
+            input_spikes_by_case[case][proj] = [spike_time] * no_spikes
 
             # add the exc and inh projections
             sim.Projection(ssa, curr_pop,

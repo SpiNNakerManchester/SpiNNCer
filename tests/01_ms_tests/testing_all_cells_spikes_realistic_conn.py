@@ -91,7 +91,7 @@ if spinnaker_sim:
 simtime = args.simtime
 
 # 4 values for sub-cycles. If we really need more we'll find out and modify the value below.
-subcycles = np.arange(5)[1:]
+subcycles = np.arange(11)[1:]
 
 n_test_cells = 1
 
@@ -146,7 +146,7 @@ for case, test_name, rates_for_test in zip(cases, test_case_names, test_rates):
             print("\tCreating pop", pop)
             curr_cell_params = copy.deepcopy(CELL_PARAMS[pop])
             # Do we have to consider the R_mem case?
-            if args.r_mem:
+            if args.r_mem and spinnaker_sim:
                 r_mem = curr_cell_params['tau_m'] / curr_cell_params['cm']
                 per_pop_r_mem[pop] = r_mem
             else:
@@ -188,7 +188,7 @@ for case, test_name, rates_for_test in zip(cases, test_case_names, test_rates):
             for proj in inc_proj:
                 curr_weight = CONNECTIVITY_MAP[proj]['weight']
                 is_inh = int(curr_weight < 0)
-                curr_weight = np.abs(curr_weight)
+                curr_weight = np.abs(curr_weight) * per_pop_r_mem[pop]
                 pre_pop = CONNECTIVITY_MAP[proj]['pre']
                 # Retrieve population level firing rates
                 rate_for_pre_pop = rates_for_test[pre_pop]
