@@ -41,7 +41,9 @@ connectivity_filename = os.path.join(
     'datasets', connectivity_filename)
 # Set up the simulation
 sim.setup(timestep=args.timestep, min_delay=args.timestep, max_delay=80,
-          timescale=args.timescale)
+          timescale=args.timescale,
+          spike_precision=args.nest_grid  # NEST Spike precision
+)
 
 # Add constraints here SpiNNaker only:
 global_n_neurons_per_core = 64

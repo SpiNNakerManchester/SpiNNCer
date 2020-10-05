@@ -66,7 +66,9 @@ for proj, proj_params in CONNECTIVITY_MAP.items():
 
 # Set up the simulation
 sim.setup(timestep=args.timestep, min_delay=args.timestep, max_delay=1,
-          timescale=args.timescale)
+          timescale=args.timescale,
+          spike_precision=args.nest_grid  # NEST Spike precision
+          )
 
 if spinnaker_sim:
     sim.set_number_of_neurons_per_core(sim.IF_cond_exp, 5)
@@ -121,7 +123,7 @@ for case, test_name, spikes_for_test, do_weight_scaling in \
             print("\tCreating pop", proj)
             curr_cell_params = copy.deepcopy(CELL_PARAMS[pop])
             # Do we have to consider the R_mem case?
-            if args.r_mem:
+            if args.r_mem and spinnaker_sim:
                 r_mem = curr_cell_params['tau_m'] / curr_cell_params['cm']
                 per_pop_r_mem[proj] = r_mem
             else:

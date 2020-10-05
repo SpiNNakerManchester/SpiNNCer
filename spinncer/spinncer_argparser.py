@@ -37,6 +37,8 @@ DEFAULT_NO_LOOPS_GRC = 3
 
 DEFAULT_SINGLE_CELL_TEST = 'granule'
 
+DEFAULT_NEST_GRID_MODE = 'off_grid'
+
 parser = argparse.ArgumentParser(
     description='Run a cerebellar simulation written in PyNN '
                 'using sPyNNaker on SpiNNaker or using NEST on (H)PC.',
@@ -66,6 +68,12 @@ parser.add_argument('--simulator', type=str,
                     help="which simulator to use "
                          "-- default {} ms".format(DEFAULT_SIMULATOR),
                     default=DEFAULT_SIMULATOR)
+
+
+parser.add_argument('--nest_grid', type=str,
+                    help="[NEST] which solver to use -- on_grid or off_grid (precise) "
+                         "-- default {} ms".format(DEFAULT_NEST_GRID_MODE),
+                    default=DEFAULT_NEST_GRID_MODE)
 
 parser.add_argument('--periodic_stimulus', action="store_true",
                     help='if this flag is present the stimulus '
@@ -204,12 +212,6 @@ parser.add_argument('--real_rbls', action="store_true",
                     help='[FOR SMALL SCALE EXPERIMENTS] if this flag is present the '
                          'ring buffer left shifts (rbls) are set to those used in the large scale '
                          'network')
-
-parser.add_argument('--full_spikes', action="store_true",
-                    help='[FOR SMALL SCALE EXPERIMENTS] if this flag is present the '
-                         'input is no longer a single spike with weight scaled up, '
-                         'rather the correct number of spikes')
-
 
 parser.add_argument('--suffix', type=str,
                     help="extra string to identify some files"
