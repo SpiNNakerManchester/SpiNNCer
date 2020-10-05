@@ -33,7 +33,7 @@ start_time = plt.datetime.datetime.now()
 sim.setup(timestep=args.timestep, min_delay=args.timestep, max_delay=1,
           timescale=args.timescale,
           spike_precision=args.nest_grid  # NEST Spike precision
-)
+          )
 
 if spinnaker_sim:
     sim.set_number_of_neurons_per_core(sim.IF_cond_exp, 5)
@@ -65,7 +65,7 @@ print("\nThis is a test of the SpiNNaker solver when confronted with very rapidl
       "\nvalues to due high values on intrinsic current (DC, i_offset) injected into cells.")
 print("Original DC current values", dc_currents, "nA")
 print("SpiNNaker DC current values", spinnaker_dc_currents, "nA")
-print("Diff in DC current values (Prescribed - S1615)", dc_currents-spinnaker_dc_currents)
+print("Diff in DC current values (Prescribed - S1615)", dc_currents - spinnaker_dc_currents)
 print("Solver sub-cycle values", subcycles)
 print("=" * 80)
 for sc in subcycles:

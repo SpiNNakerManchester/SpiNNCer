@@ -55,7 +55,7 @@ for proj, proj_params in CONNECTIVITY_MAP.items():
 sim.setup(timestep=args.timestep, min_delay=args.timestep, max_delay=1,
           timescale=args.timescale,
           spike_precision=args.nest_grid  # NEST Spike precision
-)
+          )
 
 if spinnaker_sim:
     sim.set_number_of_neurons_per_core(sim.IF_cond_exp, 5)

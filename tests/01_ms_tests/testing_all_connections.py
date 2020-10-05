@@ -51,7 +51,7 @@ connectivity_filename = os.path.join(
 sim.setup(timestep=args.timestep, min_delay=args.timestep, max_delay=1,
           timescale=args.timescale,
           spike_precision=args.nest_grid  # NEST Spike precision
-)
+          )
 
 simtime = args.simtime
 
