@@ -82,7 +82,7 @@ for proj, proj_params in CONNECTIVITY_MAP.items():
     per_pop_incoming_projections[post_pop].append(proj)
 
 # Set up the simulation
-sim.setup(timestep=args.timestep, min_delay=args.timestep, max_delay=1,
+sim.setup(timestep=args.timestep, min_delay=args.timestep, max_delay=6.3,
           timescale=args.timescale,
           spike_precision=args.nest_grid  # NEST Spike precision
           )
@@ -189,6 +189,7 @@ for case, test_name, rates_for_test in zip(cases, test_case_names, test_rates):
             # Create a spike source array for each pre-synaptic pop
             for proj in inc_proj:
                 curr_weight = CONNECTIVITY_MAP[proj]['weight']
+                curr_delay = CONNECTIVITY_MAP[proj]['delay']
                 is_inh = int(curr_weight < 0)
                 curr_weight = np.abs(curr_weight) * per_pop_r_mem[pop]
                 pre_pop = CONNECTIVITY_MAP[proj]['pre']
@@ -241,7 +242,7 @@ for case, test_name, rates_for_test in zip(cases, test_case_names, test_rates):
                 # add the exc and inh projections
                 sim.Projection(ssa, curr_pop,
                                sim.AllToAllConnector(),
-                               synapse_type=sim.StaticSynapse(weight=curr_weight),
+                               synapse_type=sim.StaticSynapse(weight=curr_weight, delay=curr_delay),
                                receptor_type='inhibitory' if is_inh else 'excitatory',
                                label="{}- SSA projection to {} at {} sub-cycles".format(test_name, proj, sc)
                                )

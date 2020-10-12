@@ -52,7 +52,7 @@ EXPECTED_MAX_SPIKES = {
 SINGLE_SPIKE = {k: 1 for k in EXPECTED_MAX_SPIKES.keys()}
 
 test_case_names = ["Single Spike", "Max Spike", "Full Spikes"]
-cases = [0, 1, 2]
+cases = [0, 1]
 test_spikes = [SINGLE_SPIKE, SINGLE_SPIKE, EXPECTED_MAX_SPIKES]
 scale_weights = [SINGLE_SPIKE, EXPECTED_MAX_SPIKES, SINGLE_SPIKE]
 
@@ -82,6 +82,8 @@ n_neurons = 1
 n_test_cells = 1
 
 spike_time = 10 - args.timestep
+
+spike_source_per_no_spikes = {}
 
 typical_pop_dict = {k: None for k in CONNECTIVITY_MAP.keys() if k != "glomerulus"}
 cases_dict = {k: copy.deepcopy(typical_pop_dict) for k in cases}
@@ -166,20 +168,24 @@ for case, test_name, spikes_for_test, do_weight_scaling in \
             # Extra scaling for weights for case 1 (Single spikes, max weight)
             curr_weight *= do_weight_scaling[proj]
 
-            # add the exc and inh input populations
-            ssa = sim.Population(
-                n_neurons,
-                cellclass=sim.SpikeSourceArray,
-                cellparams={
-                    'spike_times': [spike_time] * no_spikes
-                },
-                label="{}-SSA for {} at {} sub-cycles".format(test_name, proj, sc))
+            if no_spikes not in spike_source_per_no_spikes.keys():
+                # add the exc and inh input populations
+                ssa = sim.Population(
+                    n_neurons,
+                    cellclass=sim.SpikeSourceArray,
+                    cellparams={
+                        'spike_times': [spike_time] * no_spikes
+                    },
+                    label="{}-SSA for {} at {} sub-cycles".format(test_name, proj, sc))
+                spike_source_per_no_spikes[no_spikes] = ssa
+            else:
+                ssa = spike_source_per_no_spikes[no_spikes]
 
             input_spikes_by_case[case][proj] = [spike_time] * no_spikes
 
             # add the exc and inh projections
             sim.Projection(ssa, curr_pop,
-                           sim.OneToOneConnector(),
+                           sim.AllToAllConnector(),
                            synapse_type=sim.StaticSynapse(weight=curr_weight),
                            receptor_type='inhibitory' if is_inh else 'excitatory',
                            label="{}-SSA projection to {} at {} sub-cycles".format(test_name, proj, sc)
