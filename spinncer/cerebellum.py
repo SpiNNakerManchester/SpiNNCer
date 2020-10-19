@@ -341,7 +341,6 @@ class Cerebellum(Circuit):
 
         # HACK HACK HACK!
         if self.r_mem:
-            # self.rb_shifts['purkinje'] -= np.array([2, 0])
             self.rb_shifts['purkinje'][0] = 7
         else:
             self.rb_shifts['purkinje'][0] = 5
@@ -448,7 +447,7 @@ class Cerebellum(Circuit):
                                          self.rb_shifts[cell_name]}
                 if cell_name in ["granule"]:
                     additional_params["n_steps_per_timestep"] = 7
-                if cell_name in ["golgi", "stellate", "basket", ]:
+                if cell_name in ["golgi", "stellate", "basket"]:
                     additional_params["n_steps_per_timestep"] = 10
                 if cell_name in ["purkinje"]:
                     additional_params["n_steps_per_timestep"] = 10
@@ -523,13 +522,6 @@ class Cerebellum(Circuit):
             if self.ensure_weight_is_representable:
                 is_weight_inh = int(weight < 0)
                 rb_ls_for_post = self.rb_shifts[post_pop][is_weight_inh]
-                # min_repr_weight = 2. ** (-15 + rb_ls_for_post)
-                # if np.abs(weight) * self.implicit_shift < min_repr_weight:
-                #     print("Projection {:10} ".format(conn_label),
-                #           "has an original weight of {:2.6f} ".format(weight),
-                #           " which cannot be represented on SpiNNaker with the current activity estimates. ",
-                #           "Replacing it with {:2.6f}".format(min_repr_weight))
-                #     weight = min_repr_weight / self.implicit_shift
                 weight = round_to_nearest_accum(weight, shift=rb_ls_for_post)
 
             delay = self.conn_params[conn_label]['delay']
@@ -865,16 +857,6 @@ class Cerebellum(Circuit):
                     _spikes = np.asarray(_spikes)
                 else:
                     _spikes = pop.get_data(['spikes'])
-
-                # if self.id_remap:
-                #     if isinstance(_spikes, neo.Block):
-                #         st = _spikes.segments[0].spiketrains
-                #         st = revert_id_mapping_to_list(st,
-                #                                        self.id_mapping[label])
-                #         _spikes.segments[0].spiketrains = st
-                #     else:
-                #         _spikes[:, 0] = revert_id_mapping(_spikes[:, 0].astype(int),
-                #                                           self.id_mapping[label])
                 all_spikes[label] = _spikes
         return all_spikes
 
@@ -895,29 +877,10 @@ class Cerebellum(Circuit):
             _ge = pop.get_data(['gsyn_exc'])
             _v = pop.get_data(['v'])
 
-            # TODO is this necessary?
             if self.r_mem:
                 # Bring back the original weights
                 _gi.segments[0].analogsignals[0] /= self.r_mem_per_pop[label]
                 _ge.segments[0].analogsignals[0] /= self.r_mem_per_pop[label]
-                # _v.segments[0].analogsignals[0] /= self.r_mem_per_pop[label]
-
-            # TODO figure out how to deal with sparse reordering
-            # if self.id_remap:
-            #     x = _gi.segments[0].analogsignals
-            #     x = revert_id_mapping_to_list(x,
-            #                                   self.id_mapping[label])
-            #     _gi.segments[0].analogsignals = x
-            #
-            #     x = _ge.segments[0].analogsignals
-            #     x = revert_id_mapping_to_list(x,
-            #                                   self.id_mapping[label])
-            #     _ge.segments[0].analogsignals = x
-            #
-            #     x = _v.segments[0].analogsignals
-            #     x = revert_id_mapping_to_list(x,
-            #                                   self.id_mapping[label])
-            #     _v.segments[0].analogsignals = x
 
             gsyn_rec[label]['gsyn_inh'] = _gi
             gsyn_rec[label]['gsyn_exc'] = _ge
@@ -966,17 +929,6 @@ class Cerebellum(Circuit):
             if self.r_mem:
                 # Bring back the original weights
                 conn[:, 2] /= self.r_mem_per_pop[self.conn_params[label]['post']]
-
-            # conn isn't in the proper format because it uses
-
-            # TODO Revert the ID mappings here?
-            # if self.id_remap:
-            #     pre = self.conn_params[label]['pre']
-            #     post = self.conn_params[label]['post']
-            #     adjusted_sources = revert_id_mapping(conn['source'].astype(int), self.id_mapping[pre])
-            #     adjusted_targets = revert_id_mapping(conn['target'].astype(int), self.id_mapping[post])
-            #     conn = np.vstack((adjusted_sources, adjusted_targets, conn['weight'], conn['delay'])).T
-
             all_connections[label] = conn
         return all_connections
 

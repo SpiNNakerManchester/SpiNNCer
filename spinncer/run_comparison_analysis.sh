@@ -172,15 +172,37 @@ do
 	> "1000x_r_mem_test_stim_3_run_"$i"_vs_run_"$j".out" 2>&1 &
 done  
 
-for i in {0..8}
+for i in {0..3}
 do 
 	let j=$i+1
-	file_1="spinn_400x400_run_${i}_poisson_@100x_r_mem_test_stim_3"
-	file_2="spinn_400x400_run_${j}_poisson_@100x_r_mem_test_stim_3"
+	file_1="spinn_400x400_run_${i}_poisson_@1000x_vanilla_scale_200_stim_3_grid"
+	file_2="spinn_400x400_run_${j}_poisson_@1000x_vanilla_scale_200_stim_3_grid"
+	nohup python ../../cerebellum_analysis.py --consider_delays --compare \
+	$file_1"/results/"$file_1".npz" \
+	$file_2"/results/"$file_2".npz" \
+	> "1000x_SR_VANILLA_grid_test_stim_3_run_"$i"_vs_run_"$j".out" 2>&1 &
+done
+
+for i in {0..4}
+do 
+	let j=$i+1
+	file_1="spinn_400x400_run_${i}_poisson_@1500x_RD_R_MEM_34579_loops"
+	file_2="../../results/nest_400x400_pss_3_grid"
+	nohup python ../../cerebellum_analysis.py --consider_delays --compare \
+	$file_1"/results/"$file_1".npz" \
+	$file_2".npz" \
+	> "1500x_RD_R_MEM_34579_loops_run_"$i"_vs_nest_grid.out" 2>&1 &
+done  
+
+for i in {0..4}
+do 
+	let j=$i+1
+	file_1="spinn_400x400_run_${i}_poisson_@1000x_vanilla_scale_200_stim_3_grid"
+	file_2="spinn_400x400_run_${j}_poisson_@1000x_vanilla_scale_200_stim_3_grid"
 	nohup python cerebellum_analysis.py --consider_delays --compare \
-	"test_same_board_100x/variance_testing_POISSON_@100x_r_mem_test_stim_3/"$file_1"/results/"$file_1".npz" \
-	"test_same_board_100x/variance_testing_POISSON_@100x_r_mem_test_stim_3/"$file_2"/results/"$file_2".npz" \
-	> "100x_r_mem_test_stim_3_run_"$i"_vs_run_"$j".out" 2>&1 &
+	"test_same_board/variance_testing_POISSON_@1000x_vanilla_scale_200_stim_3_grid/"$file_1"/results/"$file_1".npz" \
+	"test_same_board/variance_testing_POISSON_@1000x_vanilla_scale_200_stim_3_grid/"$file_2"/results/"$file_2".npz" \
+	> "1000x_SR_VANILLA_grid_test_stim_3_run_"$i"_vs_run_"$j".out" 2>&1 &
 done 
 
 
@@ -295,10 +317,10 @@ nohup python ../cerebellum_analysis.py --consider_delays --compare results/spinn
 nohup python ../cerebellum_analysis.py --consider_delays --compare results/spinn_400x400_SR_R_MEM_pss_3_rtn_ioffset.npz  ../results/nest_400x400_pss_3_rtn_accum_vanilla_accum_ioffset.npz \
     > "spinn_400x400_SR_R_MEM_pss_3_rtn_ioffset_vs_nest_IO_RTN.out" 2>&1 &
 
-nohup python ../cerebellum_analysis.py --consider_delays --compare results/spinn_400x400_SR_VANILLA_pss_3_rtn_ioffset.npz  ../results/nest_400x400_pss.npz \
+nohup python ../cerebellum_analysis.py --consider_delays --compare results/spinn_400x400_SR_VANILLA_pss_3_rtn_ioffset.npz  ../results/nest_400x400_pss_3.npz \
     > "spinn_400x400_SR_VANILLA_pss_3_rtn_ioffset_vs_nest.out" 2>&1 &
 
-nohup python ../cerebellum_analysis.py --consider_delays --compare results/spinn_400x400_SR_R_MEM_pss_3_rtn_ioffset.npz  ../results/nest_400x400_pss.npz \
+nohup python ../cerebellum_analysis.py --consider_delays --compare results/spinn_400x400_SR_R_MEM_pss_3_rtn_ioffset.npz  ../results/nest_400x400_pss_3.npz \
     > "spinn_400x400_SR_R_MEM_pss_3_rtn_ioffset_vs_nest.out" 2>&1 &    
 
 # RTN vs NEST
@@ -326,11 +348,25 @@ nohup python ../cerebellum_analysis.py --consider_delays --compare results/spinn
 nohup python cerebellum_analysis.py --consider_delays --compare results/nest_400x400_pss_3_rtn_accum_vanilla_accum_ioffset.npz  results/nest_400x400_pss_3.npz \
     > "nest_400x400_pss_3_rtn_accum_vanilla_accum_ioffset_vs_full_accuracy.out" 2>&1 & 
 
+nohup python cerebellum_analysis.py --consider_delays --compare results/nest_400x400_pss_3_rtn_accum_r_mem_accum_ioffset.npz  results/nest_400x400_pss_3.npz \
+    > "nest_400x400_pss_3_rtn_accum_r_mem_accum_ioffset_vs_full_accuracy.out" 2>&1 & 
+
 nohup python cerebellum_analysis.py --consider_delays --worst_case_spikes -i results/nest_400x400_pss_3_rtn_accum_vanilla_accum_ioffset.npz \
     > "an_nest_400x400_pss_3_rtn_accum_vanilla_accum_ioffset.out" 2>&1 & 
 
 nohup python cerebellum_analysis.py --consider_delays --worst_case_spikes -i results/nest_400x400_periodic_retest.npz \
     > "an_nest_400x400_periodic_retest.out" 2>&1 & 
+
+
+nohup python cerebellum_analysis.py --consider_delays --compare results/nest_400x400_pss_3.npz  results/new_docker_nest_400x400_pss_3_on_grid.npz \
+    > "nest_400x400_old_vs_ON_GRID.out" 2>&1 & 
+nohup python cerebellum_analysis.py --consider_delays --compare results/nest_400x400_pss_3.npz  results/new_docker_nest_400x400_pss_3_off_grid.npz \
+> "nest_400x400_old_vs_OFF_GRID.out" 2>&1 & 
+nohup python cerebellum_analysis.py --consider_delays --compare results/nest_400x400_pss_3_grid.npz  results/new_docker_nest_400x400_pss_3_grid_on_grid.npz \
+> "nest_400x400_old_grids_vs_ON_GRID.out" 2>&1 &
+nohup python cerebellum_analysis.py --consider_delays --compare results/nest_400x400_pss_3_grid.npz  results/new_docker_nest_400x400_pss_3_grid_off_grid.npz \
+> "nest_400x400_old_grids_vs_OFF_GRID.out" 2>&1 & 
+
 
 # nohup python cerebellum_analysis.py --consider_delays --compare  results/spinn_400x400_run_0_poisson_@8adfb23bc53e1558a20d7dd2e917bf4f.npz results/nest_400x400_from_file_stim_3.npz \
 # 	> full_scale_comparison_spin_0.1_vs_nest_0.1.out 2>&1 &	
