@@ -446,8 +446,18 @@ class Cerebellum(Circuit):
                 # else for all other cells
                 additional_params = {"rb_left_shifts":
                                          self.rb_shifts[cell_name]}
-                if cell_name in ["granule", "dcn"]:
-                    additional_params["n_steps_per_timestep"] = self.no_loops
+                if cell_name in ["granule"]:
+                    additional_params["n_steps_per_timestep"] = 7
+                if cell_name in ["golgi", "stellate", "basket", ]:
+                    additional_params["n_steps_per_timestep"] = 10
+                if cell_name in ["purkinje"]:
+                    additional_params["n_steps_per_timestep"] = 10
+                if cell_name in ["dcn"]:
+                    additional_params["n_steps_per_timestep"] = 1
+
+                if "n_steps_per_timestep" not in additional_params.keys():
+                    raise AttributeError("I forgot to set n_steps_per_timestep for " + cell_name)
+
                 if cell_model == "if_cond_exp":
                     cell_model = self.sim.IF_cond_exp
                 elif cell_model == "if_curr_exp":

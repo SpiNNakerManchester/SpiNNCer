@@ -37,12 +37,12 @@ PHASES_ARGS = [None, "--periodic_stimulus"]
 # PHASES = [POISSON_PHASE, PERIODIC_PHASE]
 
 
-# PHASES = [POISSON_PHASE]  # Only Poisson phase
-PHASES = [PERIODIC_PHASE]  # Only PERIODIC phase
+PHASES = [POISSON_PHASE]  # Only Poisson phase
+# PHASES = [PERIODIC_PHASE]  # Only PERIODIC phase
 
 concurrently_active_processes = 0
 
-no_runs = np.arange(10)
+no_runs = np.arange(5)
 # Compute total number of runs
 total_runs = no_runs.size * len(PHASES)
 
@@ -71,6 +71,8 @@ print("CHDIR", dir_name)
 os.chdir(dir_name)
 print("GETCWD", os.getcwd())
 print("-" * 80)
+
+loops = [3, 4, 5, 7, 9]
 
 params = {}
 
@@ -102,9 +104,9 @@ for phase in PHASES:
                 # '--stim_radius', str(130),
                 # '--spike_seed', str(31415926),
                 # '--id_seed', str(31415926),
-                # '-s', os.path.join(base_path, "400x400_stimulus_3.npz"),
+                '-s', os.path.join(base_path, "400x400_stimulus_3.npz"),
                 '--r_mem',
-                '--loops_grc', str(3),
+                '--loops_grc', str(loops[n_run]), # str(10),
                 '--id_remap', 'grid'
                 ]
 

@@ -1615,6 +1615,7 @@ def spike_analysis(results_file, fig_folder,
     plt.xlabel("Time (ms)")
     # plt.suptitle((use_display_name(simulator) + "\n")
     f.tight_layout()
+    plt.xlim([200, 450])
     save_figure(plt, os.path.join(sim_fig_folder, "raster_and_psth_plots"),
                 extensions=['.png', ])
     plt.close(f)
@@ -1858,6 +1859,7 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
     all_spike_hist_diff = {}
     all_instantenous_rate_diff = {}
     all_corr_coef = {}
+    all_full_corr_coef = {}
     all_cross_corr = {}
     all_covariances = {}
     all_distances = {}
@@ -1865,11 +1867,19 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
     all_isi = {}
     all_cv = {}
     all_cv2 = {}
+    nth_spikes = 10
+    all_no_spike_diff = {}
+    all_spikes_rates = {}
+
+    all_lead_lag_nth_spike = {}
 
     # Pre-compute conversions
     time_to_bin_conversion = 1. / (timestep / ms)
     bins_in_3ms = int(3 * time_to_bin_conversion)
     no_timesteps = int(useful_simtime / ms * time_to_bin_conversion)
+
+    # Pre-compute conversions
+    wanted_times = np.linspace(0, (useful_simtime / ms), 6).astype(int)
 
     spinn_format_all_spikes_1 = {}
     spinn_format_all_spikes_2 = {}
@@ -1895,11 +1905,141 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
         spinn_format_all_spikes_2, all_neurons_2, plot_order,
         useful_simtime, sim_params_2, stimulus_params_2)
 
+    delay_sensitive = True
+    highlight_stim = True
+
+    starts_but_working = np.cumsum(np.concatenate(([0], stimulus_params['stim_times'])))
+    time_filter = starts_but_working
+
+    sim_params = data_1['simulation_parameters'].ravel()[0]
+    stim_durations = sim_params['argparser']['stim_times']
+    stimulus_periods = len(stim_durations)
+    stim_period_start = {}
+    stim_period_end = {}
+    per_pop_stim_durations = {k: [] for k in plot_order}
+    for pop in plot_order:
+        for period in range(stimulus_periods):
+
+            if delay_sensitive and period == 0:
+                time_filter_pre = time_filter[period]
+                time_filter_post = time_filter[period + 1] + DELAY_IN_EXCITATION[pop]
+            elif delay_sensitive and period == 1:
+                time_filter_pre = time_filter[period] + DELAY_IN_EXCITATION[pop]
+                time_filter_post = time_filter[period + 1] + DELAY_IN_EXCITATION[pop]
+            elif delay_sensitive and period == 2:
+                time_filter_pre = time_filter[period] + DELAY_IN_EXCITATION[pop]
+                time_filter_post = time_filter[period + 1]
+            else:
+                time_filter_pre = time_filter[period]
+                time_filter_post = time_filter[period + 1]
+
+            if period == 1:
+                stim_period_start[pop] = time_filter_pre
+                stim_period_end[pop] = time_filter_post
+
+    spikes_1 = {}
+    spikes_2 = {}
+    spikes_per_timestep_1 = {}
+    spikes_per_timestep_2 = {}
+
+    for pop, potential_neo_block in all_spikes_1.items():
+        if isinstance(potential_neo_block, neo.Block):
+            spikes_1[pop] = convert_spikes(potential_neo_block)
+
+    for pop, potential_neo_block in all_spikes_2.items():
+        if isinstance(potential_neo_block, neo.Block):
+            spikes_2[pop] = convert_spikes(potential_neo_block)
+
+    for pop in plot_order:
+        spikes = spikes_1[pop]
+        spikes_per_timestep_1[pop] = \
+            np.bincount((spikes[:, 1] * time_to_bin_conversion).astype(int),
+                        minlength=no_timesteps)
+
+        spikes = spikes_2[pop]
+        spikes_per_timestep_2[pop] = \
+            np.bincount((spikes[:, 1] * time_to_bin_conversion).astype(int),
+                        minlength=no_timesteps)
+
+    spikes = [spikes_1, spikes_2]
+    spikes_per_timestep = [spikes_per_timestep_1, spikes_per_timestep_2]
+
+    common_highlight_values = {
+        'start': stim_period_start,
+        'stop': stim_period_end,
+        'increment': timestep / ms,
+    }
+
+    common_values_for_plots = {
+        'plot_order': plot_order,
+        'wanted_times': wanted_times,
+        'time_to_bin_conversion': time_to_bin_conversion,
+        'fig_folder': sim_fig_folder,
+        'highlight_stim': highlight_stim,
+        'common_highlight_values': common_highlight_values,
+    }
+
+    print("Plotting spiking raster plot + PSTH for all populations")
+    f, axes = plt.subplots(2 * len(all_spikes_1.keys()), 2,
+                           figsize=(20, 30), sharex=True, sharey='row', dpi=450)
+    for index, pop in enumerate(np.repeat(plot_order, 2)):
+        print(index, pop)
+        for curr_ax_id, curr_ax in enumerate(axes[index, :]):
+            if highlight_stim:
+                highlight_area(curr_ax, pop, **common_highlight_values)
+            if index % 2 == 0:
+                # spike raster
+                _times = spikes[curr_ax_id][pop][:, 1]
+                _ids = spikes[curr_ax_id][pop][:, 0]
+                curr_ax.scatter(_times,
+                                _ids,
+                                color=viridis_cmap(int(index / 2) / (n_plots + 1)),
+                                s=.5, rasterized=True)
+                if index == 0:
+                    curr_ax.set_title(use_display_name(simulators[curr_ax_id]) + "\n" + use_display_name(pop))
+                else:
+                    curr_ax.set_title(use_display_name(pop))
+                if curr_ax_id == 0:
+                    curr_ax.set_ylabel("NID")
+            else:
+                curr_ax.bar(np.arange(spikes_per_timestep[curr_ax_id][pop].size) * timestep / ms,
+                            spikes_per_timestep[curr_ax_id][pop],
+                            color=viridis_cmap(int(index / 2) / (n_plots + 1)),
+                            rasterized=True)
+                if curr_ax_id == 0:
+                    curr_ax.set_ylabel("Count")
+            if index == (len(plot_order) * 2 - 1):
+                curr_ax.set_xlabel("Time (ms)")
+
+    # plt.xlabel("Time (ms)")
+    plt.xlim([200, 450])
+    # plt.suptitle((use_display_name(simulator) + "\n")
+    f.tight_layout()
+    save_figure(plt, os.path.join(sim_fig_folder, "raster_and_psth_plots"),
+                extensions=['.png', ])
+    plt.close(f)
+
+    common_highlight_values = {
+        'start': None,  # stim_period_start,
+        'stop': None,  # stim_period_end,
+        'increment': timestep / ms,
+    }
+
+    common_values_for_plots = {
+        'plot_order': plot_order,
+        'wanted_times': wanted_times,  # wanted_times,
+        'time_to_bin_conversion': time_to_bin_conversion,  # time_to_bin_conversion,
+        'fig_folder': sim_fig_folder,
+        'highlight_stim': None,  # highlight_stim,
+        'common_highlight_values': None,  # common_highlight_values,
+    }
+
     excel_filename = os.path.join(sim_fig_folder,
                                   "firing_rate_per_period.xlsx")
     writer = pd.ExcelWriter(
         excel_filename,
         engine='xlsxwriter')
+
     for pop in plot_order:
         spikes_per_pop = {}
         x_1 = filtered_per_neuron_firing_1[pop]
@@ -1908,6 +2048,7 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
         excited_2 = excited_map_2[pop]
         inhibited_1 = inhibited_map_1[pop]
         inhibited_2 = inhibited_map_2[pop]
+
         if x_1.shape[0] == 0 or x_2.shape[0] == 0:
             continue
         print("pop ", pop)
@@ -1922,36 +2063,74 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
             curr_x1 = x_1[:, period]
             curr_x2 = x_2[:, period]
 
+            if period == 1:
+                all_spikes_rates[pop] = [curr_x1, curr_x2]
+
             spikes_per_pop["sim_1_period_{}".format(period)] = curr_x1
             spikes_per_pop["sim_2_period_{}".format(period)] = curr_x2
+            try:
+                print("is x1 normal?:", stats.normaltest(curr_x1))
+                print("is x2 normal?:", stats.normaltest(curr_x2))
 
-            print("is x1 normal?:", stats.normaltest(curr_x1))
-            print("is x2 normal?:", stats.normaltest(curr_x2))
+                curr_ttest = stats.ttest_ind(curr_x1, curr_x2, equal_var=True)
+                print("ttest (p, stat):", curr_ttest.pvalue, curr_ttest.statistic)
 
-            curr_ttest = stats.ttest_ind(curr_x1, curr_x2, equal_var=True)
-            print("ttest (p, stat):", curr_ttest.pvalue, curr_ttest.statistic)
+                curr_ttest = stats.ttest_ind(curr_x1, curr_x2, equal_var=False)
+                print("ttest (p, stat) equal_var=False:", curr_ttest.pvalue, curr_ttest.statistic)
 
-            curr_ttest = stats.ttest_ind(curr_x1, curr_x2, equal_var=False)
-            print("ttest (p, stat) equal_var=False:", curr_ttest.pvalue, curr_ttest.statistic)
+                curr_ttest_from_stats = \
+                    stats.ttest_ind_from_stats(mean1=np.mean(curr_x1), std1=np.std(curr_x1), nobs1=curr_x1.size,
+                                               mean2=np.mean(curr_x2), std2=np.std(curr_x2), nobs2=curr_x2.size)
 
-            curr_ttest_from_stats = \
-                stats.ttest_ind_from_stats(mean1=np.mean(curr_x1), std1=np.std(curr_x1), nobs1=curr_x1.size,
-                                           mean2=np.mean(curr_x2), std2=np.std(curr_x2), nobs2=curr_x2.size)
+                print("ttest  from stats (p, stat):", curr_ttest_from_stats.pvalue, curr_ttest_from_stats.statistic)
 
-            print("ttest  from stats (p, stat):", curr_ttest_from_stats.pvalue, curr_ttest_from_stats.statistic)
+                # minimus = np.min([np.min(curr_x1), np.min(curr_x2)])
+                minimus = 0
+                maximus = np.max([np.max(curr_x1), np.max(curr_x2)])
 
-            f = plt.figure(1, figsize=(9, 9), dpi=400)
-            plt.hist(curr_x1, alpha=.6)
-            plt.hist(curr_x2, alpha=.6)
-            plt.title(use_display_name(pop))
-            save_figure(plt, os.path.join(sim_fig_folder,
-                                          "hist_of_firing_rates_{}_{}".format(pop, period)),
-                        extensions=['.png', ])
-            plt.close(f)
-        df = pd.DataFrame({ key:pd.Series(value) for key, value in spikes_per_pop.items() } )
+                bins = np.linspace(minimus, maximus, 31)
+
+                f = plt.figure(1, figsize=(9, 9), dpi=400)
+                # plt.hist(curr_x1, bins=bins, edgecolor='k', density=True,
+                #          alpha=.6, label=use_display_name(simulators[0]))
+                # plt.hist(curr_x2, bins=bins, edgecolor='k', density=True,
+                #          alpha=.6, label=use_display_name(simulators[1]))
+
+                plt.hist([curr_x1, curr_x2], bins=bins, edgecolor='k', density=True,
+                         color=[viridis_cmap(0.0), viridis_cmap(0.7)],
+                         label=[use_display_name(x) for x in simulators])
+
+                plt.legend(loc="best")
+                plt.title(use_display_name(pop))
+                plt.ylabel("Proportion")
+                plt.xlabel("Firing rate (Hz)")
+                save_figure(plt, os.path.join(sim_fig_folder,
+                                              "hist_of_firing_rates_{}_{}".format(pop, period)),
+                            extensions=['.png', ])
+                plt.close(f)
+            except:
+                traceback.print_exc()
+        df = pd.DataFrame({key: pd.Series(value) for key, value in spikes_per_pop.items()})
         df.to_excel(writer, sheet_name=pop)
         print("-" * 80)
     writer.save()
+
+    common_values_for_plots_without_dcn = {
+        'plot_order': plot_order[:-1],
+        'wanted_times': wanted_times,  # wanted_times,
+        'time_to_bin_conversion': time_to_bin_conversion,  # time_to_bin_conversion,
+        'fig_folder': sim_fig_folder,
+        'highlight_stim': None,  # highlight_stim,
+        'common_highlight_values': None,  # common_highlight_values,
+    }
+
+    # del all_spikes_rates['dcn']
+
+    plot_sbs_boxplot_for_all_pops(all_spikes_rates, "firing_rates",
+                                  xlabel="Population",
+                                  ylabel="Excited firing rates (Hz)", titles=simulators,
+                                  **common_values_for_plots_without_dcn)
+
     print("=" * 80)
     print("Spike train analysis (avg +- std)")
     # https://elephant.readthedocs.io/en/latest/modules.html
@@ -1960,7 +2139,10 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
         pop_1_spikes = all_spikes_1[pop].segments[0].spiketrains
         pop_2_spikes = all_spikes_2[pop].segments[0].spiketrains
 
+        lead_lag_per_neuron = []
+        no_spikes_per_neuron = []
         corr_coef_per_neuron = []
+        full_corr_coef_per_neuron = []
         cross_corr_per_neuron = []
         cov_per_neuron = []
         spike_time_tiling_coef_per_neuron = []
@@ -2008,6 +2190,19 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
             except:
                 spike_diff = np.asarray([np.nan])
 
+            no_spikes_per_neuron.append(len(p1) - len(p2))
+            min_length = np.min([len(p1), len(p2)])
+            # If either list doesn't have 100 spikes (e.g. DCN) then just go for the 10th or whatever is least
+            if min_length < nth_spikes:
+                curr_nth = np.min([10, min_length]) - 1
+            else:
+                curr_nth = nth_spikes - 1
+
+            # If there are spikes in the lists for both neurons compute the lead or lag of the nth spike
+            if len(p1) > 0 and len(p2) > 0 and len(p1) == len(p2):
+                nth_spike_diff = p1[curr_nth] - p2[curr_nth]
+                lead_lag_per_neuron.append(nth_spike_diff)
+
             np_bin_p1, np_bin_p1_edges = np.histogram(
                 p1, bins=np.arange(np_no_bins) * np_bin_size)
             np_bin_p2, np_bin_p2_edges = np.histogram(
@@ -2018,15 +2213,15 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
             # This section looks only at the stimulation period
             bin_p1 = elephant.conversion.BinnedSpikeTrain(
                 p1, binsize=bin_size, num_bins=stimulus_no_bins,
-                t_start=starts[1], t_stop=starts[2])
+                t_start=stim_period_start[pop] * pq.ms, t_stop=stim_period_end[pop] * pq.ms)
             bin_p2 = elephant.conversion.BinnedSpikeTrain(
                 p2, binsize=bin_size, num_bins=stimulus_no_bins,
-                t_start=starts[1], t_stop=starts[2])
+                t_start=stim_period_start[pop] * pq.ms, t_stop=stim_period_end[pop] * pq.ms)
             combined_binned = elephant.conversion.BinnedSpikeTrain(
                 [p1, p2], binsize=bin_size, num_bins=stimulus_no_bins,
-                t_start=starts[1], t_stop=starts[2])
+                t_start=stim_period_start[pop] * pq.ms, t_stop=stim_period_end[pop] * pq.ms)
 
-            # This section looks at the entire simulation (from start to end
+            # This section looks at the entire simulation (from start to end)
             full_bin_p1 = elephant.conversion.BinnedSpikeTrain(
                 p1, binsize=bin_size, num_bins=no_bins,
                 t_start=0 * pq.ms, t_stop=simtime)
@@ -2040,6 +2235,10 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
             cc_matrix = elephant.spike_train_correlation.corrcoef(
                 combined_binned)
             corr_coef_per_neuron.append(cc_matrix[0, 1])
+
+            full_cc_matrix = elephant.spike_train_correlation.corrcoef(
+                full_combined_binned)
+            full_corr_coef_per_neuron.append(full_cc_matrix[0, 1])
 
             cov_matrix = elephant.spike_train_correlation.covariance(
                 combined_binned)
@@ -2082,6 +2281,11 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
             np.nanstd(corr_coef_per_neuron)))
 
         print(reporting_format_string.format(
+            pop, "FULL corr coef",
+            np.nanmean(full_corr_coef_per_neuron),
+            np.nanstd(full_corr_coef_per_neuron)))
+
+        print(reporting_format_string.format(
             "", "covariance",
             np.nanmean(cov_per_neuron),
             np.nanstd(cov_per_neuron)))
@@ -2101,7 +2305,18 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
             np.nanmean(all_instantenous_rate_diff[pop].magnitude),
             np.nanstd(all_instantenous_rate_diff[pop].magnitude)))
 
+        print(reporting_format_string.format(
+            "", "# spike diff",
+            np.nanmean(no_spikes_per_neuron),
+            np.nanstd(no_spikes_per_neuron)))
+
+        print(reporting_format_string.format(
+            "", "lead lag of nth spike",
+            np.nanmean(lead_lag_per_neuron),
+            np.nanstd(lead_lag_per_neuron)))
+
         all_corr_coef[pop] = corr_coef_per_neuron
+        all_full_corr_coef[pop] = full_corr_coef_per_neuron
         all_cross_corr[pop] = cross_corr_per_neuron
         all_covariances[pop] = cov_per_neuron
         all_distances[pop] = van_rossum_dists
@@ -2113,6 +2328,9 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
         all_isi[pop] = isis
         all_cv[pop] = cvs
         all_cv2[pop] = cv2s
+
+        all_no_spike_diff[pop] = no_spikes_per_neuron
+        all_lead_lag_nth_spike[pop] = lead_lag_per_neuron
 
         # Log isis
         try:
@@ -2211,27 +2429,6 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
     # raster plot including ALL populations
     print("Plotting spiking raster plot for all populations")
 
-    # Pre-compute conversions
-    time_to_bin_conversion = 1. / (timestep / ms)
-    bins_in_3ms = int(3 * time_to_bin_conversion)
-    no_timesteps = int(simtime / ms * time_to_bin_conversion)
-    wanted_times = np.linspace(0, (useful_simtime / ms), 6).astype(int)
-
-    common_highlight_values = {
-        'start': None,  # stim_period_start,
-        'stop': None,  # stim_period_end,
-        'increment': timestep / ms,
-    }
-
-    common_values_for_plots = {
-        'plot_order': plot_order,
-        'wanted_times': wanted_times,  # wanted_times,
-        'time_to_bin_conversion': time_to_bin_conversion,  # time_to_bin_conversion,
-        'fig_folder': sim_fig_folder,
-        'highlight_stim': None,  # highlight_stim,
-        'common_highlight_values': None,  # common_highlight_values,
-    }
-
     plot_analog_signal(all_instantenous_rate_diff,
                        "instantaneous_rate_diff",
                        ylabel="Difference (Hz)",
@@ -2259,38 +2456,71 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
 
     # Plot various analog variables
     for signal in all_coherence.keys():
-        plot_analog_signal_with_error(all_coherence[signal], signal + "_coherence",
-                                      xlabel="Frequency (Hz)",
-                                      ylabel="Coherence",
-                                      xticks=all_freqs[signal],
-                                      errorbars=False,
-                                      **common_values_for_plots)
+        try:
+            plot_analog_signal_with_error(all_coherence[signal], signal + "_coherence",
+                                          xlabel="Frequency (Hz)",
+                                          ylabel="Coherence",
+                                          xticks=all_freqs[signal],
+                                          errorbars=False,
+                                          **common_values_for_plots)
 
-        plot_analog_signal_with_error(all_lags[signal], signal + "_lag",
-                                      xlabel="Frequency (Hz)",
-                                      ylabel="Lag (ms)",
-                                      xticks=all_freqs[signal],
-                                      errorbars=False,
-                                      **common_values_for_plots)
+            plot_analog_signal_with_error(all_lags[signal], signal + "_lag",
+                                          xlabel="Frequency (Hz)",
+                                          ylabel="Lag (ms)",
+                                          xticks=all_freqs[signal],
+                                          errorbars=False,
+                                          **common_values_for_plots)
+        except:
+            traceback.print_exc()
     # Plotting boxplots
     print("PLOTTING", "all_corr_coef")
     plot_boxplot_for_all_pops(all_corr_coef, "corr_coeff",
                               xlabel="Population",
                               ylabel="Correlation Coefficient",
                               **common_values_for_plots)
+    plot_boxplot_for_all_pops(all_corr_coef, "corr_coeff_without_dcn",
+                              xlabel="Population",
+                              ylabel="Correlation Coefficient",
+                              **common_values_for_plots_without_dcn)
+
+    plot_boxplot_for_all_pops(all_full_corr_coef, "full_corr_coeff",
+                              xlabel="Population",
+                              ylabel="Correlation Coefficient",
+                              **common_values_for_plots)
+
+    plot_boxplot_for_all_pops(all_lead_lag_nth_spike, "lead_lag_nth_spike",
+                              xlabel="Population",
+                              ylabel="Lead/Lag for nth spike",
+                              **common_values_for_plots)
+
+    plot_boxplot_for_all_pops(all_no_spike_diff, "no_spike_diff",
+                              xlabel="Population",
+                              ylabel="# spikes difference",
+                              **common_values_for_plots)
+
+    # try:
+    #     plot_histogram_for_all_pops(all_lead_lag_nth_spike, "lead_lag_nth_spike",
+    #                                 xlabel="Population",
+    #                                 ylabel="Count",
+    #                                 **common_values_for_plots)
+    #     plot_histogram_for_all_pops(all_no_spike_diff, "no_spike_diff",
+    #                                 xlabel="Population",
+    #                                 ylabel="Count",
+    #                                 **common_values_for_plots)
+    # except:
+    #     traceback.print_exc()
 
     try:
-
         plot_histogram_for_all_pops(all_cross_corr, "cross_corr",
                                     xlabel="Population",
-                                    ylabel="Cross Correlation",
+                                    ylabel="Count",
                                     **common_values_for_plots)
         plot_boxplot_for_all_pops(all_cross_corr, "cross_corr",
                                   xlabel="Population",
                                   ylabel="Cross Correlation",
                                   **common_values_for_plots)
     except:
-        pass
+        traceback.print_exc()
 
     plot_boxplot_for_all_pops(all_covariances, "covariance",
                               xlabel="Population",
@@ -2328,8 +2558,6 @@ def compare_results(file_1, file_2, fig_folder, dark_background):
                                   xlabel="Population",
                                   ylabel="CV2", titles=simulators,
                                   **common_values_for_plots)
-
-    print("=" * 80)
 
 
 def scatter_plot(data, variable_name,
@@ -2563,6 +2791,8 @@ def plot_sbs_boxplot_for_all_pops(data, variable_name, xlabel, ylabel,
     bp_width = 0.7
     f = plt.figure(figsize=(12, 8), dpi=600)
     for index, pop in enumerate(plot_order):
+        if pop not in data.keys():
+            continue
         curr_pop = data[pop]
         curr_res_0 = np.asarray(curr_pop[0])
         curr_res_1 = np.asarray(curr_pop[1])

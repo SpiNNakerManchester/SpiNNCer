@@ -10,3 +10,4 @@ elephant==0.6.2
 colorama
 pandas
 setup
+hilbertcurve
