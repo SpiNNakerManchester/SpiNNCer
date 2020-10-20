@@ -28,6 +28,7 @@ from spinncer.cerebellum import Cerebellum
 from spinncer.utilities.provenance import retrieve_git_commit
 # analysis functionsc
 from spinncer.cerebellum_analysis import *
+from spinncer.utilities.constants import VANILLA_RBLS, RMEM_RBLS
 import pylab as plt
 import os
 import traceback
@@ -134,6 +135,8 @@ EXPECTED_MAX_SPIKES_150 = {
 }
 
 expected_max_spikes = EXPECTED_MAX_SPIKES_200
+canonical_rbls = RMEM_RBLS if args.r_mem else VANILLA_RBLS
+print("Canonical ring buffer left shifts:", canonical_rbls)
 
 # Instantiate a Cerebellum
 cerebellum_circuit = Cerebellum(
@@ -145,7 +148,7 @@ cerebellum_circuit = Cerebellum(
     weight_scaling=args.weight_scaling,
     neuron_model=args.neuron_model,
     input_spikes=input_spikes,
-    rb_left_shifts=args.rb_left_shifts,
+    rb_left_shifts=canonical_rbls,
     no_loops=args.loops_grc,
     round_input_spike_times=round_spike_times,
     id_remap=args.id_remap,

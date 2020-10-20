@@ -81,7 +81,7 @@ recorded_voltage = copy.deepcopy(pop_by_subcycle)
 recorded_gsyn_exc = copy.deepcopy(pop_by_subcycle)
 recorded_gsyn_inh = copy.deepcopy(pop_by_subcycle)
 
-cannonical_rbls = RMEM_RBLS if args.r_mem else VANILLA_RBLS
+canonical_rbls = RMEM_RBLS if args.r_mem else VANILLA_RBLS
 
 print("=" * 80)
 print(
@@ -104,7 +104,7 @@ for case, test_name, rates_for_test, contributions_for_test in \
         # Consistently loop over populations in the same order
         for pop in pop_order:
             # Set up correct additional params
-            rb_ls = cannonical_rbls[pop]
+            rb_ls = canonical_rbls[pop]
             additional_parameters = {
                 "additional_parameters": {
                     "rb_left_shifts": rb_ls,

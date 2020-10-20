@@ -112,7 +112,7 @@ recorded_voltage = copy.deepcopy(pop_by_subcycle)
 recorded_gsyn_exc = copy.deepcopy(pop_by_subcycle)
 recorded_gsyn_inh = copy.deepcopy(pop_by_subcycle)
 
-cannonical_rbls = RMEM_RBLS if args.r_mem else VANILLA_RBLS
+canonical_rbls = RMEM_RBLS if args.r_mem else VANILLA_RBLS
 
 print("=" * 80)
 print(
@@ -137,7 +137,7 @@ for case, test_name, rates_for_test in zip(cases, test_case_names, test_rates):
             # Set up correct additional params
             if pop in ['glomerulus']:
                 continue
-            rb_ls = cannonical_rbls[pop]
+            rb_ls = canonical_rbls[pop]
             additional_parameters = {
                 "additional_parameters": {
                     "rb_left_shifts": rb_ls,

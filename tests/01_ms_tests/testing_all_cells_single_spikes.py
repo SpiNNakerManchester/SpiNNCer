@@ -98,7 +98,7 @@ recorded_voltage = copy.deepcopy(pop_by_subcycle)
 recorded_gsyn_exc = copy.deepcopy(pop_by_subcycle)
 recorded_gsyn_inh = copy.deepcopy(pop_by_subcycle)
 
-cannonical_rbls = RMEM_RBLS if args.r_mem else VANILLA_RBLS
+canonical_rbls = RMEM_RBLS if args.r_mem else VANILLA_RBLS
 
 pop_order = get_plot_order(EXPECTED_MAX_SPIKES.keys())
 
@@ -114,7 +114,7 @@ for case, test_name, spikes_for_test, do_weight_scaling in \
         for proj in pop_order:
             # Set up correct additional params
             pop = CONNECTIVITY_MAP[proj]['post']
-            rb_ls = cannonical_rbls[pop]
+            rb_ls = canonical_rbls[pop]
             additional_parameters = {
                 "additional_parameters": {
                     "rb_left_shifts": rb_ls,

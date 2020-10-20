@@ -324,7 +324,12 @@ class Cerebellum(Circuit):
 
         # RB left shifts based on max spikes will overwrite everything else
         self.max_gsyn = {k: np.zeros(2) for k in self.cell_params.keys()}
-        if self.expected_max_spikes:
+        if rb_left_shifts:
+            print("Using RB LS that were passed into the cerebellum model.")
+            for pop in rb_left_shifts.keys():
+                self.rb_shifts[pop] = rb_left_shifts[pop]
+        elif self.expected_max_spikes:
+            print("Computing RB LS that were passed into the cerebellum model.")
             for conn_key, max_inc_spikes in self.expected_max_spikes.items():
                 max_inc_gsyn = self.conn_params[conn_key]['weight'] * max_inc_spikes
                 curr_post = self.conn_params[conn_key]['post']
@@ -339,12 +344,12 @@ class Cerebellum(Circuit):
                 rb_ls = np.clip(rb_ls, 0, 16)
                 self.rb_shifts[pop] = rb_ls
 
-        # HACK HACK HACK!
-        if self.r_mem:
-            self.rb_shifts['purkinje'][0] = 7
-        else:
-            self.rb_shifts['purkinje'][0] = 5
-        print("Computed rb_ls", self.rb_shifts)
+            # HACK HACK HACK!
+            if self.r_mem:
+                self.rb_shifts['purkinje'][0] = 7
+            else:
+                self.rb_shifts['purkinje'][0] = 5
+            print("Computed rb_ls", self.rb_shifts)
 
         # Construct PyNN neural Populations
         self.build_populations(self.cell_positions)

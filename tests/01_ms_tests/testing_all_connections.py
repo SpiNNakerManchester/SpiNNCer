@@ -112,7 +112,7 @@ projections = {}
 additional_parameters = {}
 per_pop_r_mem = {}
 
-cannonical_rbls = RMEM_RBLS if args.r_mem else VANILLA_RBLS
+canonical_rbls = RMEM_RBLS if args.r_mem else VANILLA_RBLS
 initial_connectivity = {}
 for conn_name, conn_params in CONNECTIVITY_MAP.items():
     print("-" * 80)
@@ -148,7 +148,7 @@ for conn_name, conn_params in CONNECTIVITY_MAP.items():
 
     if args.real_rbls:
         # Retrieve the RB LS for the post-synaptic population
-        rb_ls = cannonical_rbls[conn_params['post']]
+        rb_ls = canonical_rbls[conn_params['post']]
         print("Using cannonical RB LS for population", args.population, "with values", rb_ls)
     else:
         if args.r_mem:

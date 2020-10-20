@@ -58,7 +58,7 @@ per_pop_r_mem = {}
 pop_by_subcycle = {k: copy.deepcopy(typical_pop_dict) for k in subcycles}
 recorded_spikes = copy.deepcopy(pop_by_subcycle)
 recorded_voltage = copy.deepcopy(pop_by_subcycle)
-cannonical_rbls = RMEM_RBLS if args.r_mem else VANILLA_RBLS
+canonical_rbls = RMEM_RBLS if args.r_mem else VANILLA_RBLS
 
 print("=" * 80)
 print("\nThis is a test of the SpiNNaker solver when confronted with very rapidly changing sub-threshold voltage "
