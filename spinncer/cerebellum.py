@@ -451,13 +451,17 @@ class Cerebellum(Circuit):
                 additional_params = {"rb_left_shifts":
                                          self.rb_shifts[cell_name]}
                 if cell_name in ["granule"]:
-                    additional_params["n_steps_per_timestep"] = 7
-                if cell_name in ["golgi", "stellate", "basket"]:
-                    additional_params["n_steps_per_timestep"] = 10
+                    additional_params["n_steps_per_timestep"] = 4
+                if cell_name in ["golgi"]:
+                    additional_params["n_steps_per_timestep"] = 8
+                if cell_name in ["stellate"]:
+                    additional_params["n_steps_per_timestep"] = 4
+                if cell_name in ["basket"]:
+                    additional_params["n_steps_per_timestep"] = 3
                 if cell_name in ["purkinje"]:
                     additional_params["n_steps_per_timestep"] = 10
                 if cell_name in ["dcn"]:
-                    additional_params["n_steps_per_timestep"] = 1
+                    additional_params["n_steps_per_timestep"] = 2
 
                 if "n_steps_per_timestep" not in additional_params.keys():
                     raise AttributeError("I forgot to set n_steps_per_timestep for " + cell_name)
