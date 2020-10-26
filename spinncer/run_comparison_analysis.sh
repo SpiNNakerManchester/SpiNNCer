@@ -368,41 +368,6 @@ nohup python cerebellum_analysis.py --consider_delays --compare results/nest_400
 > "nest_400x400_old_grids_vs_OFF_GRID.out" 2>&1 & 
 
 
-# nohup python cerebellum_analysis.py --consider_delays --compare  results/spinn_400x400_run_0_poisson_@8adfb23bc53e1558a20d7dd2e917bf4f.npz results/nest_400x400_from_file_stim_3.npz \
-# 	> full_scale_comparison_spin_0.1_vs_nest_0.1.out 2>&1 &	
-
-# nohup python cerebellum_analysis.py --consider_delays --compare  results/spinn_400x400_run_0_poisson_@8adfb23bc53e1558a20d7dd2e917bf4f.npz results/spinn_400x400_run_1_poisson_@8adfb23bc53e1558a20d7dd2e917bf4f.npz \
-# 	> full_scale_comparison_variance_testing_spin_0.1_vs_spin_0.1.out 2>&1 &	
-
-
-#### SCRATCH SPACE
-# nohup python cerebellum_analysis.py --consider_delays --compare results/spinn_400x400_run_0_poisson_@8adfb23bc53e1558a20d7dd2e917bf4f.npz results/EXPERIMENTAL_testing_stimulus_from_file_400x400_1_loop.npz \
-#  > full_spinn_vs_loop_1.out 2>&1 &
-
-# nohup python cerebellum_analysis.py --consider_delays --compare results/spinn_400x400_run_0_poisson_@8adfb23bc53e1558a20d7dd2e917bf4f.npz results/EXPERIMENTAL_testing_stimulus_from_file_400x400_2_loop.npz \
-#  > full_spinn_vs_loop_2.out 2>&1 &
-
-# nohup python cerebellum_analysis.py --consider_delays --compare results/spinn_400x400_run_0_poisson_@8adfb23bc53e1558a20d7dd2e917bf4f.npz results/EXPERIMENTAL_testing_stimulus_from_file_400x400_3_loop.npz \
-#  > full_spinn_vs_loop_3.out 2>&1 &
-
-# nohup python cerebellum_analysis.py --consider_delays --compare results/spinn_400x400_run_0_poisson_@8adfb23bc53e1558a20d7dd2e917bf4f.npz results/EXPERIMENTAL_testing_stimulus_from_file_400x400_4_loop.npz \
-#  > full_spinn_vs_loop_4.out 2>&1 &
-
-
-# nohup python cerebellum_analysis.py --consider_delays --compare results/EXPERIMENTAL_testing_stimulus_from_file_400x400_1_loop.npz results/nest_400x400_from_file_stim_3.npz \
-#  > full_nest_vs_loop_1.out 2>&1 &
-
-# nohup python cerebellum_analysis.py --consider_delays --compare results/EXPERIMENTAL_testing_stimulus_from_file_400x400_2_loop.npz results/nest_400x400_from_file_stim_3.npz \
-#  > full_nest_vs_loop_2.out 2>&1 &
-
-# nohup python cerebellum_analysis.py --consider_delays --compare results/EXPERIMENTAL_testing_stimulus_from_file_400x400_3_loop.npz results/nest_400x400_from_file_stim_3.npz \
-#  > full_nest_vs_loop_3.out 2>&1 &
-
-# nohup python cerebellum_analysis.py --consider_delays --compare results/EXPERIMENTAL_testing_stimulus_from_file_400x400_4_loop.npz results/nest_400x400_from_file_stim_3.npz \
-#  > full_nest_vs_loop_4.out 2>&1 &
-
-# nohup python cerebellum_analysis.py --consider_delays --compare results/EXPERIMENTAL_testing_stimulus_from_file_400x400_5_loop.npz results/nest_400x400_from_file_stim_3.npz \
-#  > full_nest_vs_loop_5.out 2>&1 &
-
-# nohup python cerebellum_analysis.py --consider_delays --compare results/EXPERIMENTAL_testing_stimulus_from_file_400x400_6_loop.npz results/nest_400x400_from_file_stim_3.npz \
-#  > full_nest_vs_loop_6.out 2>&1 &
+file_to_test="spinn_400x400_pss_3_RD_R_MEM_OPTIMUM_MIN_SC_100x.npz"
+nohup python ../cerebellum_analysis.py --consider_delays --compare "results/""$file_to_test"  ../results/nest_400x400_pss_3_grid.npz \
+> "$file_to_test""_vs_nest_grid.out" 2>&1 & 
