@@ -6,7 +6,7 @@ install_requires = [
     "scipy==1.3.0",
     "brian2",
     "neo==0.7.1",
-    "pynn",
+    "pynn==0.9.5",
     "h5py",
     "matplotlib",
     "argparse",
@@ -18,7 +18,7 @@ install_requires = [
 
 setup(
     name='spinncer',
-    version='0.0.1',
+    version='1.0.0',
     packages=find_packages(),
     url='https://github.com/pabogdan/spinncer',
     license="GNU GPLv3.0",
