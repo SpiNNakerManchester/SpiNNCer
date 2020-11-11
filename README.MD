@@ -3,7 +3,7 @@
 
 This work presents the first simulation of a large-scale, bio-inspired cerebellum model performed on neuromorphic hardware. A network containing 97k neurons and 4.2M synapses is simulated on the SpiNNaker neuromorphic system. The same model is also simulated using NEST, a popular spiking neural network simulator using generic computational resources and double precision floating point arithmetic, as a basis for validation. Individual cell and network-level spiking activity is validated against NEST and SpiNNaker is shown to produce results in agreement with NEST. The goal after validation is understanding how to accelerate the simulation speed of the network on the SpiNNaker system. Through detailed communication profiling, peak network activity is identified as one of the main challenges for simulation speed-up.
 
-Supporting data for this project is available at: https://kg.ebrains.eu/search/live/minds/core/dataset/v1.0.0/069e4718-2b4a-4056-9c8f-e646a841b2dd
+Supporting data for this project is available at: https://kg.ebrains.eu/search/instances/Dataset/069e4718-2b4a-4056-9c8f-e646a841b2dd
 
 The full description of the model is available at: https://www.frontiersin.org/articles/10.3389/fninf.2019.00037
 
