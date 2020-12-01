@@ -28,13 +28,22 @@ POPULATION_ID = {
 # Cell types
 _model = "IF_cond_exp"
 CELL_TYPES = {
-    'golgi': _model,
-    'glomerulus': "SpikeSourcePoissonVariable",
+    'glomerulus': "SpikeSourceArray",
+    'mossy_fibers': "SpikeSourceArray",
     'granule': _model,
-    'purkinje': _model,
-    'basket': _model,
+    'granule_cell': _model,
+    'golgi': _model,
+    'golgi_cell': _model,
     'stellate': _model,
-    'dcn': _model
+    'stellate_cell': _model,
+    'basket': _model,
+    'basket_cell': _model,
+    'purkinje': _model,
+    'purkinje_cell': _model,
+    'dcn': _model,
+    'dcn_cell': _model,
+    'dcn_interneuron': _model,
+    'io_cell': _model,
 }
 
 # Python 3+ syntax to invert a dictionary
@@ -109,7 +118,7 @@ CELL_PARAMS = {
                  'tau_m': 14.6,  # ms
                  'i_offset': 15.6e-3,  # pA
                  'tau_syn_E': 0.64,  # ms, changed from 0.5 on 16.10.2019
-                 'tau_syn_I': 2, # ms, changed from 10.0 on 16.10.2019
+                 'tau_syn_I': 2,  # ms, changed from 10.0 on 16.10.2019
 
                  'e_rev_I': -90.0,  # mV
                  'e_rev_E': 0.0,  # mV
@@ -442,7 +451,6 @@ CONNECTIVITY_MAP_SPINNAKER_R_MEM = {
     },
 }
 
-
 # create a map from pyNest param names to PyNN param names + unit conversions
 # https://nest-test.readthedocs.io/en/pynest_mock/models/neurons.html#_CPPv4N4nest14iaf_cond_alphaE
 # http://neuralensemble.org/docs/PyNN/standardmodels.html?highlight=if_cond_alpha
@@ -460,7 +468,6 @@ PYNEST_TO_PYNN_CONVERSION = {
     "tau_syn_in": ("tau_syn_I", 1),  # ms
     "I_e": ("i_offset", 1e-3),  # conversion from pA (pyNest) to nA (PyNN)
 }
-
 
 # Store cannonical RB LS here for [excitatory, inhibitory] synapses
 VANILLA_RBLS = {

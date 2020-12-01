@@ -307,7 +307,7 @@ class Cerebellum(Circuit):
         # WARNING: This will have DISASTRUOUS effects if the simulation backend doesn't expect it
         for pop in self.cell_params.keys():
             cell_param = self.cell_params[pop]
-            if self.r_mem and 'tau_m' in cell_param.keys():
+            if self.r_mem and cell_param is not None and 'tau_m' in cell_param.keys():
                 r_mem = cell_param['tau_m'] / cell_param['cm']
                 self.r_mem_per_pop[pop] = r_mem
                 if "i_offset" in cell_param.keys():
@@ -316,7 +316,7 @@ class Cerebellum(Circuit):
                 self.r_mem_per_pop[pop] = 1
 
         if self.r_mem:
-            for conn_label in self._raw_connectivity_info.keys():
+            for conn_label in self.conn_params.keys():
                 if conn_label in ["goc_glom"]:
                     continue
                 post_pop = self.conn_params[conn_label]['post']
@@ -367,6 +367,11 @@ class Cerebellum(Circuit):
 
         for pop_name, pop_obj in self.populations.items():
             self.__setattr__(pop_name, pop_obj)
+
+
+    def is_new_scaffold(self):
+        return self.new_scaffold
+
 
     def __compute_number_of_neurons(self):
         # compute number of neurons here if not done previously
@@ -450,17 +455,19 @@ class Cerebellum(Circuit):
                 # else for all other cells
                 additional_params = {"rb_left_shifts":
                                          self.rb_shifts[cell_name]}
-                if cell_name in ["granule"]:
+                if cell_name in ["granule", "granule_cell"]:
                     additional_params["n_steps_per_timestep"] = 4
-                if cell_name in ["golgi"]:
+                if cell_name in ["golgi", "golgi_cell"]:
                     additional_params["n_steps_per_timestep"] = 8
-                if cell_name in ["stellate"]:
+                if cell_name in ["stellate", "stellate_cell"]:
                     additional_params["n_steps_per_timestep"] = 4
-                if cell_name in ["basket"]:
+                if cell_name in ["basket", "basket_cell"]:
                     additional_params["n_steps_per_timestep"] = 3
-                if cell_name in ["purkinje"]:
+                if cell_name in ["purkinje", "purkinje_cell"]:
                     additional_params["n_steps_per_timestep"] = 10
-                if cell_name in ["dcn"]:
+                if cell_name in ["dcn", "dcn_cell", "dcn_interneuron"]:
+                    additional_params["n_steps_per_timestep"] = 2
+                if cell_name in ["io_cell"]:
                     additional_params["n_steps_per_timestep"] = 2
 
                 if "n_steps_per_timestep" not in additional_params.keys():
@@ -507,7 +514,7 @@ class Cerebellum(Circuit):
                                  self.number_of_neurons,
                                  self.conn_params)
         # Retrieve the Projection labels
-        labels = connections.keys()
+        labels = self.conn_params.keys()
         # Loop over each connection in `connections`
         for conn_label in labels:
             # Retrieve saved connectivity and cast to np.ndarray
@@ -566,6 +573,9 @@ class Cerebellum(Circuit):
             self.connections[conn_label] = np.concatenate(
                 [conns, stacked_weights, stacked_delays], axis=1)
 
+            assert np.all(conns) >= 0
+            assert (conns[:, 0].max() < self.number_of_neurons[pre_pop])
+            assert (conns[:, 1].max() < self.number_of_neurons[post_pop])
             # Adding the projection to the network
             receptor_type = "inhibitory" if weight < 0 else "excitatory"
             self.projections[conn_label] = self.sim.Projection(
@@ -903,7 +913,7 @@ class Cerebellum(Circuit):
                              "to record from xor a linspace of neurons "
                              "(every nth) xor a dictionary with these values.")
         for label, pop in self.populations.items():
-            if label == "glomerulus":
+            if label in ["glomerulus", "mossy_fibers"]:
                 print("Skipping selective recording for", label, "...")
             else:
                 ps = pop.size

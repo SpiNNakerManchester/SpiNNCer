@@ -48,17 +48,6 @@ sim.setup(timestep=args.timestep, min_delay=args.timestep, max_delay=80,
 
 # Add constraints here SpiNNaker only:
 global_n_neurons_per_core = 64
-
-per_pop_neurons_per_core_constraint = {
-    'glomerulus': global_n_neurons_per_core,
-    'granule': global_n_neurons_per_core,
-    'dcn': global_n_neurons_per_core,
-    'golgi': global_n_neurons_per_core,
-    'purkinje': 1,
-    'stellate': global_n_neurons_per_core,
-    'basket': global_n_neurons_per_core,
-}
-
 ss_neurons_per_core = 64
 if spinnaker_sim:
     sim.set_number_of_neurons_per_core(sim.SpikeSourceArray, ss_neurons_per_core)
@@ -181,11 +170,38 @@ if args.generate_conversion_constants:
     print("Saved conversion_constants.npz. Exiting...")
     sys.exit(0)
 
-# Test various exposed methods
+# SpiNNaker related constraints
+if not cerebellum_circuit.is_new_scaffold():
+    per_pop_neurons_per_core_constraint = {
+        'glomerulus': global_n_neurons_per_core,
+        'granule': global_n_neurons_per_core,
+        'golgi': global_n_neurons_per_core,
+        'stellate': global_n_neurons_per_core,
+        'basket': global_n_neurons_per_core,
+        'purkinje': 1,
+        'dcn': global_n_neurons_per_core,
+    }
+else:
+    per_pop_neurons_per_core_constraint = {
+        'mossy_fibers': global_n_neurons_per_core,
+        'glomerulus': global_n_neurons_per_core,
+        'granule_cell': global_n_neurons_per_core,
+        'golgi_cell': global_n_neurons_per_core,
+        'stellate_cell': global_n_neurons_per_core,
+        'basket_cell': global_n_neurons_per_core,
+        'purkinje_cell': 1,
+        'dcn_cell': global_n_neurons_per_core,
+        'dcn_interneuron': global_n_neurons_per_core,
+        'io_cell': global_n_neurons_per_core,
+    }
+
 populations = cerebellum_circuit.get_all_populations()
 if spinnaker_sim:
     for pop_name, constraint in per_pop_neurons_per_core_constraint.items():
-        populations[pop_name].set_max_atoms_per_core(constraint)
+        for available_pop_name, available_pop in populations.items():
+            if pop_name in available_pop_name:
+                print("Setting NPC=", constraint, "for", available_pop_name)
+                available_pop.set_max_atoms_per_core(constraint)
 
 # Set up IO stimulation
 stim_to_pop_proj = None
