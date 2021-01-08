@@ -313,7 +313,7 @@ def spike_analysis(results_file, fig_folder,
     try:
         final_connectivity = data['final_connectivity'].ravel()[0]
     except:
-        final_connectivity = []
+        final_connectivity = {}
         traceback.print_exc()
     all_neurons = data['all_neurons'].ravel()[0]
     sim_params = data['simulation_parameters'].ravel()[0]
@@ -346,7 +346,7 @@ def spike_analysis(results_file, fig_folder,
     print("-" * 80)
     for cell_name in plot_order:
         params = cell_params[cell_name]
-        if cell_name == "glomerulus":
+        if cell_name in SPIKE_SOURCE_NAMES:
             continue
         print("{} & {} & {} & {} & {} & {} & {} & {} & {} & {} \\\\".format(
             use_display_name(cell_name),

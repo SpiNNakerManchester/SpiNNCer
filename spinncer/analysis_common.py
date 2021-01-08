@@ -17,7 +17,7 @@ import neo
 from datetime import datetime
 import warnings
 import ntpath
-from spinncer.utilities.constants import CONNECTIVITY_MAP, CELL_PARAMS
+from spinncer.utilities.constants import CONNECTIVITY_MAP, CELL_PARAMS, SPIKE_SOURCE_NAMES
 from spinncer.utilities.neo_converter import convert_spikes
 from colorama import Fore, Style, init as color_init
 import pandas as pd
@@ -158,6 +158,10 @@ COMMON_DISPLAY_NAMES = {
     'stim_radius': "Stimulation radius ($\mu m$)",
     'glomerulus cells': "Glom",
     'glomerulus': "Glom",
+    'mossy_fibers': "MF",
+    'mossy_fibres': "MF",
+    'climbing_fibres': "CF",
+    'climbing_fibers': "CF",
     'granule cells': "GrC",
     'granule': "GrC",
     'dcn cells': "DCNC",
@@ -193,6 +197,7 @@ COMMON_DISPLAY_NAMES = {
     'pf_pc': "pf-PC",
     'pf_sc': "pf-SC",
     'sc_pc': "SC-PC",
+    'mf_glom': "MF-Glom"
 }
 
 

@@ -14,6 +14,9 @@ class IO_Status(Enum):
     HIDDEN = 2
 
 
+SPIKE_SOURCE_NAMES = ['glomerulus', 'mossy_fibres', 'io_cell', 'mossy_fibers']
+
+
 # ID is used in hdf5 file defining the positions of individual cells
 POPULATION_ID = {
     'golgi': 1,
@@ -30,6 +33,7 @@ _model = "IF_cond_exp"
 CELL_TYPES = {
     'glomerulus': "SpikeSourceArray",
     'mossy_fibers': "SpikeSourceArray",
+    'mossy_fibres': "SpikeSourceArray",
     'granule': _model,
     'granule_cell': _model,
     'golgi': _model,
@@ -471,19 +475,23 @@ PYNEST_TO_PYNN_CONVERSION = {
 
 # Store cannonical RB LS here for [excitatory, inhibitory] synapses
 VANILLA_RBLS = {
-    'granule': [1, 0],
-    'golgi': [5, 3],
-    'stellate': [0, 0],
-    'basket': [0, 0],
-    'purkinje': [5, 2],
-    'dcn': [0, 0]
+    'granule_cell': [1, 0],
+    'golgi_cell': [5, 3],
+    'stellate_cell': [0, 0],
+    'basket_cell': [0, 0],
+    'purkinje_cell': [5, 2],
+    'dcn_cell': [0, 0],
+    'dcn_interneuron': [0, 0],
+    'io_cell': [0, 0],
 }
 
 RMEM_RBLS = {
-    'granule': [5, 4],
-    'golgi': [8, 6],
-    'stellate': [4, 3],
-    'basket': [4, 4],
-    'purkinje': [7, 5],
-    'dcn': [0, 0]
+    'granule_cell': [5, 4],
+    'golgi_cell': [8, 6],
+    'stellate_cell': [4, 3],
+    'basket_cell': [4, 4],
+    'purkinje_cell': [7, 5],
+    'dcn_cell': [0, 0],
+    'dcn_interneuron': [0, 0],
+    'io_cell': [0, 0],
 }

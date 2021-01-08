@@ -275,6 +275,7 @@ try:
     final_connectivity = cerebellum_circuit.retrieve_final_connectivity()
 except:
     # This simulator might not support the way this is done
+    print("FAILED TO RETRIEVE CONNECTIVITY OVERALL!")
     final_connectivity = []
     traceback.print_exc()
 initial_connectivity = cerebellum_circuit.connections
