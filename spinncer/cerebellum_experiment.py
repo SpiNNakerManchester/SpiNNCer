@@ -32,6 +32,8 @@ from spinncer.utilities.constants import VANILLA_RBLS, RMEM_RBLS
 import pylab as plt
 import os
 import traceback
+from spinn_front_end_common.utilities.globals_variables import get_simulator
+from spinncer.provenance_analysis import save_provenance_to_file_from_database
 
 # Record SCRIPT start time (wall clock)
 start_time = plt.datetime.datetime.now()
@@ -234,6 +236,9 @@ cerebellum_circuit.selectively_record_all(from_dict=per_pop_recording_dict)
 recorded_spikes = {}
 other_recordings = {}
 
+# Store simulator and run
+simulator = get_simulator()
+
 # Record simulation start time (wall clock)
 sim_start_time = plt.datetime.datetime.now()
 current_error = None
@@ -310,6 +315,11 @@ np.savez_compressed(results_file,
 
 # Appropriately end the simulation
 sim.end()
+
+# Get the provenance from the simulator's database
+structured_provenance_filename = "structured_provenance.csv"
+save_provenance_to_file_from_database(
+    structured_provenance_filename, simulator)
 
 # Analysis time!
 spike_analysis(results_file=results_file, fig_folder=args.figures_dir,

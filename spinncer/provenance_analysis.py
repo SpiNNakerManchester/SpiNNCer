@@ -1,9 +1,14 @@
 import itertools
 
+import pandas as pd
 from spinncer.analysis_common import *
 from os.path import join as join
 from numpy.polynomial.polynomial import Polynomial
 import traceback
+
+from spinn_front_end_common.utilities.globals_variables import (
+    provenance_file_path)
+from spinn_front_end_common.interface.provenance import ProvenanceReader
 
 
 def extract_per_pop_placements(df, pops):
@@ -54,6 +59,146 @@ def extract_per_pop_info(df, type_of_prov, pops, report=False):
     pop_results['global_max'] = np.nanmax(np.asarray(_maxs))
     pop_results['global_min'] = np.nanmin(np.asarray(_mins))
     return pop_results
+
+
+def save_provenance_to_file_from_database(in_file, simulator):
+    # Here we need to get the provenance from the database and put it in
+    # the specified file
+
+    # list provenance of interest
+    router_provenance_of_interest = [
+        'Dumped_from_a_Link',
+        'Dumped_from_a_processor',
+        'Local_Multicast_Packets',
+        'External_Multicast_Packets',
+        'Dropped_Multicast_Packets',
+        'Missed_For_Reinjection'
+    ]
+    prov_of_interest = [
+        'Maximum number of spikes in a timer tick',
+        'Times_synaptic_weights_have_saturated',
+        'late_packets',
+        'Times_the_input_buffer_lost_packets',
+        'Times_the_timer_tic_over_ran',
+        'Total_pre_synaptic_events',
+        'Maximum number of DMAs in a timer tick',
+        'Maximum pipeline restarts',
+        'send_multicast_packets',
+        'Maximum number of spikes flushed in a timer tick',
+        'Total number of spikes flushed'
+    ]
+
+    # Custom provenance presentation from SpiNNCer
+    # write provenance to file here in a useful way
+    columns = ['pop', 'label', 'min_atom', 'max_atom', 'no_atoms',
+               'x', 'y', 'p',
+               'prov_name', 'prov_value',
+               'fixed_sdram', 'sdram_per_timestep',
+               'cpu_cycles', 'dtcm']
+    # assert (len(prov_placement) == len(prov_items))
+    structured_provenance = list()
+    metadata = {}
+    # Retrieve filename from spynnaker8/spinnaker.py
+    provenance_filename = in_file
+
+    if provenance_filename:
+        # Produce metadata from the simulator info
+        metadata['name'] = simulator.name
+        metadata['no_machine_time_steps'] = simulator.no_machine_time_steps
+        metadata['machine_time_step'] = simulator.machine_time_step
+        # metadata['config'] = simulator.config
+        metadata['machine'] = simulator.machine
+        metadata['structured_provenance_filename'] = \
+            simulator.structured_provenance_filename
+
+        # how do we loop over all the placements in the database at this point?
+        # can we get router_provenance from the database?
+        # placements is 0... so is this router(0, 0)?
+        pr = ProvenanceReader(os.path.join(
+            provenance_file_path(), "provenance.sqlite3"))
+
+        cores_list = pr.get_cores_with_provenance()
+
+        # router_provenance = pr.get_provenance_for_router(0, 0)
+        # print("router_provenance: ", router_provenance)
+
+        # for i, (provenance, placement) in enumerate(zip(prov_items, prov_placement)):
+        for core in cores_list:
+            x = core[1]
+            y = core[2]
+            p = core[3]
+            structured_prov_core = get_provenance_for_core(pr, x, y, p)
+
+            pop = structured_prov_core['pop']
+            if pop == []:
+                continue
+            pop = pop[0][0]
+            fixed_sdram = structured_prov_core['fixed_sdram'][0][0]
+            sdram_per_timestep = structured_prov_core['sdram_per_timestep'][0][0]
+            cpu_cycles = structured_prov_core['cpu_cycles'][0][0]
+
+            label = structured_prov_core['label'][0][0]
+            max_atom = structured_prov_core['max_atom'][0][0]
+            min_atom = structured_prov_core['min_atom'][0][0]
+            no_atoms = structured_prov_core['no_atoms'][0][0]
+            dtcm = structured_prov_core['dtcm'][0][0]
+
+            for prov_name in prov_of_interest:
+                prov_value = get_core_provenance_value(pr, x, y, p, prov_name)
+                if prov_value == []:
+                    prov_value = 0
+                else:
+                    prov_value = prov_value[0][0]
+
+                structured_provenance.append(
+                    [pop, label, min_atom, max_atom, no_atoms,
+                     x, y, p,
+                     prov_name, prov_value,
+                     fixed_sdram, sdram_per_timestep,
+                     cpu_cycles, dtcm]
+                )
+
+            for prov_name in router_provenance_of_interest:
+                prov_value = get_router_provenance_value(pr, x, y, prov_name)
+                if prov_value == []:
+                    prov_value = 0
+                else:
+                    prov_value = prov_value[0][0]
+
+                structured_provenance.append(
+                    [pop, label, min_atom, max_atom, no_atoms,
+                     x, y, p,
+                     prov_name, prov_value,
+                     fixed_sdram, sdram_per_timestep,
+                     cpu_cycles, dtcm]
+                )
+
+        # print("structured provenance: ", structured_provenance)
+
+        structured_provenance_df = pd.DataFrame.from_records(
+            structured_provenance, columns=columns)
+
+        # check if the same structured prov already exists
+        if os.path.exists(provenance_filename):
+            existing_data = np.load(provenance_filename, allow_pickle=True)
+            # TODO check that metadata is correct
+
+            # figure out the past run id
+            numerical_runs = [int(x) for x in existing_data.files if x not in ["metadata"]]
+            prev_run = np.max(numerical_runs)
+
+        else:
+            existing_data = {"metadata": metadata}
+            prev_run = -1  # no previous run
+
+        # Current data assembly
+        current_data = {str(prev_run + 1):
+                            structured_provenance_df.to_records(index=False)}
+
+        # Append current data to existing data
+        np.savez_compressed(provenance_filename,
+                            **existing_data,
+                            **current_data)
 
 
 def provenance_csv_analysis(in_folder, fig_folder):
