@@ -233,6 +233,45 @@ def provenance_csv_analysis(in_folder, fig_folder):
     return results, types_of_provenance, prov_of_interest, placements
 
 
+def get_provenance_for_core(pr, x, y, p):
+    structured_prov = {}
+    columns_to_get = ['pop', 'label', 'min_atom', 'max_atom', 'no_atoms',
+               'fixed_sdram', 'sdram_per_timestep',
+               'cpu_cycles', 'dtcm']  # add more as needed
+
+    for column_to_get in columns_to_get:
+        query = """
+            SELECT the_value
+            FROM core_provenance
+            WHERE x = ? AND y = ? AND p = ? AND description = ?
+            """
+        # result = pr.run_query(query, [x, y, p, column_to_get])
+        structured_prov[column_to_get] = pr.run_query(
+            query, [x, y, p, column_to_get])
+        # print('x,y,p,desc: ', x, y, p, column_to_get,
+        #       structured_prov[column_to_get])
+
+    return structured_prov
+
+
+def get_core_provenance_value(pr, x, y, p, description):
+    query = """
+        SELECT the_value
+        FROM core_provenance
+        WHERE x = ? AND y = ? AND p = ? AND description = ?
+        """
+    return pr.run_query(query, [x, y, p, description])
+
+
+def get_router_provenance_value(pr, x, y, description):
+    query = """
+        SELECT the_value
+        FROM router_provenance
+        WHERE x = ? AND y = ? AND description = ?
+        """
+    return pr.run_query(query, [x, y, description])
+
+
 def sweep_provenance_analysis(in_folder, fig_folder, group_on,
                               group_on_name):
     # Check if the folders exist
