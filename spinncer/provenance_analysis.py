@@ -178,27 +178,7 @@ def save_provenance_to_file_from_database(in_file, simulator):
         structured_provenance_df = pd.DataFrame.from_records(
             structured_provenance, columns=columns)
 
-        # check if the same structured prov already exists
-        if os.path.exists(provenance_filename):
-            existing_data = np.load(provenance_filename, allow_pickle=True)
-            # TODO check that metadata is correct
-
-            # figure out the past run id
-            numerical_runs = [int(x) for x in existing_data.files if x not in ["metadata"]]
-            prev_run = np.max(numerical_runs)
-
-        else:
-            existing_data = {"metadata": metadata}
-            prev_run = -1  # no previous run
-
-        # Current data assembly
-        current_data = {str(prev_run + 1):
-                            structured_provenance_df.to_records(index=False)}
-
-        # Append current data to existing data
-        np.savez_compressed(provenance_filename,
-                            **existing_data,
-                            **current_data)
+        structured_provenance_df.to_csv("structured_provenance.csv")
 
 
 def provenance_csv_analysis(in_folder, fig_folder):
