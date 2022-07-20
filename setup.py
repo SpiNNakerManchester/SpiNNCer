@@ -2,8 +2,12 @@ from setuptools import setup, find_packages
 
 
 install_requires = [
-    "numpy==1.15.4",
-    "scipy==1.3.0",
+    "numpy > 1.13, < 1.20; python_version == '3.6'",
+    "numpy > 1.13, < 1.21; python_version == '3.7'",
+    "numpy; python_version >= '3.8'",
+    "scipy >= 0.16.0, < 1.6; python_version == '3.6'",
+    "scipy >= 0.16.0, < 1.8; python_version == '3.7'",
+    "scipy >= 0.16.0; python_version >= '3.8'"
     "brian2",
     "neo==0.7.1",
     "pynn==0.9.5",
@@ -38,7 +42,7 @@ setup(
 
         "Programming Language :: Python :: 3"
         "Programming Language :: Python :: 3.7"
-        
+
         "Topic :: Scientific/Engineering",
     ]
 )
