@@ -417,6 +417,8 @@ def spike_analysis(results_file, fig_folder,
     try:
         for pop in plot_order:
             curr_spikes = neo_all_spikes[pop].segments[0].spiketrains
+            print("pop, curr_spikes: ", pop, curr_spikes)
+            print("elephant, timestep, simtime", elephant_timestep, elephant_simtime)
             curr_inst_rates = \
                 elephant.statistics.instantaneous_rate(
                     curr_spikes,
@@ -436,6 +438,9 @@ def spike_analysis(results_file, fig_folder,
             elephant_instantaneous_rates[pop] = curr_inst_rates.ravel() / all_neurons[pop]
     except:
         traceback.print_exc()
+
+    print("elephant_instantaneous_rates: ", elephant_instantaneous_rates)
+    print("all_neurons: ", all_neurons)
 
     stim_period_start = {}
     stim_period_end = {}

@@ -1,11 +1,7 @@
 """
 This script tests whether delays are implemented correctly
 """
-try:
-    # this might be deprecated soon
-    import spynnaker8 as sim
-except ImportError:
-    import pyNN.spynnaker as sim
+import pyNN.spynnaker as sim
 from pyNN.utility.plotting import Figure, Panel
 import matplotlib.pyplot as plt
 import numpy as np

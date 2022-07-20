@@ -1,11 +1,7 @@
 """
 This script tests whether spike counting additional provenance is correct
 """
-try:
-    # this might be deprecated soon
-    import spynnaker8 as sim
-except ImportError:
-    import pyNN.spynnaker as sim
+import pyNN.spynnaker as sim
 from pyNN.utility.plotting import Figure, Panel
 import matplotlib.pyplot as plt
 sim.setup(timestep=0.1, min_delay=0.1, max_delay=80)

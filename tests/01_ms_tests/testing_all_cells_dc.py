@@ -6,11 +6,7 @@ from spinncer.utilities import create_poisson_spikes, round_to_nearest_accum
 
 spinnaker_sim = False
 if str.lower(args.simulator) in ["spinnaker", "spynnaker"]:
-    try:
-        # this might be deprecated soon
-        import spynnaker8 as sim
-    except ImportError:
-        import pyNN.spynnaker as sim
+    import pyNN.spynnaker as sim
     spinnaker_sim = True
 elif str.lower(args.simulator) in ["nest"]:
     import pyNN.nest as sim
