@@ -1,7 +1,7 @@
 """
 This script tests whether spike counting additional provenance is correct
 """
-import pyNN.spynnaker as sim
+import pyNN.spiNNaker as sim
 from spinncer.analysis_common import *
 
 plt.viridis()

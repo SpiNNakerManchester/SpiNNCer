@@ -1,7 +1,7 @@
 """
 This script tests whether spike counting additional provenance is correct
 """
-import pyNN.spynnaker as sim
+import pyNN.spiNNaker as sim
 sim.setup(timestep=1, min_delay=1, max_delay=1)
 
 # Compute 1 spike

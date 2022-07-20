@@ -13,7 +13,7 @@ import json
 # import simulator
 spinnaker_sim = False
 if str.lower(args.simulator) in ["spinnaker", "spynnaker"]:
-    import pyNN.spynnaker as sim
+    import pyNN.spiNNaker as sim
     spinnaker_sim = True
 elif str.lower(args.simulator) in ["nest"]:
     import pyNN.nest as sim
