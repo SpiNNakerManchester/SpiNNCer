@@ -93,8 +93,7 @@ def save_provenance_to_file_from_database(in_file, simulator):
     columns = ['pop', 'label', 'min_atom', 'max_atom', 'no_atoms',
                'x', 'y', 'p',
                'prov_name', 'prov_value',
-               'fixed_sdram', 'sdram_per_timestep',
-               'cpu_cycles', 'dtcm']
+               'fixed_sdram', 'sdram_per_timestep']
     # assert (len(prov_placement) == len(prov_items))
     structured_provenance = list()
     metadata = {}
@@ -135,13 +134,11 @@ def save_provenance_to_file_from_database(in_file, simulator):
             pop = pop[0][0]
             fixed_sdram = structured_prov_core['fixed_sdram'][0][0]
             sdram_per_timestep = structured_prov_core['sdram_per_timestep'][0][0]
-            cpu_cycles = structured_prov_core['cpu_cycles'][0][0]
 
             label = structured_prov_core['label'][0][0]
             max_atom = structured_prov_core['max_atom'][0][0]
             min_atom = structured_prov_core['min_atom'][0][0]
             no_atoms = structured_prov_core['no_atoms'][0][0]
-            dtcm = structured_prov_core['dtcm'][0][0]
 
             for prov_name in prov_of_interest:
                 prov_value = get_core_provenance_value(pr, x, y, p, prov_name)
@@ -154,8 +151,7 @@ def save_provenance_to_file_from_database(in_file, simulator):
                     [pop, label, min_atom, max_atom, no_atoms,
                      x, y, p,
                      prov_name, prov_value,
-                     fixed_sdram, sdram_per_timestep,
-                     cpu_cycles, dtcm]
+                     fixed_sdram, sdram_per_timestep]
                 )
 
             for prov_name in router_provenance_of_interest:
@@ -169,8 +165,7 @@ def save_provenance_to_file_from_database(in_file, simulator):
                     [pop, label, min_atom, max_atom, no_atoms,
                      x, y, p,
                      prov_name, prov_value,
-                     fixed_sdram, sdram_per_timestep,
-                     cpu_cycles, dtcm]
+                     fixed_sdram, sdram_per_timestep]
                 )
 
         # print("structured provenance: ", structured_provenance)
@@ -216,8 +211,7 @@ def provenance_csv_analysis(in_folder, fig_folder):
 def get_provenance_for_core(pr, x, y, p):
     structured_prov = {}
     columns_to_get = ['pop', 'label', 'min_atom', 'max_atom', 'no_atoms',
-               'fixed_sdram', 'sdram_per_timestep',
-               'cpu_cycles', 'dtcm']  # add more as needed
+               'fixed_sdram', 'sdram_per_timestep']  # add more as needed
 
     for column_to_get in columns_to_get:
         query = """
