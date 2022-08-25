@@ -6,9 +6,9 @@ from os.path import join as join
 from numpy.polynomial.polynomial import Polynomial
 import traceback
 
-from spinn_front_end_common.utilities.globals_variables import (
-    provenance_file_path)
 from spinn_front_end_common.interface.provenance import ProvenanceReader
+
+from spynnaker.pyNN.data import SpynnakerDataView
 
 
 def extract_per_pop_placements(df, pops):
@@ -114,7 +114,8 @@ def save_provenance_to_file_from_database(in_file, simulator):
         # can we get router_provenance from the database?
         # placements is 0... so is this router(0, 0)?
         pr = ProvenanceReader(os.path.join(
-            provenance_file_path(), "provenance.sqlite3"))
+            SpynnakerDataView().get_provenance_dir_path(),
+            "provenance.sqlite3"))
 
         cores_list = pr.get_cores_with_provenance()
 
