@@ -88,7 +88,7 @@ cerebellum_circuit = Cerebellum(
     weight_scaling=args.weight_scaling,
     neuron_model=args.neuron_model,
     input_spikes=input_spikes,
-    rb_left_shifts=args.rb_left_shifts
+    rb_left_shifts=args.rb_left_shifts,
 )
 
 if args.generate_conversion_constants:
