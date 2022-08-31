@@ -61,7 +61,7 @@ def extract_per_pop_info(df, type_of_prov, pops, report=False):
     return pop_results
 
 
-def save_provenance_to_file_from_database(in_file, simulator):
+def save_provenance_to_file_from_database(in_file, sim_name):
     # Here we need to get the provenance from the database and put it in
     # the specified file
 
@@ -102,13 +102,14 @@ def save_provenance_to_file_from_database(in_file, simulator):
 
     if provenance_filename:
         # Produce metadata from the simulator info
-        metadata['name'] = simulator.name
-        metadata['no_machine_time_steps'] = simulator.no_machine_time_steps
-        metadata['machine_time_step'] = simulator.machine_time_step
+        metadata['name'] = sim_name
+        metadata['no_machine_time_steps'] = \
+            SpynnakerDataView.get_max_run_time_steps()
+        metadata['machine_time_step'] = \
+            SpynnakerDataView.get_simulation_time_step_ms()
         # metadata['config'] = simulator.config
-        metadata['machine'] = simulator.machine
-        metadata['structured_provenance_filename'] = \
-            simulator.structured_provenance_filename
+        metadata['machine'] = SpynnakerDataView.get_machine()
+        metadata['structured_provenance_filename'] = in_file
 
         # how do we loop over all the placements in the database at this point?
         # can we get router_provenance from the database?

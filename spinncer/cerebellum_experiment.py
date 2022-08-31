@@ -28,7 +28,6 @@ from spinncer.utilities.constants import VANILLA_RBLS, RMEM_RBLS
 import pylab as plt
 import os
 import traceback
-from spinn_front_end_common.utilities.globals_variables import get_simulator
 from spinncer.provenance_analysis import save_provenance_to_file_from_database
 
 # Record SCRIPT start time (wall clock)
@@ -135,6 +134,8 @@ EXPECTED_MAX_SPIKES_150 = {
 expected_max_spikes = EXPECTED_MAX_SPIKES_200
 canonical_rbls = RMEM_RBLS if args.r_mem else VANILLA_RBLS
 print("Canonical ring buffer left shifts:", canonical_rbls)
+use_split_model = True
+print("use_split_model is ", use_split_model)
 
 # Instantiate a Cerebellum
 cerebellum_circuit = Cerebellum(
@@ -147,7 +148,7 @@ cerebellum_circuit = Cerebellum(
     neuron_model=args.neuron_model,
     input_spikes=input_spikes,
     rb_left_shifts=canonical_rbls,
-    use_split_model=True,
+    use_split_model=use_split_model,
     n_synapse_cores=1,
     n_delay_slots=64,
     no_loops=args.loops_grc,
@@ -235,8 +236,8 @@ cerebellum_circuit.selectively_record_all(from_dict=per_pop_recording_dict)
 recorded_spikes = {}
 other_recordings = {}
 
-# Store simulator and run
-simulator = get_simulator()
+# Store simulator name and run
+sim_name = sim.name
 
 # Record simulation start time (wall clock)
 sim_start_time = plt.datetime.datetime.now()
@@ -318,7 +319,7 @@ sim.end()
 # Get the provenance from the simulator's database
 structured_provenance_filename = "structured_provenance.csv"
 save_provenance_to_file_from_database(
-    structured_provenance_filename, simulator)
+    structured_provenance_filename, sim_name)
 
 # Analysis time!
 spike_analysis(results_file=results_file, fig_folder=args.figures_dir,

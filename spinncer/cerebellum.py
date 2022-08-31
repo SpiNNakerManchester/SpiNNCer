@@ -490,9 +490,9 @@ class Cerebellum(Circuit):
             if self.use_split_model:
                 if cell_name in ["granule", "golgi", "stellate", "basket",
                                  "purkinjie", "dcn"]:
-                    print("Cell {} using split synapse neuron model with {} "
-                          "synapse cores and {} delay slots".format(
-                              cell_name, self.n_synapse_cores,
+                    print("Cell {} model {} using split synapse neuron model "
+                          "with {} synapse cores and {} delay slots".format(
+                              cell_name, cell_model, self.n_synapse_cores,
                               self.n_delay_slots))
                     additional_params["splitter"] = \
                         SplitterAbstractPopulationVertexNeuronsSynapses(
