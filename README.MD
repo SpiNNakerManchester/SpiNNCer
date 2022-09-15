@@ -7,6 +7,8 @@ Supporting data for this project is available at: https://kg.ebrains.eu/search/i
 
 The full description of the model is available at: https://www.frontiersin.org/articles/10.3389/fninf.2019.00037
 
+A paper describing the work performed so far using this repository is available at: https://www.frontiersin.org/articles/10.3389/fncel.2021.622870/full
+
 ## Installation
 
 
