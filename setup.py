@@ -7,7 +7,7 @@ install_requires = [
     "numpy; python_version >= '3.8'",
     "scipy >= 0.16.0, < 1.6; python_version == '3.6'",
     "scipy >= 0.16.0, < 1.8; python_version == '3.7'",
-    "scipy >= 0.16.0; python_version >= '3.8'"
+    "scipy >= 0.16.0; python_version >= '3.8'",
     "brian2",
     "neo==0.7.1",
     "pynn==0.9.5",
