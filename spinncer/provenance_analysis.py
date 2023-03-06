@@ -111,12 +111,9 @@ def save_provenance_to_file_from_database(in_file, sim_name):
         metadata['machine'] = SpynnakerDataView.get_machine()
         metadata['structured_provenance_filename'] = in_file
 
-        # how do we loop over all the placements in the database at this point?
-        # can we get router_provenance from the database?
-        # placements is 0... so is this router(0, 0)?
         pr = ProvenanceReader(os.path.join(
-            SpynnakerDataView().get_provenance_dir_path(),
-            "provenance.sqlite3"))
+            SpynnakerDataView().get_run_dir_path(),
+            "data.sqlite3"))
 
         cores_list = pr.get_cores_with_provenance()
 
@@ -218,7 +215,7 @@ def get_provenance_for_core(pr, x, y, p):
     for column_to_get in columns_to_get:
         query = """
             SELECT the_value
-            FROM core_provenance
+            FROM core_provenance_view
             WHERE x = ? AND y = ? AND p = ? AND description = ?
             """
         # result = pr.run_query(query, [x, y, p, column_to_get])
@@ -233,7 +230,7 @@ def get_provenance_for_core(pr, x, y, p):
 def get_core_provenance_value(pr, x, y, p, description):
     query = """
         SELECT the_value
-        FROM core_provenance
+        FROM core_provenance_view
         WHERE x = ? AND y = ? AND p = ? AND description = ?
         """
     return pr.run_query(query, [x, y, p, description])
