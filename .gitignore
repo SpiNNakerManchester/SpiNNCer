@@ -2,7 +2,6 @@
 *reports/
 __pycache__/
 .idea/
-spynnaker.cfg
 *.egg-info
 *.npz
 *.out
