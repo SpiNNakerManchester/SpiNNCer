@@ -16,6 +16,9 @@ this script.
 import numpy as np
 import h5py
 
+from spynnaker.pyNN.extra_algorithms.splitter_components import (
+    SplitterAbstractPopulationVertexNeuronsSynapses)
+
 from spinncer.analysis_common import get_plot_order
 from spinncer.circuit import Circuit
 from spinncer.utilities.constants import *
@@ -45,6 +48,9 @@ class Cerebellum(Circuit):
                  neuron_model="IF_cond_exp", force_number_of_neurons=None,
                  input_spikes=None,
                  rb_left_shifts=None,
+                 use_split_model=False,
+                 n_synapse_cores=1,
+                 n_delay_slots=64,
                  no_loops=3,
                  round_input_spike_times=None,
                  id_remap=None,
@@ -77,6 +83,11 @@ class Cerebellum(Circuit):
         self.id_seed = id_seed
         self.id_remap = id_remap
         self.r_mem = r_mem
+
+        # Values for splitters
+        self.use_split_model = use_split_model
+        self.n_synapse_cores = n_synapse_cores
+        self.n_delay_slots = n_delay_slots
 
         self.expected_max_spikes = expected_max_spikes
         self.implicit_shift = implicit_shift
@@ -474,6 +485,18 @@ class Cerebellum(Circuit):
                     cell_model = self.sim.IF_curr_alpha
                 elif cell_model == "if_cond_alpha":
                     cell_model = self.sim.IF_cond_alpha
+
+            # Add splitters everywhere except for SSP populations
+            if self.use_split_model:
+                if cell_name in ["granule", "golgi", "stellate", "basket",
+                                 "purkinjie", "dcn"]:
+                    print("Cell {} model {} using split synapse neuron model "
+                          "with {} synapse cores and {} delay slots".format(
+                              cell_name, cell_model, self.n_synapse_cores,
+                              self.n_delay_slots))
+                    additional_params["splitter"] = \
+                        SplitterAbstractPopulationVertexNeuronsSynapses(
+                            self.n_synapse_cores, self.n_delay_slots, False)
 
             # Adding the population to the network
             try:

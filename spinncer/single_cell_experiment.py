@@ -13,11 +13,7 @@ import json
 # import simulator
 spinnaker_sim = False
 if str.lower(args.simulator) in ["spinnaker", "spynnaker"]:
-    try:
-        # this might be deprecated soon
-        import spynnaker8 as sim
-    except ImportError:
-        import pyNN.spynnaker as sim
+    import pyNN.spiNNaker as sim
     spinnaker_sim = True
 elif str.lower(args.simulator) in ["nest"]:
     import pyNN.nest as sim
@@ -92,7 +88,7 @@ cerebellum_circuit = Cerebellum(
     weight_scaling=args.weight_scaling,
     neuron_model=args.neuron_model,
     input_spikes=input_spikes,
-    rb_left_shifts=args.rb_left_shifts
+    rb_left_shifts=args.rb_left_shifts,
 )
 
 if args.generate_conversion_constants:

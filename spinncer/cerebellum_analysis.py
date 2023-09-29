@@ -417,6 +417,8 @@ def spike_analysis(results_file, fig_folder,
     try:
         for pop in plot_order:
             curr_spikes = neo_all_spikes[pop].segments[0].spiketrains
+            print("pop, curr_spikes: ", pop, curr_spikes)
+            print("elephant, timestep, simtime", elephant_timestep, elephant_simtime)
             curr_inst_rates = \
                 elephant.statistics.instantaneous_rate(
                     curr_spikes,
@@ -436,6 +438,9 @@ def spike_analysis(results_file, fig_folder,
             elephant_instantaneous_rates[pop] = curr_inst_rates.ravel() / all_neurons[pop]
     except:
         traceback.print_exc()
+
+    print("elephant_instantaneous_rates: ", elephant_instantaneous_rates)
+    print("all_neurons: ", all_neurons)
 
     stim_period_start = {}
     stim_period_end = {}
@@ -465,6 +470,7 @@ def spike_analysis(results_file, fig_folder,
         # before, during and after stimulation
         _filtered_spike_rates = np.zeros(stimulus_periods)
         _spike_times = spikes[:, 1]
+        _spike_nids = spikes[:, 0]
         # Initialise per_neuron_firing
         per_neuron_firing[pop] = np.ones((all_neurons[pop],
                                           stimulus_periods)) * -10
@@ -498,7 +504,7 @@ def spike_analysis(results_file, fig_folder,
                 np.count_nonzero(_filtered_spike_times) / \
                 (current_period_duration * ms)
             for nid in range(all_neurons[pop]):
-                _spikes_for_nid = spikes[spikes[:, 0] == nid][:, 1]
+                _spikes_for_nid = spikes[_spike_nids == nid][:, 1]
                 _no_spike_for_nid = np.count_nonzero(np.logical_and(
                     _spikes_for_nid >= time_filter_pre,
                     _spikes_for_nid < time_filter_post))
@@ -712,8 +718,10 @@ def spike_analysis(results_file, fig_folder,
     print("Connection Name ")
     print("{:27} | {:10} | ".format("Connection Name", "Def. W"),
           "{:20}".format("SpiNN. W"))
-    sorted_keys = list(final_connectivity.keys())
-    sorted_keys.sort()
+    sorted_keys = []
+    if final_connectivity != []:
+        sorted_keys = list(final_connectivity.keys())
+        sorted_keys.sort()
     for key in sorted_keys:
         conn = conn_dict[key]
         mean = np.abs(np.mean(conn[:, 2]))
@@ -802,8 +810,8 @@ def spike_analysis(results_file, fig_folder,
         # Report statistics here
         for key, v in all_voltages.items():
             nid, tstep = np.unravel_index(np.argmax(v, axis=None), v.shape)
-            print("{:20}-> neuron {:>8d} received {:>6d}".format(
-                key, int(nid), int(np.max(v))),
+            print("{:20}-> neuron {:>8d} received {:4.2f}".format(
+                key, int(nid), np.max(v)),
                 "nA in timestep #{:8d}".format(int(tstep)))
             # THIS IS BROKEN! it will be removed soon
             # # Also treat voltage as if it's a piggybacked value packaging

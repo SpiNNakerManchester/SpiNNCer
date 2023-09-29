@@ -1,9 +1,14 @@
 import itertools
 
+import pandas as pd
 from spinncer.analysis_common import *
 from os.path import join as join
 from numpy.polynomial.polynomial import Polynomial
 import traceback
+
+from spinn_front_end_common.interface.provenance import ProvenanceReader
+
+from spynnaker.pyNN.data import SpynnakerDataView
 
 
 def extract_per_pop_placements(df, pops):
@@ -56,6 +61,120 @@ def extract_per_pop_info(df, type_of_prov, pops, report=False):
     return pop_results
 
 
+def save_provenance_to_file_from_database(in_file, sim_name):
+    # Here we need to get the provenance from the database and put it in
+    # the specified file
+
+    # list provenance of interest
+    router_provenance_of_interest = [
+        'Dumped_from_a_Link',
+        'Dumped_from_a_processor',
+        'Local_Multicast_Packets',
+        'External_Multicast_Packets',
+        'Dropped_Multicast_Packets',
+        'Missed_For_Reinjection'
+    ]
+    prov_of_interest = [
+        'Maximum number of spikes in a timer tick',
+        'Times_synaptic_weights_have_saturated',
+        'late_packets',
+        'Times_the_input_buffer_lost_packets',
+        'Times_the_timer_tic_over_ran',
+        'Total_pre_synaptic_events',
+        'Maximum number of DMAs in a timer tick',
+        'Maximum pipeline restarts',
+        'send_multicast_packets',
+        'Maximum number of spikes flushed in a timer tick',
+        'Total number of spikes flushed'
+    ]
+
+    # Custom provenance presentation from SpiNNCer
+    # write provenance to file here in a useful way
+    columns = ['pop', 'label', 'min_atom', 'max_atom', 'no_atoms',
+               'x', 'y', 'p',
+               'prov_name', 'prov_value',
+               'fixed_sdram', 'sdram_per_timestep']
+    # assert (len(prov_placement) == len(prov_items))
+    structured_provenance = list()
+    metadata = {}
+    # Retrieve filename from spynnaker8/spinnaker.py
+    provenance_filename = in_file
+
+    if provenance_filename:
+        # Produce metadata from the simulator info
+        metadata['name'] = sim_name
+        metadata['no_machine_time_steps'] = \
+            SpynnakerDataView.get_max_run_time_steps()
+        metadata['machine_time_step'] = \
+            SpynnakerDataView.get_simulation_time_step_ms()
+        # metadata['config'] = simulator.config
+        metadata['machine'] = SpynnakerDataView.get_machine()
+        metadata['structured_provenance_filename'] = in_file
+
+        pr = ProvenanceReader(os.path.join(
+            SpynnakerDataView().get_run_dir_path(),
+            "data.sqlite3"))
+
+        cores_list = pr.get_cores_with_provenance()
+
+        # router_provenance = pr.get_provenance_for_router(0, 0)
+        # print("router_provenance: ", router_provenance)
+
+        # for i, (provenance, placement) in enumerate(zip(prov_items, prov_placement)):
+        for core in cores_list:
+            x = core[1]
+            y = core[2]
+            p = core[3]
+            structured_prov_core = get_provenance_for_core(pr, x, y, p)
+
+            pop = structured_prov_core['pop']
+            if pop == []:
+                continue
+            pop = pop[0][0]
+            fixed_sdram = structured_prov_core['fixed_sdram'][0][0]
+            sdram_per_timestep = structured_prov_core['sdram_per_timestep'][0][0]
+
+            label = structured_prov_core['label'][0][0]
+            max_atom = structured_prov_core['max_atom'][0][0]
+            min_atom = structured_prov_core['min_atom'][0][0]
+            no_atoms = structured_prov_core['no_atoms'][0][0]
+
+            for prov_name in prov_of_interest:
+                prov_value = get_core_provenance_value(pr, x, y, p, prov_name)
+                if prov_value == []:
+                    prov_value = 0
+                else:
+                    prov_value = prov_value[0][0]
+
+                structured_provenance.append(
+                    [pop, label, min_atom, max_atom, no_atoms,
+                     x, y, p,
+                     prov_name, prov_value,
+                     fixed_sdram, sdram_per_timestep]
+                )
+
+            for prov_name in router_provenance_of_interest:
+                prov_value = get_router_provenance_value(pr, x, y, prov_name)
+                if prov_value == []:
+                    prov_value = 0
+                else:
+                    prov_value = prov_value[0][0]
+
+                structured_provenance.append(
+                    [pop, label, min_atom, max_atom, no_atoms,
+                     x, y, p,
+                     prov_name, prov_value,
+                     fixed_sdram, sdram_per_timestep]
+                )
+
+        # print("structured provenance: ", structured_provenance)
+
+        structured_provenance_df = pd.DataFrame.from_records(
+            structured_provenance, columns=columns)
+
+        structured_provenance_df.to_csv("structured_provenance.csv")
+
+
 def provenance_csv_analysis(in_folder, fig_folder):
     write_header("Reading provenances in folder " + in_folder)
     prov = pd.read_csv(join(in_folder, "structured_provenance.csv"))
@@ -86,6 +205,44 @@ def provenance_csv_analysis(in_folder, fig_folder):
                                                      report=rep)
     placements = extract_per_pop_placements(prov, pops)
     return results, types_of_provenance, prov_of_interest, placements
+
+
+def get_provenance_for_core(pr, x, y, p):
+    structured_prov = {}
+    columns_to_get = ['pop', 'label', 'min_atom', 'max_atom', 'no_atoms',
+               'fixed_sdram', 'sdram_per_timestep']  # add more as needed
+
+    for column_to_get in columns_to_get:
+        query = """
+            SELECT the_value
+            FROM core_provenance_view
+            WHERE x = ? AND y = ? AND p = ? AND description = ?
+            """
+        # result = pr.run_query(query, [x, y, p, column_to_get])
+        structured_prov[column_to_get] = pr.run_query(
+            query, [x, y, p, column_to_get])
+        # print('x,y,p,desc: ', x, y, p, column_to_get,
+        #       structured_prov[column_to_get])
+
+    return structured_prov
+
+
+def get_core_provenance_value(pr, x, y, p, description):
+    query = """
+        SELECT the_value
+        FROM core_provenance_view
+        WHERE x = ? AND y = ? AND p = ? AND description = ?
+        """
+    return pr.run_query(query, [x, y, p, description])
+
+
+def get_router_provenance_value(pr, x, y, description):
+    query = """
+        SELECT the_value
+        FROM router_provenance
+        WHERE x = ? AND y = ? AND description = ?
+        """
+    return pr.run_query(query, [x, y, description])
 
 
 def sweep_provenance_analysis(in_folder, fig_folder, group_on,
